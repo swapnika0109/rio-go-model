@@ -1,3 +1,14 @@
+# Binaries
 main
 *.exe
+
+# Logs
 logs/
+
+# Sensitive files
+internal/services/database/serviceAccount.json
+*.json
+
+# But allow these JSON files
+!docs/swagger.json
+!docs/swagger.yaml
