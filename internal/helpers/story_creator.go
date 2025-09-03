@@ -28,6 +28,7 @@ type AIRequest struct {
 	Temperature float64       `json:"temperature,omitempty"`
 	MaxTokens   int           `json:"max_tokens,omitempty"`
 	TopP        float64       `json:"top_p,omitempty"`
+	Stream      bool          `json:"stream,omitempty"`
 }
 
 // AIMessage represents a message in the AI conversation
@@ -68,7 +69,8 @@ func NewStoryCreator() *StoryCreator {
 	return &StoryCreator{
 		logger:  log.New(log.Writer(), "[story.views] ", log.LstdFlags),
 		apiKey:  apiKey,
-		baseURL: "https://api.together.xyz/v1", // Together AI endpoint
+		// baseURL: "https://api.together.xyz/v1", // Together AI endpoint
+		baseURL: "https://router.huggingface.co/v1", // Fal AI endpoint
 		client: &http.Client{
 			Timeout: 60 * time.Second,
 		},
@@ -81,13 +83,14 @@ func (s *StoryCreator) CreateTopics(prompt string) (*TopicResponse, error) {
 
 	// Prepare the request
 	request := AIRequest{
-		Model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+		Model: "openai/gpt-oss-120b:together",
 		Messages: []AIMessage{
 			{
 				Role:    "user",
 				Content: prompt,
 			},
 		},
+		Stream: false,
 	}
 
 	// Make API call
@@ -151,7 +154,7 @@ func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[
 
 	// Prepare the request
 	request := AIRequest{
-		Model: "mistralai/Mixtral-8x7B-Instruct-v0.1",
+		Model: "openai/gpt-oss-120b:together",
 		Messages: []AIMessage{
 			{
 				Role:    "system",
@@ -165,6 +168,7 @@ func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[
 		Temperature: 0.9,
 		MaxTokens:  1000,
 		TopP:       0.9,
+		Stream:     false,
 	}
 
 	// Make API call
@@ -215,6 +219,7 @@ func (s *StoryCreator) makeAIRequest(endpoint string, request AIRequest) (*AIRes
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %v", err)
 	}
+	
 	defer resp.Body.Close()
 
 	// Check status code

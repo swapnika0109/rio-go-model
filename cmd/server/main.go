@@ -32,12 +32,21 @@ import (
 	"rio-go-model/docs"
 	"rio-go-model/internal/handlers"
 	"rio-go-model/internal/services/database"
-
+	"github.com/joho/godotenv"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
+	
 )
 
 func main() {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("❌ Failed to load environment variables: %v", err)
+	}
+
+
+
 	// Initialize Swagger docs
 	docs.SwaggerInfo.Title = "Story API"
 	docs.SwaggerInfo.Description = "A comprehensive API for generating and managing stories with AI"
@@ -50,10 +59,20 @@ func main() {
 	ctx := context.Background()
 	
 	// Initialize database service
+	log.Println("🔧 Initializing database service...")
 	storyDB := database.NewStoryDatabase()
+	if err := storyDB.Init(ctx); err != nil {
+		log.Fatalf("❌ Failed to initialize database: %v", err)
+	}
+	log.Println("✅ Database service initialized successfully")
 	
 	// Initialize storage service
+	log.Println("🔧 Initializing storage service...")
 	storageService := database.NewStorageService("kutty_bucket")
+	if err := storageService.Init(ctx); err != nil {
+		log.Fatalf("❌ Failed to initialize storage service: %v", err)
+	}
+	log.Println("✅ Storage service initialized successfully")
 	
 	// Create router
 	r := mux.NewRouter()

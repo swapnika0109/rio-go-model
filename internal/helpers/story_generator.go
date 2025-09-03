@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	// "log"
 
 	"rio-go-model/configs"
 	"rio-go-model/internal/services/database"
@@ -19,6 +20,7 @@ type StoryGenerationHelper struct {
 	settings         *configs.Settings
 	logger           *util.CustomLogger
 	storyCreator     *StoryCreator
+	imageCreator     *ImageCreator
 	audioGenerator   *AudioGenerator
 	dynamicPrompting *DynamicPrompting
 	storyDatabase    *database.StoryDatabase
@@ -75,6 +77,7 @@ func NewStoryGenerationHelper(
 		settings:         settings,
 		logger:           logger,
 		storyCreator:     NewStoryCreator(),
+		imageCreator:     NewImageCreator(),
 		audioGenerator:   NewAudioGenerator(),
 		dynamicPrompting: NewDynamicPrompting(),
 		storyDatabase:    storyDB,
@@ -84,7 +87,7 @@ func NewStoryGenerationHelper(
 }
 
 // GenerateImage generates an image from a prompt using AI
-func (sgh *StoryGenerationHelper) GenerateImage(prompt string) (string, error) {
+func (sgh *StoryGenerationHelper) GenerateImage(prompt string) (string, error){
 	sgh.logger.Infof("Generating image for prompt: %s", prompt[:min(len(prompt), 50)])
 
 	// Add kid-friendly modifiers to the prompt
@@ -92,15 +95,12 @@ func (sgh *StoryGenerationHelper) GenerateImage(prompt string) (string, error) {
 		"kid-friendly, child-safe, colorful, cute, playful, %s, suitable for children, cartoon style, soft colors, friendly characters",
 		prompt,
 	)
+	imgResp, err := sgh.imageCreator.CreateImage(kidFriendlyPrompt)
+	if err != nil {
+		return "", err
 
-	// For now, return a placeholder
-	// In a real implementation, you would call an image generation API
-	// This is where you'd integrate with HuggingFace FLUX.1-dev or similar
-	sgh.logger.Warnf("Image generation not implemented - returning placeholder for prompt: %s", kidFriendlyPrompt)
-	
-	// Return a placeholder base64 image (1x1 transparent PNG)
-	placeholderImage := "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
-	return placeholderImage, nil
+	}
+	return imgResp.Base64, nil
 }
 
 // StoryHelper generates a complete story with image and audio
@@ -213,6 +213,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 	go func() {
 		// Decode base64 image data
 		imageBytes, err := base64.StdEncoding.DecodeString(imageData)
+
 		if err != nil {
 			imageUploadChan <- struct {
 				url string
@@ -322,7 +323,8 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 func (sgh *StoryGenerationHelper) UploadMetadata(ctx context.Context, token, username, email string, metadata *MetadataRequest) error {
 	sgh.logger.Infof("Uploading metadata for user: %s", email)
 
-	// Check if user profile exists
+
+	//Check if user profile exists
 	userProfile, err := sgh.storyDatabase.GetUserProfile(ctx, username, email)
 	if err != nil || userProfile == nil {
 		// Create user profile
@@ -367,7 +369,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	var wg sync.WaitGroup
 	wg.Add(3)
 
-	// Process theme 1
+	//Process theme 1
 	go func() {
 		defer wg.Done()
 		if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences); err != nil {

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
+	// "path/filepath"
 	"strings"
 	"time"
 
@@ -35,7 +35,7 @@ func (s *StorageService) Init(ctx context.Context) error {
 	var err error
 
 	// Try to use service account file first
-	credPath := filepath.Join(filepath.Dir("."), "configs", "serviceAccount.json")
+	credPath := "serviceAccount.json"
 	if _, err := os.Stat(credPath); err == nil {
 		log.Println("Using service account from file for storage")
 		client, err = storage.NewClient(ctx, option.WithCredentialsFile(credPath))

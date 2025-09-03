@@ -86,7 +86,7 @@ func NewSettings() *Settings {
 		HuggingFaceToken:       getEnvString("HUGGINGFACE_TOKEN", ""),
 		SecretKey:             getEnvString("SECRET_KEY", "your-secret-key-here"),
 		DefaultStoryToGenerate: getEnvInt("DEFAULT_STORY_TO_GENERATE", 10),
-		StoriesPerTheme:       getEnvInt("STORIES_PER_THEME", 4),
+		StoriesPerTheme:       getEnvInt("STORIES_PER_THEME", 1),
 		DataUploadMaxMemorySize: getEnvInt("DATA_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
 		FileUploadMaxMemorySize: getEnvInt("FILE_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
 

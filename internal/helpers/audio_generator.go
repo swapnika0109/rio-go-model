@@ -47,7 +47,7 @@ func NewAudioGenerator() *AudioGenerator {
 	return &AudioGenerator{
 		logger:  log.New(log.Writer(), "[audio.generator] ", log.LstdFlags),
 		apiKey:  apiKey,
-		baseURL: "https://api.fal.ai/v1", // fal.ai endpoint
+		baseURL: "https://router.huggingface.co/fal-ai/fal-ai/kokoro/american-english", // fal.ai endpoint
 		client: &http.Client{
 			Timeout: 120 * time.Second, // Longer timeout for audio generation
 		},
@@ -156,8 +156,11 @@ func (a *AudioGenerator) GenerateAudioOpenVoice(prompt string) (string, error) {
 func (a *AudioGenerator) generateAudioFalAI(text string) ([]byte, error) {
 	// Prepare the request for fal.ai
 	request := map[string]interface{}{
-		"model": "hexgrad/Kokoro-82M",
-		"text":  text,
+		"version": "latest",
+		"text": text,
+		// "input": map[string]interface{}{
+		// 	"text": text,
+		// },
 	}
 
 	// Convert request to JSON
@@ -167,7 +170,7 @@ func (a *AudioGenerator) generateAudioFalAI(text string) ([]byte, error) {
 	}
 
 	// Create HTTP request
-	req, err := http.NewRequest("POST", a.baseURL+"/text-to-speech", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", a.baseURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -185,11 +188,14 @@ func (a *AudioGenerator) generateAudioFalAI(text string) ([]byte, error) {
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fal.ai API returned status: %d - %s", resp.StatusCode, resp.Status)
+		// Read error response body for debugging
+		errorBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("fal.ai API returned status: %d - %s. Error: %s", resp.StatusCode, resp.Status, string(errorBody))
 	}
 
 	// Read the audio data
 	audioData, err := io.ReadAll(resp.Body)
+	
 	if err != nil {
 		return nil, fmt.Errorf("failed to read audio response: %v", err)
 	}
@@ -215,33 +221,7 @@ func (a *AudioGenerator) GenerateAudioWithModel(prompt, model string) (string, e
 	}
 }
 
-// HealthCheck checks if the audio generation services are accessible
-func (a *AudioGenerator) HealthCheck() map[string]interface{} {
-	healthStatus := map[string]interface{}{
-		"status":  "healthy",
-		"service": "AudioGenerator",
-		"time":    time.Now().Format(time.RFC3339),
-	}
 
-	// Check fal.ai API
-	if a.apiKey != "" {
-		healthStatus["fal_ai"] = "configured"
-	} else {
-		healthStatus["fal_ai"] = "not_configured"
-	}
-
-	// Check OpenVoice local service
-	openVoiceHealth := a.checkOpenVoiceHealth()
-	healthStatus["openvoice"] = openVoiceHealth
-
-	// Overall health
-	if openVoiceHealth == "unhealthy" && a.apiKey == "" {
-		healthStatus["status"] = "unhealthy"
-		healthStatus["error"] = "No audio generation services available"
-	}
-
-	return healthStatus
-}
 
 // checkOpenVoiceHealth checks if the local OpenVoice service is running
 func (a *AudioGenerator) checkOpenVoiceHealth() string {

@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
+	// "path/filepath"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	// "rio-go-model/configs"
 )
 
 // StoryDatabase represents a Firestore database service for stories
@@ -24,6 +25,7 @@ type StoryDatabase struct {
 	mdCollection3     string
 	userProfiles      string
 	appHelper         *AppHelper
+	// configs           *configs.ServiceAccount
 }
 
 // AppHelper represents the helper utility for document ID generation
@@ -52,14 +54,16 @@ func (s *StoryDatabase) Init(ctx context.Context) error {
 	var err error
 
 	// Try to use service account file first
-	credPath := filepath.Join(filepath.Dir("."), "configs", "serviceAccount.json")
-	if _, err := os.Stat(credPath); err == nil {
+	// credPath := filepath.Join(filepath.Dir(".././"), "configs", "serviceAccount.json")
+	credPath := "serviceAccount.json"
+	_, err = os.Stat(credPath)
+	if err == nil {
 		log.Println("Using service account from file")
-		client, err = firestore.NewClient(ctx, "your-project-id", option.WithCredentialsFile(credPath))
+		client, err = firestore.NewClient(ctx, "riokutty", option.WithCredentialsFile(credPath))
 	} else {
 		log.Println("Using default credentials")
 		// In Cloud Run, use the default service account
-		client, err = firestore.NewClient(ctx, "your-project-id")
+		client, err = firestore.NewClient(ctx, "riokutty")
 	}
 
 	if err != nil {
@@ -111,15 +115,21 @@ func (s *StoryDatabase) CreateMDTopics1(ctx context.Context, country, city strin
 
 // GetUserProfile retrieves a user profile by email
 func (s *StoryDatabase) GetUserProfile(ctx context.Context, username, emailID string) (map[string]interface{}, error) {
-	log.Printf("Getting user profile for email: %s", emailID)
+
+	
+	if s.client == nil {
+		log.Printf("❌ DEBUG: Firestore client is nil!")
+		return nil, fmt.Errorf("Firestore client not initialized")
+	}
 
 	doc, err := s.client.Collection(s.userProfiles).Doc(emailID).Get(ctx)
 	if err != nil {
+		log.Printf("❌ DEBUG: Error reading user profile: %v", err)
 		return nil, fmt.Errorf("error reading user profile: %v", err)
 	}
 
 	data := doc.Data()
-	log.Printf("User profile data: %v", data)
+	log.Printf("✅ DEBUG: User profile data: %v", data)
 	return data, nil
 }
 

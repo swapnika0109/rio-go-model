@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -119,19 +120,23 @@ type StoryResponse struct {
 // @Router /story [post]
 // @Security BearerAuth
 func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
-	// Verify authentication
+		// Verify authentication
 	username, email, err := h.verifyAuth(r)
 	if err != nil {
+		log.Printf("❌ DEBUG: Authentication failed: %v", err)
 		h.sendErrorResponse(w, http.StatusUnauthorized, err.Error())
 		return
 	}
+	log.Printf("✅ DEBUG: Authentication successful - Username: %s, Email: %s", username, email)
 
 	// Parse request body
 	var req CreateStoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("❌ DEBUG: Failed to parse request body: %v", err)
 		h.sendErrorResponse(w, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+	log.Printf("✅ DEBUG: Request body parsed successfully: %+v", req)
 
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -145,9 +150,11 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
+		log.Printf("❌ DEBUG: UploadMetadata failed: %v", err)
 		h.sendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	log.Println("✅ DEBUG: UploadMetadata completed successfully")
 
 	// service from context (you'll need to inject this)
 	// For now, we'll return a mock response
