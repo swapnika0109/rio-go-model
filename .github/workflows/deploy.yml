@@ -1,0 +1,49 @@
+name: CI/CD Pipeline - Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  PROJECT_ID: riokutty
+  REGION: us-central1
+  SERVICE_NAME: rio-go-model
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ env.PROJECT_ID }}
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy ${{ env.SERVICE_NAME }} \
+          --source . \
+          --platform managed \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated \
+          --memory 2Gi \
+          --cpu 2 \
+          --timeout 3600 \
+          --concurrency 10 \
+          --max-instances 5 \
+          --min-instances 0 \
+          --set-env-vars HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }}
+
+    - name: Show service URL
+      run: |
+        gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)'
