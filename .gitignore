@@ -6,6 +6,10 @@ main
 logs/
 
 # Sensitive files
+.env
+.env.local
+.env.production
+.env.staging
 internal/services/database/serviceAccount.json
 *.json
 
