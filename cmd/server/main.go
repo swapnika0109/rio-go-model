@@ -39,46 +39,42 @@ import (
 )
 
 func main() {
-
+	// Load environment variables
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatalf("❌ Failed to load environment variables: %v", err)
 	}
 
-
-
 	// Initialize Swagger docs
 	docs.SwaggerInfo.Title = "Story API"
 	docs.SwaggerInfo.Description = "A comprehensive API for generating and managing stories with AI"
 	docs.SwaggerInfo.Version = "1.0"
-	docs.SwaggerInfo.Host = "localhost:8080"
+	docs.SwaggerInfo.Host = "localhost:8080" // This will be overridden in production
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	docs.SwaggerInfo.Schemes = []string{"http"}
 
-	// Initialize services
-	ctx := context.Background()
-	
-	// Initialize database service
-	log.Println("🔧 Initializing database service...")
-	storyDB := database.NewStoryDatabase()
-	if err := storyDB.Init(ctx); err != nil {
-		log.Fatalf("❌ Failed to initialize database: %v", err)
+	// Get port from environment variable, default to 8080 for local development
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
 	}
-	log.Println("✅ Database service initialized successfully")
-	
-	// Initialize storage service
-	log.Println("🔧 Initializing storage service...")
-	storageService := database.NewStorageService("kutty_bucket")
-	if err := storageService.Init(ctx); err != nil {
-		log.Fatalf("❌ Failed to initialize storage service: %v", err)
-	}
-	log.Println("✅ Storage service initialized successfully")
-	
+
+	log.Printf("🚀 Server will start on port: %s", port)
+
 	// Create router
 	r := mux.NewRouter()
 
-	// Create story topics handler with proper dependency injection
-	storyTopicsHandler := handlers.NewStory(storyDB, storageService)
+	// Add health check endpoint immediately
+	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}).Methods("GET")
+
+	// Add readiness check endpoint
+	r.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}).Methods("GET")
 
 	// Documentation endpoint
 	r.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
@@ -106,37 +102,10 @@ func main() {
 				<h1>📚 Story API Documentation</h1>
 				
 				<div class="endpoint">
-					<h3><span class="method get">GET</span> <span class="url">/api/v1/story-topics</span> <span class="auth">🔒 Auth Required</span></h3>
-					<p><strong>Description:</strong> Get all story topics</p>
+					<h3><span class="method post">POST</span> <span class="url">/api/v1/story</span> <span class="auth">🔒 Auth Required</span></h3>
+					<p><strong>Description:</strong> Create a new story</p>
 					<p><strong>Headers:</strong> Authorization: Bearer &lt;token&gt;</p>
-					<p><strong>Response:</strong> List of all story topics</p>
-				</div>
-				
-				<div class="endpoint">
-					<h3><span class="method post">POST</span> <span class="url">/api/v1/story-topics</span> <span class="auth">🔒 Auth Required</span></h3>
-					<p><strong>Description:</strong> Create a new story topic</p>
-					<p><strong>Headers:</strong> Authorization: Bearer &lt;token&gt;</p>
-					<p><strong>Body:</strong> JSON with country, city, religions, preferences</p>
-				</div>
-				
-				<div class="endpoint">
-					<h3><span class="method get">GET</span> <span class="url">/api/v1/story-topics/{id}</span> <span class="auth">🔒 Auth Required</span></h3>
-					<p><strong>Description:</strong> Get a specific story topic by ID</p>
-					<p><strong>Headers:</strong> Authorization: Bearer &lt;token&gt;</p>
-					<p><strong>Parameters:</strong> id in URL path</p>
-				</div>
-				
-				<div class="endpoint">
-					<h3><span class="method put">PUT</span> <span class="url">/api/v1/story-topics/{id}</span> <span class="auth">🔒 Auth Required</span></h3>
-					<p><strong>Description:</strong> Update a story topic</p>
-					<p><strong>Headers:</strong> Authorization: Bearer &lt;token&gt;</p>
-					<p><strong>Body:</strong> JSON with fields to update</p>
-				</div>
-				
-				<div class="endpoint">
-					<h3><span class="method delete">DELETE</span> <span class="url">/api/v1/story-topics/{id}</span> <span class="auth">🔒 Auth Required</span></h3>
-					<p><strong>Description:</strong> Delete a story topic</p>
-					<p><strong>Headers:</strong> Authorization: Bearer &lt;token&gt;</p>
+					<p><strong>Body:</strong> JSON with story data</p>
 				</div>
 				
 				<hr style="margin: 30px 0;">
@@ -153,16 +122,6 @@ func main() {
 		w.Write([]byte(html))
 	}).Methods("GET")
 
-	// API routes using your actual handlers
-	api := r.PathPrefix("/api/v1").Subrouter()
-	
-	// Story Topics routes - using your actual API methods
-	// api.HandleFunc("/story-topics", storyTopicsHandler.GetStoryTopics).Methods("POST")
-	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
-	// api.HandleFunc("/story-topics/{id}", storyTopicsHandler.GetStory).Methods("POST")
-	// api.HandleFunc("/story-topics/{id}", storyTopicsHandler.UpdateStory).Methods("PUT")
-	// api.HandleFunc("/story-topics/{id}", storyTopicsHandler.DeleteStory).Methods("DELETE")
-	
 	// Swagger documentation
 	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
@@ -171,20 +130,46 @@ func main() {
 		httpSwagger.DomID("swagger-ui"),
 	))
 
-	// Start server
+	// Initialize services
+	ctx := context.Background()
+	
+	// Initialize database service
+	log.Println("🔧 Initializing database service...")
+	storyDB := database.NewStoryDatabase()
+	if err := storyDB.Init(ctx); err != nil {
+		log.Fatalf("❌ Failed to initialize database: %v", err)
+	}
+	log.Println("✅ Database service initialized successfully")
+	
+	// Initialize storage service
+	log.Println("🔧 Initializing storage service...")
+	storageService := database.NewStorageService("kutty_bucket")
+	if err := storageService.Init(ctx); err != nil {
+		log.Fatalf("❌ Failed to initialize storage service: %v", err)
+	}
+	log.Println("✅ Storage service initialized successfully")
+
+	// Create story topics handler with proper dependency injection
+	storyTopicsHandler := handlers.NewStory(storyDB, storageService)
+
+	// API routes using your actual handlers
+	api := r.PathPrefix("/api/v1").Subrouter()
+	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
+
 	// Create server with graceful shutdown
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + port,
 		Handler: r,
 	}
 
 	// Start server in a goroutine
 	go func() {
-		log.Println("Starting server on :8080")
-		log.Println("📚 Documentation available at: http://localhost:8080/docs")
+		log.Printf("🌐 Starting server on :%s", port)
+		log.Printf("📚 Documentation available at: http://localhost:%s/docs", port)
 		log.Println("🔒 All APIs require authentication")
+		log.Println("✅ Server is ready to accept connections")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			log.Fatalf("❌ Server error: %v", err)
 		}
 	}()
 

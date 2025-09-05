@@ -42,7 +42,8 @@ jobs:
           --concurrency 10 \
           --max-instances 5 \
           --min-instances 0 \
-          --set-env-vars HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }},GOOGLE_CLOUD_PROJECT=riokutty,STORAGE_BUCKET_NAME=kutty_bucket
+          --port 8080 \
+          --set-env-vars HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }},GOOGLE_CLOUD_PROJECT=riokutty,STORAGE_BUCKET_NAME=kutty_bucket,PORT=8080
 
     - name: Show service URL
       run: |
