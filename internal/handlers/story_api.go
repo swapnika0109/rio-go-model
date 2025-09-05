@@ -166,9 +166,8 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	}
 	h.storyGenerator = helpers.NewStoryGenerationHelper(h.storyDB, h.storageService)
 	log.Println("✅ All services initialized successfully - ready for future requests")
-}
-
-	err = h.storyGenerator.UploadMetadata(ctx, "", username, email, &helpers.MetadataRequest{
+	
+	err := h.storyGenerator.UploadMetadata(ctx, "", username, email, &helpers.MetadataRequest{
 		Country:     req.Country,
 		City:        req.City,
 		Religions:   req.Religions,
