@@ -37,10 +37,15 @@ import (
 
 func main() {
 	// Load environment variables
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("❌ Failed to load environment variables: %v", err)
-	}
+	if err := godotenv.Load(); err != nil {
+        log.Println("ℹ️  No .env file found, using system environment variables")
+    }
+    
+    // Get port from environment variable
+    port := os.Getenv("PORT")
+    if port == "" {
+        port = "8080"
+    }
 
 	// Initialize Swagger docs
 	docs.SwaggerInfo.Title = "Story API"
