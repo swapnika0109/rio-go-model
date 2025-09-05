@@ -15,20 +15,19 @@ import (
 
 // StoryTopics represents the story topics handler
 type Story struct {
-	storyDB        *database.StoryDatabase
-	storageService *database.StorageService
 	storyGenerator *helpers.StoryGenerationHelper
+	storageServiceOn bool
+	storyDB *database.StoryDatabase
+	storageService *database.StorageService
 }
 
-// NewStoryTopics creates a new story topics handler
-func NewStory(
-	storyDB *database.StoryDatabase,
-	storageService *database.StorageService,
-) *Story {
+// NewStory creates a new story topics handler
+func NewStory(storyDB *database.StoryDatabase, 
+	storageService *database.StorageService) *Story {
 	return &Story{
-		storyDB:        storyDB,
+		storyGenerator: nil,
+		storyDB: storyDB,
 		storageService: storageService,
-		storyGenerator: helpers.NewStoryGenerationHelper(storyDB, storageService),
 	}
 }
 
@@ -120,6 +119,7 @@ type StoryResponse struct {
 // @Router /story [post]
 // @Security BearerAuth
 func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
+
 		// Verify authentication
 	username, email, err := h.verifyAuth(r)
 	if err != nil {
@@ -141,6 +141,32 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
+
+	if h.storyDB == nil {
+		log.Println("🔧 Initializing database service...")
+		h.storyDB = database.NewStoryDatabase()
+		if err := h.storyDB.Init(ctx); err != nil {
+			log.Printf("❌ Failed to initialize database: %v", err)
+			http.Error(w, "Database initialization failed", http.StatusInternalServerError)
+			return
+		}
+		log.Println("✅ Database service initialized successfully")
+	}
+	if h.storageService == nil {
+
+		// Initialize storage service
+		log.Println("🔧 Initializing storage service...")
+		h.storageService = database.NewStorageService("kutty_bucket")
+		if err := h.storageService.Init(ctx); err != nil {
+			log.Printf("❌ Failed to initialize storage service: %v", err)
+			http.Error(w, "Storage initialization failed", http.StatusInternalServerError)
+			return
+		}
+		log.Println("✅ Storage service initialized successfully")
+	}
+	h.storyGenerator = helpers.NewStoryGenerationHelper(h.storyDB, h.storageService)
+	log.Println("✅ All services initialized successfully - ready for future requests")
+}
 
 	err = h.storyGenerator.UploadMetadata(ctx, "", username, email, &helpers.MetadataRequest{
 		Country:     req.Country,

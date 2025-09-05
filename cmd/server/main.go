@@ -64,6 +64,34 @@ func main() {
 	var storyTopicsHandler *handlers.Story
 	var servicesReady bool
 
+	// Run initialization in background
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		
+		log.Println("🔧 Initializing database service...")
+		storyDB = database.NewStoryDatabase()
+		if err := storyDB.Init(ctx); err != nil {
+			log.Printf("❌ Failed to initialize database: %v", err)
+			return
+		}
+		log.Println("✅ Database service initialized successfully")
+		
+		// Initialize storage service
+		log.Println("🔧 Initializing storage service...")
+		storageService = database.NewStorageService("kutty_bucket")
+		if err := storageService.Init(ctx); err != nil {
+			log.Printf("❌ Failed to initialize storage service: %v", err)
+			return
+		}
+		log.Println("✅ Storage service initialized successfully")
+		
+		// Create handler with initialized services
+		storyTopicsHandler = handlers.NewStory(storyDB, storageService)
+		servicesReady = true
+		log.Println("✅ All services initialized successfully - ready for future requests")
+	}()
+
 	// Create router
 	r := mux.NewRouter()
 
@@ -138,41 +166,16 @@ func main() {
 		httpSwagger.DomID("swagger-ui"),
 	))
 
-	// Initialize services in background
-	go func() {
-		ctx := context.Background()
-		
-		// Initialize database service
-		log.Println("🔧 Initializing database service...")
-		storyDB = database.NewStoryDatabase()
-		if err := storyDB.Init(ctx); err != nil {
-			log.Printf("❌ Failed to initialize database: %v", err)
+	// Register API routes
+	api := r.PathPrefix("/api/v1").Subrouter()
+	api.HandleFunc("/story", func(w http.ResponseWriter, r *http.Request) {
+		if !servicesReady || storyTopicsHandler == nil {
+			http.Error(w, "Service not ready yet", http.StatusServiceUnavailable)
 			return
 		}
-		log.Println("✅ Database service initialized successfully")
-		
-		// Initialize storage service
-		log.Println("🔧 Initializing storage service...")
-		storageService = database.NewStorageService("kutty_bucket")
-		if err := storageService.Init(ctx); err != nil {
-			log.Printf("❌ Failed to initialize storage service: %v", err)
-			return
-		}
-		log.Println("✅ Storage service initialized successfully")
-
-		// Create story topics handler with proper dependency injection
-		storyTopicsHandler = handlers.NewStory(storyDB, storageService)
-		
-		// Now register the API routes
-		api := r.PathPrefix("/api/v1").Subrouter()
-		api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
-		
-		servicesReady = true
-		log.Println("✅ All services and API routes initialized successfully")
-	}()
-
-	// Give the background task a moment to start
-	time.Sleep(1 * time.Second)
+		// Use the already initialized handler
+		storyTopicsHandler.CreateStory(w, r)
+	}).Methods("POST")
 
 	// Create server with graceful shutdown
 	srv := &http.Server{
