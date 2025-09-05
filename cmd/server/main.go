@@ -25,8 +25,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"rio-go-model/docs"
@@ -35,7 +33,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
-	
 )
 
 func main() {
@@ -61,6 +58,12 @@ func main() {
 
 	log.Printf("🚀 Server will start on port: %s", port)
 
+	// Initialize services in background to avoid startup timeout
+	var storyDB *database.StoryDatabase
+	var storageService *database.StorageService
+	var storyTopicsHandler *handlers.Story
+	var servicesReady bool
+
 	// Create router
 	r := mux.NewRouter()
 
@@ -72,6 +75,11 @@ func main() {
 
 	// Add readiness check endpoint
 	r.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
+		if !servicesReady {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("Service not ready"))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	}).Methods("GET")
@@ -130,31 +138,41 @@ func main() {
 		httpSwagger.DomID("swagger-ui"),
 	))
 
-	// Initialize services
-	ctx := context.Background()
-	
-	// Initialize database service
-	log.Println("🔧 Initializing database service...")
-	storyDB := database.NewStoryDatabase()
-	if err := storyDB.Init(ctx); err != nil {
-		log.Fatalf("❌ Failed to initialize database: %v", err)
-	}
-	log.Println("✅ Database service initialized successfully")
-	
-	// Initialize storage service
-	log.Println("🔧 Initializing storage service...")
-	storageService := database.NewStorageService("kutty_bucket")
-	if err := storageService.Init(ctx); err != nil {
-		log.Fatalf("❌ Failed to initialize storage service: %v", err)
-	}
-	log.Println("✅ Storage service initialized successfully")
+	// Initialize services in background
+	go func() {
+		ctx := context.Background()
+		
+		// Initialize database service
+		log.Println("🔧 Initializing database service...")
+		storyDB = database.NewStoryDatabase()
+		if err := storyDB.Init(ctx); err != nil {
+			log.Printf("❌ Failed to initialize database: %v", err)
+			return
+		}
+		log.Println("✅ Database service initialized successfully")
+		
+		// Initialize storage service
+		log.Println("🔧 Initializing storage service...")
+		storageService = database.NewStorageService("kutty_bucket")
+		if err := storageService.Init(ctx); err != nil {
+			log.Printf("❌ Failed to initialize storage service: %v", err)
+			return
+		}
+		log.Println("✅ Storage service initialized successfully")
 
-	// Create story topics handler with proper dependency injection
-	storyTopicsHandler := handlers.NewStory(storyDB, storageService)
+		// Create story topics handler with proper dependency injection
+		storyTopicsHandler = handlers.NewStory(storyDB, storageService)
+		
+		// Now register the API routes
+		api := r.PathPrefix("/api/v1").Subrouter()
+		api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
+		
+		servicesReady = true
+		log.Println("✅ All services and API routes initialized successfully")
+	}()
 
-	// API routes using your actual handlers
-	api := r.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
+	// Give the background task a moment to start
+	time.Sleep(1 * time.Second)
 
 	// Create server with graceful shutdown
 	srv := &http.Server{
@@ -162,40 +180,14 @@ func main() {
 		Handler: r,
 	}
 
-	// Start server in a goroutine
-	go func() {
-		log.Printf("🌐 Starting server on :%s", port)
-		log.Printf("📚 Documentation available at: http://localhost:%s/docs", port)
-		log.Println("🔒 All APIs require authentication")
-		log.Println("✅ Server is ready to accept connections")
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("❌ Server error: %v", err)
-		}
-	}()
+	// Start server immediately in main thread
+	log.Printf("🌐 Starting server on :%s", port)
+	log.Printf("📚 Documentation available at: http://localhost:%s/docs", port)
+	log.Println("🔒 All APIs require authentication")
+	log.Println("✅ Server is ready to accept connections")
 
-	// Wait for interrupt signal to gracefully shutdown the server
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Shutting down server...")
-
-	// Graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Close database connections
-	if err := storyDB.Close(); err != nil {
-		log.Printf("Error closing database: %v", err)
+	// Start server in main thread - this will block until shutdown
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("❌ Server error: %v", err)
 	}
-
-	if err := storageService.Close(); err != nil {
-		log.Printf("Error closing storage service: %v", err)
-	}
-
-	// Shutdown server
-	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
-	}
-
-	log.Println("Server exited gracefully")
 }
