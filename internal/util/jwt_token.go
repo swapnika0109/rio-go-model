@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"github.com/golang-jwt/jwt/v5"
+	"rio-go-model/configs"
 )
 
 type HttpError struct {
@@ -17,12 +19,35 @@ func (e *HttpError) Error() string {
 	return fmt.Sprintf("HTTP %d: %s", e.Status, e.Message)
 }
 
+
 func VerifyToken(token string) (string, string, error) {
-	username, email, err := ValidateGoogleToken(token)
+	username, email, err := validateToken(token)
 	if err != nil {
 		return "", "", err
 	}
 
+	return username, email, nil
+}
+
+func validateToken(token string) (string, string, error) {
+	var username, email string
+	if token != "" {
+		secretKey := configs.LoadSettings().SecretKey
+		token, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+			return []byte(secretKey), nil
+		})
+
+		if err != nil {
+			return "", "", fmt.Errorf("failed to parse JWT: %v", err)
+		}
+
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			email = claims["email"].(string)
+			username = claims["username"].(string)
+		}
+		
+	}
+	 
 	return username, email, nil
 }
 
