@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	// "log"
+	"log"
 
 	"rio-go-model/configs"
 	"rio-go-model/internal/services/database"
@@ -316,6 +316,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 		}
 	}()
 
+	log.Println("Story response: %v", storyResponse)
 	return responseData, nil
 }
 
@@ -367,7 +368,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	
 	// Create a wait group to track all background tasks
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(1)
 
 	//Process theme 1
 	go func() {
@@ -377,21 +378,21 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		}
 	}()
 
-	// Process theme 2
-	go func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences); err != nil {
-			sgh.logger.Errorf("Theme 2 processing error: %v", err)
-		}
-	}()
+	// // Process theme 2
+	// go func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences); err != nil {
+	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
+	// 	}
+	// }()
 
-	// Process theme 3
-	go func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences); err != nil {
-			sgh.logger.Errorf("Theme 3 processing error: %v", err)
-		}
-	}()
+	// // Process theme 3
+	// go func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences); err != nil {
+	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
+	// 	}
+	// }()
 
 	// Wait for all tasks to complete
 	wg.Wait()

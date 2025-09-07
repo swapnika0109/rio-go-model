@@ -29,6 +29,9 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 	
 	superPrompt := fmt.Sprintf(
 		"Generate a minimum of %d topics based on PLANET, ENVIRONMENT, ANIMALS, PLACES, PEOPLE, and other things that are related to the theme %s. "+
+			"The topics should be easy, catchy and interesting in a way that kids can understand."+
+			"The topics should be illustrate a story that kids can understand."+
+			"The topics should also take them to different world and to illustrate what is environment/nature. %s."+
 			"Each topic should be creative, entertainment-driven, engaging, fantasy-based, and align with the provided preferences: %s. "+
 			"Return the topics as a list of strings.",
 		GetDefaultStoryCount(),

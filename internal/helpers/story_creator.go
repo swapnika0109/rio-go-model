@@ -154,7 +154,7 @@ func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[
 
 	// Prepare the request
 	request := AIRequest{
-		Model: "openai/gpt-oss-120b:together",
+		Model: "Qwen/Qwen2.5-7B-Instruct:together",
 		Messages: []AIMessage{
 			{
 				Role:    "system",
@@ -243,7 +243,7 @@ func (s *StoryCreator) parseTopics(topicsData string) []string {
 
 	for _, topic := range topicsList {
 		topic = strings.TrimSpace(topic)
-		if topic == "" {
+		if topic == "" || topic == "[" || topic == "]" {
 			continue
 		}
 
