@@ -3,11 +3,12 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	// "log"
 	"net/http"
 	"strings"
 	"time"
 	"github.com/golang-jwt/jwt/v5"
-	"rio-go-model/configs"
+	"os"
 )
 
 type HttpError struct {
@@ -29,11 +30,11 @@ func VerifyToken(token string) (string, string, error) {
 	return username, email, nil
 }
 
-func validateToken(token string) (string, string, error) {
+func validateToken(tokenStr string) (string, string, error) {
 	var username, email string
-	if token != "" {
-		secretKey := configs.LoadSettings().SecretKey
-		token, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+	if tokenStr != "" {
+		secretKey := os.Getenv("SECRET_KEY")
+		token, err := jwt.Parse(tokenStr, func(strToken *jwt.Token) (interface{}, error) {
 			return []byte(secretKey), nil
 		})
 

@@ -13,7 +13,7 @@ import (
 type Settings struct {
 	// API Keys and Authentication
 	HuggingFaceToken string
-	// SecretKey        string
+	SecretKey        string
 
 	// Story Generation Settings
 	DefaultStoryToGenerate int
@@ -84,7 +84,7 @@ func NewSettings() *Settings {
 	return &Settings{
 		// Default values
 		HuggingFaceToken:       getEnvString("HUGGINGFACE_TOKEN", ""),
-		// SecretKey:             getEnvString("SECRET_KEY", "your-secret-key-here"),
+		SecretKey:             getEnvString("SECRET_KEY", "********"),
 		DefaultStoryToGenerate: getEnvInt("DEFAULT_STORY_TO_GENERATE", 10),
 		StoriesPerTheme:       getEnvInt("STORIES_PER_THEME", 1),
 		DataUploadMaxMemorySize: getEnvInt("DATA_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB

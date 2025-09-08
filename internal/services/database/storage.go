@@ -49,6 +49,7 @@ func (s *StorageService) Init(ctx context.Context) error {
 		return fmt.Errorf("failed to create storage client: %v", err)
 	}
 
+
 	s.client = client
 	s.bucket = client.Bucket(s.bucketName)
 
@@ -80,14 +81,14 @@ func (s *StorageService) GenerateSignedURL(blobPath string, expiration time.Dura
 		return "", fmt.Errorf("storage service not initialized")
 	}
 
-	// Generate signed URL
 	opts := &storage.SignedURLOptions{
-		Scheme:  storage.SigningSchemeV4,
-		Method:  "GET",
-		Expires: time.Now().Add(expiration),
+		Scheme:  storage.SigningSchemeV4, // Use V4 signing scheme.
+		Method:  "GET",                   // The URL allows a GET request.
+		Expires: time.Now().Add(15 * time.Minute), // The URL will expire in 15 minutes.
 	}
 
-	url, err := storage.SignedURL(s.bucketName, blobPath, opts)
+	url , err := s.bucket.SignedURL(blobPath, opts)
+
 	if err != nil {
 		return "", fmt.Errorf("failed to generate signed URL: %v", err)
 	}
@@ -299,3 +300,5 @@ func getContentType(extension string) string {
 		return "application/octet-stream"
 	}
 }
+
+

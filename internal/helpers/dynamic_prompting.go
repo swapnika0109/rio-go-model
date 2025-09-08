@@ -33,7 +33,11 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 			"The topics should be illustrate a story that kids can understand."+
 			"The topics should also take them to different world and to illustrate what is environment/nature. %s."+
 			"Each topic should be creative, entertainment-driven, engaging, fantasy-based, and align with the provided preferences: %s. "+
-			"Return the topics as a list of strings.",
+			"Each topic should be have exactly two parts title and description."+
+			"title should be a short and catchy title that kids can understand."+
+			"description should also be short and concise."+
+			"seperate title and description with a colon. and maintain only one colon in the whole string."+
+			"Return the topics as a list of strings it should be in title:description format.",
 		GetDefaultStoryCount(),
 		GetStoryTheme("1"),
 		preferencesStr,
@@ -50,7 +54,11 @@ func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferenc
 	superPrompt := fmt.Sprintf(
 		"Create %d story topics that TEACH %s VALUES through SIMPLE STORIES. "+
 			"Extract the topics from real %s scriptures/books/history and turn easy topic that kids can understand. "+
-			"Return the topics as a list of strings.",
+			"Each topic should be have exactly two parts title and description."+
+			"title should be a short and catchy title that kids can understand."+
+			"description should also be short and concise."+
+			"seperate title and description with a colon. and maintain only one colon in the whole string."+
+			"Return the topics as a list of strings it should be in title:description format.",
 		GetDefaultStoryCount(),
 		religion,
 		religion,
@@ -70,7 +78,11 @@ func (d *DynamicPrompting) GetChillStories(preferences []string) (string, error)
 	superPrompt := fmt.Sprintf(
 		"Create %d story topics that TEACH Simple/Slow Living VALUES through SIMPLE STORIES. "+
 			"The topics should illustrate in the way of preferences: %s. "+
-			"Return the topics as a list of strings.",
+			"Each topic should be have exactly two parts title and description."+
+			"title should be a short and catchy title that kids can understand."+
+			"description should also be short and concise."+
+			"seperate title and description with a colon. and maintain only one colon in the whole string."+
+			"Return the topics as a list of strings it should be in title:description format.",
 		GetDefaultStoryCount(),
 		preferencesStr,
 	)

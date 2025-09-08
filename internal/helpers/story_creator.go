@@ -254,7 +254,10 @@ func (s *StoryCreator) parseTopics(topicsData string) []string {
 				topics = append(topics, strings.TrimSpace(parts[1]))
 			}
 		} else {
-			topics = append(topics, topic)
+			if len(topic) > 10 {
+				topics = append(topics, topic)
+			}
+			
 		}
 	}
 

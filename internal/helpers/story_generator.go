@@ -276,13 +276,26 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 		return nil, fmt.Errorf("file upload failed: %v", uploadErr)
 	}
 
+	// Generate signed URLs for frontend access
+	imageSignedURL, err := sgh.storageService.GenerateSignedURL(imageURL, 24*time.Hour)
+	if err != nil {
+		sgh.logger.Errorf("Failed to generate signed URL for image: %v", err)
+		return nil, fmt.Errorf("failed to generate image URL: %v", err)
+	}
+
+	audioSignedURL, err := sgh.storageService.GenerateSignedURL(audioURL, 24*time.Hour)
+	if err != nil {
+		sgh.logger.Errorf("Failed to generate signed URL for audio: %v", err)
+		return nil, fmt.Errorf("failed to generate audio URL: %v", err)
+	}
+
 	// Prepare response data
 	responseData := &StoryGenerationResponse{
 		StoryID:   storyID,
 		Title:     topic,
 		StoryText: storyResponse.StoryText,
-		ImageURL:  imageURL,
-		AudioURL:  audioURL,
+		ImageURL:  imageSignedURL,
+		AudioURL:  audioSignedURL,
 		AudioType: "wav",
 		Theme:     theme,
 	}
@@ -368,7 +381,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	
 	// Create a wait group to track all background tasks
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(3)
 
 	//Process theme 1
 	go func() {
@@ -378,21 +391,21 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		}
 	}()
 
-	// // Process theme 2
-	// go func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences); err != nil {
-	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
-	// 	}
-	// }()
+	// Process theme 2
+	go func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences); err != nil {
+			sgh.logger.Errorf("Theme 2 processing error: %v", err)
+		}
+	}()
 
-	// // Process theme 3
-	// go func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences); err != nil {
-	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
-	// 	}
-	// }()
+	// Process theme 3
+	go func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences); err != nil {
+			sgh.logger.Errorf("Theme 3 processing error: %v", err)
+		}
+	}()
 
 	// Wait for all tasks to complete
 	wg.Wait()
