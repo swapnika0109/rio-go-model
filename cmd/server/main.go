@@ -41,20 +41,27 @@ func main() {
         log.Println("ℹ️  No .env file found, using system environment variables")
     }
     
-
-	// Initialize Swagger docs
-	docs.SwaggerInfo.Title = "Story API"
-	docs.SwaggerInfo.Description = "A comprehensive API for generating and managing stories with AI"
-	docs.SwaggerInfo.Version = "1.0"
-	docs.SwaggerInfo.Host = "localhost:8080" // This will be overridden in production
-	docs.SwaggerInfo.BasePath = "/api/v1"
-	docs.SwaggerInfo.Schemes = []string{"http"}
-
 	// Get port from environment variable, default to 8080 for local development
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
+
+	// Get host from environment variable or use default
+    host := os.Getenv("HOST")
+    if host == "" {
+        host = "localhost"
+    }
+
+	// Initialize Swagger docs
+	docs.SwaggerInfo.Title = "Story API"
+	docs.SwaggerInfo.Description = "A comprehensive API for generating and managing stories with AI"
+	docs.SwaggerInfo.Version = "1.0"
+	docs.SwaggerInfo.Host = host + ":" + port // This will be overridden in production
+	docs.SwaggerInfo.BasePath = "/api/v1"
+	docs.SwaggerInfo.Schemes = []string{"http", "https"}
+
+	
 
 	log.Printf("🚀 Server will start on port: %s", port)
 
