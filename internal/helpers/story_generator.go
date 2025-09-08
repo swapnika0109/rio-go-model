@@ -391,7 +391,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		}
 	}()
 
-	// Process theme 2
+	Process theme 2
 	go func() {
 		defer wg.Done()
 		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences); err != nil {
