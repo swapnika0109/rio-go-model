@@ -168,6 +168,7 @@ func main() {
 	// Swagger documentation
 	r.PathPrefix("/swagger/").Handler(httpSwagger.Handler(
 		httpSwagger.URL("/swagger/doc.json"),
+		httpSwagger.AfterScript("const url = new URL(window.location.href); url.port = ''; url.pathname = '/swagger/doc.json'; document.querySelector('.swagger-ui .topbar a').href = url.href;"),
 		httpSwagger.DeepLinking(true),
 		httpSwagger.DocExpansion("none"),
 		httpSwagger.DomID("swagger-ui"),
