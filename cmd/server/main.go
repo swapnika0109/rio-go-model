@@ -59,8 +59,10 @@ func main() {
 	docs.SwaggerInfo.Version = "1.0"
 	if host == "localhost" {
 		docs.SwaggerInfo.Host = host + ":" + port
+		docs.SwaggerInfo.Schemes = []string{"http"}
 	} else {
 		docs.SwaggerInfo.Host = host
+		docs.SwaggerInfo.Schemes = []string{"https"}
 	}
 	 // This will be overridden in production
 	docs.SwaggerInfo.BasePath = "/api/v1"
