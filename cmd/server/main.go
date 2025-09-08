@@ -66,7 +66,6 @@ func main() {
 	}
 	 // This will be overridden in production
 	docs.SwaggerInfo.BasePath = "/api/v1"
-	docs.SwaggerInfo.Schemes = []string{"http", "https"}
 
 	
 
