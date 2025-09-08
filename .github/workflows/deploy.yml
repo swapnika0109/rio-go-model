@@ -43,8 +43,9 @@ jobs:
           --max-instances 5 \
           --min-instances 0 \
           --port 8080 \
-          --set-env-vars HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }},GOOGLE_CLOUD_PROJECT=riokutty,STORAGE_BUCKET_NAME=kutty_bucket,SECRET_KEY=${{ secrets.SECRET_KEY }}
+          --set-env-vars HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }},GOOGLE_CLOUD_PROJECT=riokutty,STORAGE_BUCKET_NAME=kutty_bucket
 
     - name: Show service URL
       run: |
         gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)'
+        
