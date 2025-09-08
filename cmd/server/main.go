@@ -57,7 +57,12 @@ func main() {
 	docs.SwaggerInfo.Title = "Story API"
 	docs.SwaggerInfo.Description = "A comprehensive API for generating and managing stories with AI"
 	docs.SwaggerInfo.Version = "1.0"
-	docs.SwaggerInfo.Host = host + ":" + port // This will be overridden in production
+	if host == "localhost" {
+		docs.SwaggerInfo.Host = host + ":" + port
+	} else {
+		docs.SwaggerInfo.Host = host
+	}
+	 // This will be overridden in production
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	docs.SwaggerInfo.Schemes = []string{"http", "https"}
 
