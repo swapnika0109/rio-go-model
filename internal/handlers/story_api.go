@@ -13,7 +13,7 @@ import (
 	"rio-go-model/internal/helpers"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
-	"rio-go-model/internal/configs"
+	"rio-go-model/configs"
 )
 
 // StoryTopics represents the story topics handler
