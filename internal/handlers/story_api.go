@@ -110,6 +110,30 @@ type StoryResponse struct {
 
 // CreateStory handles the creation of a new story
 func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
+	// Authentication
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		log.Printf("❌ DEBUG: Authorization header is required")
+		h.sendErrorResponse(w, http.StatusUnauthorized, "Authorization header is required")
+		return
+	}
+
+	// Remove "Bearer " prefix if present
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		authHeader = authHeader[7:]
+	}
+
+	token := authHeader
+	log.Println("token ", token)
+	secretKey := configs.LoadSettings().SecretKey
+	log.Println("token secretKey ", strings.TrimSpace(secretKey))
+	username, email, err := util.VerifyToken(token)
+	if err != nil {
+		log.Printf("❌ DEBUG: Invalid token: %v", err)
+		h.sendErrorResponse(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	log.Printf("✅ DEBUG: Authentication successful - Username: %s, Email: %s", username, email)
 	// Thread-safe lazy initialization
 	h.initMutex.Lock()
 	if !h.isInitialized {
@@ -149,30 +173,6 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	}
 	h.initMutex.Unlock()
 
-	// Authentication
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		log.Printf("❌ DEBUG: Authorization header is required")
-		h.sendErrorResponse(w, http.StatusUnauthorized, "Authorization header is required")
-		return
-	}
-
-	// Remove "Bearer " prefix if present
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		authHeader = authHeader[7:]
-	}
-
-	token := authHeader
-	log.Println("token ", token)
-	secretKey := configs.LoadSettings().SecretKey
-	log.Println("token secretKey ", strings.TrimSpace(secretKey))
-	username, email, err := util.VerifyToken(token)
-	if err != nil {
-		log.Printf("❌ DEBUG: Invalid token: %v", err)
-		h.sendErrorResponse(w, http.StatusUnauthorized, err.Error())
-		return
-	}
-	log.Printf("✅ DEBUG: Authentication successful - Username: %s, Email: %s", username, email)
 
 	// Parse request body
 	var req CreateStoryRequest
