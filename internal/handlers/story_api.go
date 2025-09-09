@@ -6,23 +6,27 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"rio-go-model/internal/helpers"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
+	"rio-go-model/internal/configs"
 )
 
 // StoryTopics represents the story topics handler
 type Story struct {
-	storyGenerator *helpers.StoryGenerationHelper
-	storageServiceOn bool
-	storyDB *database.StoryDatabase
-	storageService *database.StorageService
+	storyGenerator   *helpers.StoryGenerationHelper
+	storyDB          *database.StoryDatabase
+	storageService   *database.StorageService
+	initMutex        sync.Mutex // Protects initialization
+	isInitialized    bool       // Flag to check if services are initialized
 }
 
 // NewStory creates a new story topics handler
-func NewStory(storyDB *database.StoryDatabase, 
+func NewStory(storyDB *database.StoryDatabase,
 	storageService *database.StorageService) *Story {
 	return &Story{
 		storyGenerator: nil,
@@ -104,26 +108,67 @@ type StoryResponse struct {
 // }
 
 
-// CreateStory handles POST request for creating a new story
-// @Summary Create a new story
-// @Description Create a new story with the provided details
-// @Tags stories
-// @Accept json
-// @Produce json
-// @Param Authorization header string true "Bearer token"
-// @Param story body CreateStoryRequest true "Story creation request"
-// @Success 201 {object} StoryResponse
-// @Failure 400 {object} StoryResponse
-// @Failure 401 {object} StoryResponse
-// @Failure 500 {object} StoryResponse
-// @Router /story [post]
-// @Security BearerAuth
+// CreateStory handles the creation of a new story
 func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
+	// Thread-safe lazy initialization
+	h.initMutex.Lock()
+	if !h.isInitialized {
+		// Use a new context for initialization; r.Context() might be cancelled
+		// if the client disconnects, but we want initialization to complete.
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Longer timeout for initialization
+		defer cancel()
 
-		// Verify authentication
-	username, email, err := h.verifyAuth(r)
+		log.Println("🔧 Lazily initializing services for the first time...")
+
+		// Initialize database service
+		storyDB := database.NewStoryDatabase()
+		if err := storyDB.Init(ctx); err != nil {
+			log.Printf("❌ Failed to initialize database: %v", err)
+			h.initMutex.Unlock() // Unlock on error
+			http.Error(w, "Database initialization failed", http.StatusInternalServerError)
+			return
+		}
+		h.storyDB = storyDB
+		log.Println("✅ Database service initialized successfully")
+
+		// Initialize storage service
+		storageService := database.NewStorageService("kutty_bucket")
+		if err := storageService.Init(ctx); err != nil {
+			log.Printf("❌ Failed to initialize storage service: %v", err)
+			h.initMutex.Unlock() // Unlock on error
+			http.Error(w, "Storage initialization failed", http.StatusInternalServerError)
+			return
+		}
+		h.storageService = storageService
+		log.Println("✅ Storage service initialized successfully")
+
+		// Create story generator with initialized services
+		h.storyGenerator = helpers.NewStoryGenerationHelper(h.storyDB, h.storageService)
+		h.isInitialized = true // Mark as initialized
+		log.Println("✅ All services initialized successfully!")
+	}
+	h.initMutex.Unlock()
+
+	// Authentication
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		log.Printf("❌ DEBUG: Authorization header is required")
+		h.sendErrorResponse(w, http.StatusUnauthorized, "Authorization header is required")
+		return
+	}
+
+	// Remove "Bearer " prefix if present
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		authHeader = authHeader[7:]
+	}
+
+	token := authHeader
+	log.Println("token ", token)
+	secretKey := configs.LoadSettings().SecretKey
+	log.Println("token secretKey ", strings.TrimSpace(secretKey))
+	username, email, err := util.VerifyToken(token)
 	if err != nil {
-		log.Printf("❌ DEBUG: Authentication failed: %v", err)
+		log.Printf("❌ DEBUG: Invalid token: %v", err)
 		h.sendErrorResponse(w, http.StatusUnauthorized, err.Error())
 		return
 	}
@@ -142,31 +187,6 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
-	if h.storyDB == nil {
-		log.Println("🔧 Initializing database service...")
-		h.storyDB = database.NewStoryDatabase()
-		if err := h.storyDB.Init(ctx); err != nil {
-			log.Printf("❌ Failed to initialize database: %v", err)
-			http.Error(w, "Database initialization failed", http.StatusInternalServerError)
-			return
-		}
-		log.Println("✅ Database service initialized successfully")
-	}
-	if h.storageService == nil {
-
-		// Initialize storage service
-		log.Println("🔧 Initializing storage service...")
-		h.storageService = database.NewStorageService("kutty_bucket")
-		if err := h.storageService.Init(ctx); err != nil {
-			log.Printf("❌ Failed to initialize storage service: %v", err)
-			http.Error(w, "Storage initialization failed", http.StatusInternalServerError)
-			return
-		}
-		log.Println("✅ Storage service initialized successfully")
-	}
-	h.storyGenerator = helpers.NewStoryGenerationHelper(h.storyDB, h.storageService)
-	log.Println("✅ All services initialized successfully - ready for future requests")
-	
 	err = h.storyGenerator.UploadMetadata(ctx, "", username, email, &helpers.MetadataRequest{
 		Country:     req.Country,
 		City:        req.City,

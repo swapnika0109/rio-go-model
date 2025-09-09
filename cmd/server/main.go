@@ -35,6 +35,12 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
+// Global variables for services and handler, initialized in background
+var storyDB *database.StoryDatabase
+var storageService *database.StorageService
+var storyTopicsHandler *handlers.Story
+// var servicesReady bool // No longer needed
+
 func main() {
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
@@ -66,44 +72,18 @@ func main() {
 	}
 	 // This will be overridden in production
 	docs.SwaggerInfo.BasePath = "/api/v1"
+	docs.SwaggerInfo.Schemes = []string{"https", "http"}
 
-	
 
 	log.Printf("🚀 Server will start on port: %s", port)
 
-	// Initialize services in background to avoid startup timeout
-	var storyDB *database.StoryDatabase
-	var storageService *database.StorageService
-	var storyTopicsHandler *handlers.Story
-	var servicesReady bool
+	// REMOVED: Background initialization goroutine.
+	// Initialization will now happen lazily in the handler.
 
-	// Run initialization in background
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		
-		log.Println("🔧 Initializing database service...")
-		storyDB = database.NewStoryDatabase()
-		if err := storyDB.Init(ctx); err != nil {
-			log.Printf("❌ Failed to initialize database: %v", err)
-			return
-		}
-		log.Println("✅ Database service initialized successfully")
-		
-		// Initialize storage service
-		log.Println("🔧 Initializing storage service...")
-		storageService = database.NewStorageService("kutty_bucket")
-		if err := storageService.Init(ctx); err != nil {
-			log.Printf("❌ Failed to initialize storage service: %v", err)
-			return
-		}
-		log.Println("✅ Storage service initialized successfully")
-		
-		// Create handler with initialized services
-		storyTopicsHandler = handlers.NewStory(storyDB, storageService)
-		servicesReady = true
-		log.Println("✅ All services initialized successfully - ready for future requests")
-	}()
+	// Directly initialize the handler with nil services.
+	// The services will be created on the first request.
+	storyTopicsHandler = handlers.NewStory(nil, nil)
+
 
 	// Create router
 	r := mux.NewRouter()
@@ -114,16 +94,8 @@ func main() {
 		w.Write([]byte("OK"))
 	}).Methods("GET")
 
-	// Add readiness check endpoint
-	r.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
-		if !servicesReady {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte("Service not ready"))
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	}).Methods("GET")
+	// REMOVED: Readiness check is no longer needed with lazy initialization.
+	// The server is ready to accept traffic as soon as it starts.
 
 	// Documentation endpoint
 	r.HandleFunc("/docs", func(w http.ResponseWriter, r *http.Request) {
@@ -182,14 +154,8 @@ func main() {
 
 	// Register API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
-	api.HandleFunc("/story", func(w http.ResponseWriter, r *http.Request) {
-		if !servicesReady || storyTopicsHandler == nil {
-			http.Error(w, "Service not ready yet", http.StatusServiceUnavailable)
-			return
-		}
-		// Use the already initialized handler
-		storyTopicsHandler.CreateStory(w, r)
-	}).Methods("POST")
+	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
+
 
 	// Create server with graceful shutdown
 	srv := &http.Server{
