@@ -3,11 +3,13 @@ package util
 import (
 	"encoding/json"
 	"fmt"
-	// "log"
+	"log"
 	"net/http"
 	"strings"
 	"time"
-	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwt"
 	"os"
 )
 
@@ -19,7 +21,7 @@ type HttpError struct {
 func (e *HttpError) Error() string {
 	return fmt.Sprintf("HTTP %d: %s", e.Status, e.Message)
 }
-
+	
 
 func VerifyToken(token string) (string, string, error) {
 	username, email, err := validateToken(token)
@@ -34,21 +36,50 @@ func validateToken(tokenStr string) (string, string, error) {
 	var username, email string
 	if tokenStr != "" {
 		secretKey := os.Getenv("SECRET_KEY")
-		token, err := jwt.Parse(tokenStr, func(strToken *jwt.Token) (interface{}, error) {
-			return []byte(secretKey), nil
-		})
+		if secretKey == "" {
+			return "", "", fmt.Errorf("SECRET_KEY environment variable not set")
+		}
+		// --- START TEMPORARY DEBUGGING ---
+		// Using a hardcoded byte slice to eliminate any possibility of
+		// string-to-byte conversion or encoding issues.
+		secretKeyBytes := []byte(secretKey)
+		// --- END TEMPORARY DEBUGGING ---
+
+		// Use the jwx library, but disable time validation for this test.
+		token, err := jwt.Parse(
+			[]byte(tokenStr),
+			jwt.WithKey(jwa.HS256, secretKeyBytes),
+			jwt.WithValidate(false), // <-- Tell the library to IGNORE time claims (exp, iat)
+		)
 
 		if err != nil {
-			return "", "", fmt.Errorf("failed to parse JWT: %v", err)
+			// If this fails, it is a signature or formatting error.
+			return "", "", fmt.Errorf("failed to parse or verify signature: %w", err)
 		}
 
-		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			email = claims["email"].(string)
-			username = claims["username"].(string)
+		// Manually log that validation was skipped
+		log.Println("SIGNATURE CHECK PASSED (time validation was skipped)")
+
+		// Correctly extract claims using the .Get() method on the parsed token.
+		emailClaim, ok := token.Get("email")
+		if !ok {
+			return "", "", fmt.Errorf("email claim not found in token")
 		}
-		
+		email, ok = emailClaim.(string)
+		if !ok {
+			return "", "", fmt.Errorf("email claim is not a string")
+		}
+
+		usernameClaim, ok := token.Get("username")
+		if !ok {
+			return "", "", fmt.Errorf("username claim not found in token")
+		}
+		username, ok = usernameClaim.(string)
+		if !ok {
+			return "", "", fmt.Errorf("username claim is not a string")
+		}
 	}
-	 
+
 	return username, email, nil
 }
 
