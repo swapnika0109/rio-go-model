@@ -31,7 +31,7 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 		"Generate a minimum of %d topics based on PLANET, ENVIRONMENT, ANIMALS, PLACES, PEOPLE, and other things that are related to the theme %s. "+
 			"The topics should be easy, catchy and interesting in a way that kids can understand."+
 			"The topics should be illustrate a story that kids can understand."+
-			"The topics should also take them to different world and to illustrate what is environment/nature. %s."+
+			"The topics should also take them to different world and to illustrate what is environment/nature."+
 			"Each topic should be creative, entertainment-driven, engaging, fantasy-based, and align with the provided preferences: %s. "+
 			"Each topic should be have exactly two parts title and description."+
 			"title should be a short and catchy title that kids can understand."+
