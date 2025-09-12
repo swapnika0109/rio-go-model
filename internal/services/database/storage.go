@@ -5,14 +5,18 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
-	"os"
+	"encoding/json"
+	// "os"
 	// "path/filepath"
 	"strings"
 	"time"
+	"io/ioutil"
+	"os"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	// "golang.org/x/oauth2/google"
 )
 
 // StorageService represents a Google Cloud Storage service
@@ -20,6 +24,21 @@ type StorageService struct {
 	client     *storage.Client
 	bucketName string
 	bucket     *storage.BucketHandle
+	googleAccessID string
+	privateKey     []byte
+}
+
+type serviceAccountKey struct {
+	Type        string `json:"type"`
+	ProjectID   string `json:"project_id"`
+	PrivateKeyID string `json:"private_key_id"`
+	ClientEmail string `json:"client_email"`
+	ClientID    string `json:"client_id"`
+	AuthURI     string `json:"auth_uri"`
+	TokenURI    string `json:"token_uri"`
+	AuthCertURL string `json:"auth_provider_x509_cert_url"`
+	ClientCertURL string `json:"client_x509_cert_url"`
+	PrivateKey  string `json:"private_key"`
 }
 
 // NewStorageService creates a new storage service
@@ -38,6 +57,23 @@ func (s *StorageService) Init(ctx context.Context) error {
 	credPath := "serviceAccount.json"
 	if _, err := os.Stat(credPath); err == nil {
 		log.Println("Using service account from file for storage")
+
+		// Read the service account file to get the credentials
+		data, err := ioutil.ReadFile(credPath)
+		if err != nil {
+			return fmt.Errorf("failed to read service account file: %v", err)
+		}
+		
+		var key serviceAccountKey
+		if err := json.Unmarshal(data, &key); err != nil {
+			log.Printf("Error parsing credentials from JSON: %v", err)
+			return fmt.Errorf("error parsing credentials from JSON: %w", err)
+		}
+
+		
+
+		s.googleAccessID = key.ClientEmail
+		s.privateKey = []byte(key.PrivateKey)	
 		client, err = storage.NewClient(ctx, option.WithCredentialsFile(credPath))
 	} else {
 		log.Println("Using default credentials for storage")
@@ -49,17 +85,17 @@ func (s *StorageService) Init(ctx context.Context) error {
 		return fmt.Errorf("failed to create storage client: %v", err)
 	}
 
-
 	s.client = client
 	s.bucket = client.Bucket(s.bucketName)
 
 	// Test connection
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-
 	it := s.bucket.Objects(ctx, nil)
 	_, err = it.Next()
+	// CORRECT: Compare the error directly with the special iterator.Done value.
 	if err != nil && err != iterator.Done {
+		log.Printf("failed to test storage connection: %v", err) // CORRECT: Use Printf for formatted strings
 		return fmt.Errorf("failed to test storage connection: %v", err)
 	}
 
@@ -84,7 +120,9 @@ func (s *StorageService) GenerateSignedURL(blobPath string, expiration time.Dura
 	opts := &storage.SignedURLOptions{
 		Scheme:  storage.SigningSchemeV4, // Use V4 signing scheme.
 		Method:  "GET",                   // The URL allows a GET request.
-		Expires: time.Now().Add(15 * time.Minute), // The URL will expire in 15 minutes.
+		Expires: time.Now().Add(15 * time.Minute),
+		GoogleAccessID: s.googleAccessID,
+		PrivateKey:     s.privateKey, // The URL will expire in 15 minutes.
 	}
 
 	url , err := s.bucket.SignedURL(blobPath, opts)

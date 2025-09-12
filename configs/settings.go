@@ -130,8 +130,9 @@ func LoadSettings() *Settings {
 	settings := NewSettings()
 	
 	// Log initialization
-	log.Printf("Settings loaded - HuggingFace Token: %s, Log Level: %s", 
-		maskToken(settings.HuggingFaceToken), settings.LogLevel)
+	log.Println("Settings loaded")
+	// log.Printf("Settings loaded - HuggingFace Token: %s, Log Level: %s", 
+	// 	maskToken(settings.HuggingFaceToken), settings.LogLevel)
 	
 	return settings
 }

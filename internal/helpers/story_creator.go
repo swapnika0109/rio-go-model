@@ -119,6 +119,11 @@ func (s *StoryCreator) CreateTopics(prompt string) (*TopicResponse, error) {
 	// Parse topics from response
 	topics := s.parseTopics(topicsData)
 	s.logger.Printf("Successfully generated %d topics", len(topics))
+	settings := configs.LoadSettings()
+	
+	if len(topics) != settings.DefaultStoryToGenerate {
+		s.logger.Printf("Warning: Generated %d topics, expected %d", len(topics), settings.DefaultStoryToGenerate)
+	}
 
 	return &TopicResponse{
 		Title: topics,
@@ -150,7 +155,7 @@ func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[
 		return nil, fmt.Errorf("failed to generate formatted prompt: %v", err)
 	}
 
-	s.logger.Printf("Generated prompt: %s", formattedPrompt)
+	// s.logger.Printf("Generated prompt: %s", formattedPrompt)
 
 	// Prepare the request
 	request := AIRequest{

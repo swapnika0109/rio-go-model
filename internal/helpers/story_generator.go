@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	"log"
+	// "log"
 
 	"rio-go-model/configs"
 	"rio-go-model/internal/services/database"
@@ -329,7 +329,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 		}
 	}()
 
-	log.Println("Story response: %v", storyResponse)
+	// log.Println("Story response: %v", storyResponse)
 	return responseData, nil
 }
 
