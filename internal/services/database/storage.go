@@ -106,7 +106,7 @@ func (s *StorageService) UploadFile(fileData []byte, prefix, extension string) (
 	filename := fmt.Sprintf("%s/%s.%s", prefix, generateUUID(), extension)
 
 	// Create context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second) // Increased timeout to 90 seconds
 	defer cancel()
 
 	// Create blob
