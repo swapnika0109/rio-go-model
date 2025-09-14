@@ -373,27 +373,47 @@ func (sgh *StoryGenerationHelper) IsUserProfileExists(ctx context.Context, usern
 	return userProfile != nil, nil
 }
 
-// runBackgroundTasks processes metadata for all themes sequentially.
-// The story generation within each theme is still done in parallel by the worker pool.
+// runBackgroundTasks processes metadata for all themes in parallel, with a global semaphore
+// to limit the total number of concurrent story generations.
 func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *MetadataRequest) {
 	sgh.logger.Infof("Starting background tasks for user: %s", email)
 
 	ctx := context.Background()
 
-	// Process theme 1
-	if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences); err != nil {
-		sgh.logger.Errorf("Theme 1 processing error: %v", err)
-	}
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-	// Process theme 2
-	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences); err != nil {
-		sgh.logger.Errorf("Theme 2 processing error: %v", err)
-	}
+	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
+	// A value of 5 is a safe starting point for a 2-CPU instance.
+	const maxConcurrentStories = 5
+	semaphore := make(chan struct{}, maxConcurrentStories)
 
-	// Process theme 3
-	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences); err != nil {
-		sgh.logger.Errorf("Theme 3 processing error: %v", err)
-	}
+	// Process theme 1 in a goroutine
+	go func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 1 processing error: %v", err)
+		}
+	}()
+
+	// Process theme 2 in a goroutine
+	go func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 2 processing error: %v", err)
+		}
+	}()
+
+	// Process theme 3 in a goroutine
+	go func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 3 processing error: %v", err)
+		}
+	}()
+
+	// Wait for all theme processing to complete
+	wg.Wait()
 
 	// Update user profile status
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -413,8 +433,8 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	}
 }
 
-// getDynamicPromptingTheme1 processes theme 1 with parallel story generation
-func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context, country, city string, preferences []string) error {
+// getDynamicPromptingTheme1 processes theme 1 with parallel story generation controlled by a semaphore
+func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context, country, city string, preferences []string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 1 processing for country %s and city %s", country, city)
 
 	// Check if topics already exist
@@ -457,20 +477,34 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 		storiesPerTheme = len(topics)
 	}
 
-	// Define kwargs for this theme before calling the parallel function
+	var wg sync.WaitGroup
 	kwargs := map[string]interface{}{
 		"country":     country,
 		"city":        city,
 		"preferences": preferences,
 	}
-	sgh.GenerateStoriesInParallel(ctx, "1", topics[:storiesPerTheme], kwargs)
+
+	for _, topic := range topics[:storiesPerTheme] {
+		wg.Add(1)
+		go func(currentTopic string) {
+			semaphore <- struct{}{}        // Acquire a spot
+			defer func() { <-semaphore }() // Release the spot
+			defer wg.Done()
+
+			_, err := sgh.StoryHelper(ctx, "1", currentTopic, 2, kwargs)
+			if err != nil {
+				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentTopic, err)
+			}
+		}(topic)
+	}
+	wg.Wait()
 
 	sgh.logger.Infof("Completed theme 1 processing")
 	return nil
 }
 
-// getDynamicPromptingTheme2 processes theme 2 with parallel story generation
-func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context, country string, religions, preferences []string) error {
+// getDynamicPromptingTheme2 processes theme 2 with parallel story generation controlled by a semaphore
+func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context, country string, religions, preferences []string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 2 processing for country %s and religions %v", country, religions)
 
 	// Check if topics already exist
@@ -513,20 +547,34 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 		storiesPerTheme = len(topics)
 	}
 
-	// Define kwargs for this theme before calling the parallel function
+	var wg sync.WaitGroup
 	kwargs := map[string]interface{}{
 		"country":     country,
 		"religions":   religions,
 		"preferences": preferences,
 	}
-	sgh.GenerateStoriesInParallel(ctx, "2", topics[:storiesPerTheme], kwargs)
+
+	for _, topic := range topics[:storiesPerTheme] {
+		wg.Add(1)
+		go func(currentTopic string) {
+			semaphore <- struct{}{}        // Acquire a spot
+			defer func() { <-semaphore }() // Release the spot
+			defer wg.Done()
+
+			_, err := sgh.StoryHelper(ctx, "2", currentTopic, 2, kwargs)
+			if err != nil {
+				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentTopic, err)
+			}
+		}(topic)
+	}
+	wg.Wait()
 
 	sgh.logger.Infof("Completed theme 2 processing")
 	return nil
 }
 
-// getDynamicPromptingTheme3 processes theme 3 with parallel story generation
-func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context, preferences []string) error {
+// getDynamicPromptingTheme3 processes theme 3 with parallel story generation controlled by a semaphore
+func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context, preferences []string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 3 processing for preferences %v", preferences)
 
 	// Check if topics already exist
@@ -569,86 +617,28 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 		storiesPerTheme = len(topics)
 	}
 
-	// Define kwargs for this theme before calling the parallel function
+	var wg sync.WaitGroup
 	kwargs := map[string]interface{}{
 		"preferences": preferences,
 	}
-	sgh.GenerateStoriesInParallel(ctx, "3", topics[:storiesPerTheme], kwargs)
 
-	// var wg sync.WaitGroup
-	// for i := 0; i < storiesPerTheme; i++ {
-	// 	wg.Add(1)
-	// 	go func(topic string) {
-	// 		defer wg.Done()
-	// 		kwargs := map[string]interface{}{
-	// 			"preferences": preferences,
-	// 		}
-	// 		_, err := sgh.StoryHelper(ctx, "3", topic, 2, kwargs)
-	// 		if err != nil {
-	// 			sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
-	// 		}
-	// 	}(topics[i])
-	// }
+	for _, topic := range topics[:storiesPerTheme] {
+		wg.Add(1)
+		go func(currentTopic string) {
+			semaphore <- struct{}{}        // Acquire a spot
+			defer func() { <-semaphore }() // Release the spot
+			defer wg.Done()
 
-	// wg.Wait()
+			_, err := sgh.StoryHelper(ctx, "3", currentTopic, 2, kwargs)
+			if err != nil {
+				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentTopic, err)
+			}
+		}(topic)
+	}
+	wg.Wait()
+
 	sgh.logger.Infof("Completed theme 3 processing")
 	return nil
-}
-
-// GenerateStoriesInParallel uses a worker pool to generate stories for a list of topics,
-// controlling concurrency to prevent resource exhaustion.
-func (sgh *StoryGenerationHelper) GenerateStoriesInParallel(
-	ctx context.Context,
-	theme string,
-	topics []string,
-	kwargs map[string]interface{},
-) {
-	// A good default. In a real application, you might get this from settings.
-	const numWorkers = 4
-
-	jobs := make(chan string, len(topics))
-	var wg sync.WaitGroup
-
-	// Start the fixed number of workers.
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go sgh.worker(ctx, &wg, theme, kwargs, jobs)
-	}
-
-	// Send all the topics to the jobs channel.
-	for _, topic := range topics {
-		jobs <- topic
-	}
-	close(jobs) // Signal that there are no more jobs.
-
-	// Wait for all the workers to finish.
-	wg.Wait()
-}
-
-// worker is the function that runs in each concurrent goroutine.
-// It waits to receive a topic from the jobs channel, processes it,
-// and repeats until the jobs channel is closed.
-func (sgh *StoryGenerationHelper) worker(
-	ctx context.Context,
-	wg *sync.WaitGroup,
-	theme string,
-	kwargs map[string]interface{},
-	jobs <-chan string,
-) {
-	defer wg.Done()
-
-	// This loop will automatically exit when the 'jobs' channel is closed
-	// and has been drained of all its values.
-	for topic := range jobs {
-		sgh.logger.Infof("Worker starting to process topic: %s", topic)
-		_, err := sgh.StoryHelper(ctx, theme, topic, 2, kwargs)
-		if err != nil {
-			sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
-			// In a real app, you might send this error to a results channel.
-		} else {
-			sgh.logger.Infof("Worker successfully finished topic: %s", topic)
-		}
-	}
 }
 
 
