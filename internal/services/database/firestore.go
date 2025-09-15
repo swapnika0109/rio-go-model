@@ -95,11 +95,11 @@ func (s *StoryDatabase) Close() error {
 }
 
 // CreateMDTopics1 creates metadata topics collection 1
-func (s *StoryDatabase) CreateMDTopics1(ctx context.Context, country, city string, preferences, topics []string) (string, error) {
+func (s *StoryDatabase) CreateMDTopics1(ctx context.Context, country, city string, preference string, topics []string) (string, error) {
 	data := map[string]interface{}{
 		"country":     country,
 		"city":        city,
-		"preferences": preferences,
+		"preference": preference,
 		"topics":      topics,
 		"created_at":  firestore.ServerTimestamp,
 		"updated_at":  firestore.ServerTimestamp,
@@ -188,10 +188,10 @@ func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string,
 }
 
 // CreateMDTopics2 creates metadata topics collection 2
-func (s *StoryDatabase) CreateMDTopics2(ctx context.Context, country string, religions, preferences, topics []string) (string, error) {
+func (s *StoryDatabase) CreateMDTopics2(ctx context.Context, country string, religion string, preferences, topics []string) (string, error) {
 	data := map[string]interface{}{
 		"country":     country,
-		"religions":   religions,
+		"religion":   religion,
 		"preferences": preferences,
 		"topics":      topics,
 		"created_at":  firestore.ServerTimestamp,
@@ -235,9 +235,9 @@ func (s *StoryDatabase) ReadMDTopics2(ctx context.Context, country string, relig
 }
 
 // CreateMDTopics3 creates metadata topics collection 3
-func (s *StoryDatabase) CreateMDTopics3(ctx context.Context, preferences, topics []string) (string, error) {
+func (s *StoryDatabase) CreateMDTopics3(ctx context.Context, preference string, topics []string) (string, error) {
 	data := map[string]interface{}{
-		"preferences": preferences,
+		"preference": preference,
 		"topics":      topics,
 		"created_at":  firestore.ServerTimestamp,
 		"updated_at":  firestore.ServerTimestamp,

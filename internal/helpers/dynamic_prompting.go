@@ -3,7 +3,7 @@ package helpers
 import (
 	"fmt"
 	"log"
-	"strings"
+	// "strings"
 
 	"rio-go-model/configs"
 )
@@ -21,11 +21,9 @@ func NewDynamicPrompting() *DynamicPrompting {
 }
 
 // GetPlanetProtectorsStories generates planet protector story prompts
-func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, preferences []string) (string, error) {
+func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, preference string, storiesPerPreference int) (string, error) {
 	d.logger.Printf("Generating planet protector stories for country: %s, city: %s", country, city)
-	
-	// Convert preferences slice to string
-	preferencesStr := strings.Join(preferences, ", ")
+
 	
 	superPrompt := fmt.Sprintf(
 		"Generate a minimum of %d topics based on PLANET, ENVIRONMENT, ANIMALS, PLACES, PEOPLE, and other things that are related to the theme %s. "+
@@ -37,10 +35,11 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 			"title should be a short and catchy title that kids can understand."+
 			"description should also be short and concise."+
 			"seperate title and description with a colon. and maintain only one colon in the whole string."+
-			"Return the topics as a list of strings it should be in title:description format.",
-		GetDefaultStoryCount(),
+			"Return the topics as a list of strings and it should be in title:description format."+
+			"Always validate the length of the topics should be alwys %d.",
+		storiesPerPreference,
 		GetStoryTheme("1"),
-		preferencesStr,
+		preference,
 	)
 	
 	// d.logger.Printf("Generated prompt: %s", superPrompt)
@@ -48,7 +47,7 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 }
 
 // GetMindfulStories generates mindful story prompts
-func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferences []string) (string, error) {
+func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferences []string, storiesPerPreference int) (string, error) {
 	d.logger.Printf("Generating mindful stories for country: %s, religion: %s", country, religion)
 	
 	superPrompt := fmt.Sprintf(
@@ -58,8 +57,9 @@ func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferenc
 			"title should be a short and catchy title that kids can understand."+
 			"description should also be short and concise."+
 			"seperate title and description with a colon. and maintain only one colon in the whole string."+
-			"Return the topics as a list of strings it should be in title:description format.",
-		GetDefaultStoryCount(),
+			"Return the topics as a list of strings and it should be in title:description format."+
+			"Always validate the length of the topics should be alwys %d.",
+		storiesPerPreference,
 		religion,
 		religion,
 	)
@@ -69,22 +69,21 @@ func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferenc
 }
 
 // GetChillStories generates chill story prompts
-func (d *DynamicPrompting) GetChillStories(preferences []string) (string, error) {
-	d.logger.Printf("Generating chill stories for preferences: %v", preferences)
-	
-	// Convert preferences slice to string
-	preferencesStr := strings.Join(preferences, ", ")
+func (d *DynamicPrompting) GetChillStories(preference string, storiesPerPreference int) (string, error) {
+	d.logger.Printf("Generating chill stories for preferences: %v", preference)
 	
 	superPrompt := fmt.Sprintf(
 		"Create %d story topics that TEACH Simple/Slow Living VALUES through SIMPLE STORIES. "+
-			"The topics should illustrate in the way of preferences: %s. "+
+			"The topics should illustrate a journey of %s. "+
 			"Each topic should be have exactly two parts title and description."+
 			"title should be a short and catchy title that kids can understand."+
 			"description should also be short and concise."+
 			"seperate title and description with a colon. and maintain only one colon in the whole string."+
-			"Return the topics as a list of strings it should be in title:description format.",
-		GetDefaultStoryCount(),
-		preferencesStr,
+			"Return the topics as a list of strings and it should be in title:description format."+
+			"Always validate the length of the topics should be alwys %d.",
+		storiesPerPreference,
+		preference,
+		storiesPerPreference,
 	)
 	
 	// d.logger.Printf("Generated prompt: %s", superPrompt)
