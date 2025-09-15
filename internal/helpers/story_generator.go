@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 	"math"
-	"log"
+	// "log"
 
 	"rio-go-model/configs"
 	"rio-go-model/internal/services/database"
@@ -624,7 +624,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	var allTopics []topicWithKey
 	var concatTopics = make(map[string][]string)
 	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
-	log.Println("storiesPerPreference", storiesPerPreference)
+	// log.Println("storiesPerPreference", storiesPerPreference)
 	for _, preference := range preferences {
 		// Generate prompt
 		prompt, err := sgh.dynamicPrompting.GetChillStories(preference, storiesPerPreference)
@@ -632,7 +632,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 			return fmt.Errorf("failed to generate prompt: %v", err)
 		}
 
-		log.Println("prompt .. ", prompt)
+		// log.Println("prompt .. ", prompt)
 
 		// Create topics
 		topicsResponse, err := sgh.storyCreator.CreateTopics(prompt)
@@ -646,7 +646,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 		topics := topicsResponse.Title
 		sgh.logger.Infof("Generated %d topics for theme 3", len(topics))
 
-		log.Println("length of topics", len(topics))
+		// log.Println("length of topics", len(topics))
 		// Save topics to database
 		_, err = sgh.storyDatabase.CreateMDTopics3(ctx, preference, topics)
 		if err != nil {
@@ -655,13 +655,13 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 		concatTopics[preference] = append(concatTopics[preference], topics...)
 	}
 
-	log.Println("length of concatTopics", len(concatTopics))
+	// log.Println("length of concatTopics", len(concatTopics))
 	for key, topics := range concatTopics {
 		for _, topic := range topics {
 			allTopics = append(allTopics, topicWithKey{Key: key, Topic: topic})
 		}
 	}
-	log.Println("length of allTopics", len(allTopics))
+	// log.Println("length of allTopics", len(allTopics))
 
 	
 	// Generate stories for first few topics in parallel
