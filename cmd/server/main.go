@@ -184,6 +184,7 @@ func main() {
 	api := r.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
 	api.HandleFunc("/stories", storyTopicsHandler.ListStories).Methods("GET")
+	api.HandleFunc("/user-profile", storyTopicsHandler.UserProfile).Methods("GET")
 
 	// Add the new authentication routes
 	authRouter := api.PathPrefix("/auth").Subrouter()
@@ -191,6 +192,9 @@ func main() {
 	authRouter.HandleFunc("/google/", authHandler.GoogleLogin).Methods("POST")
 	authRouter.HandleFunc("/token/refresh", authHandler.RefreshToken).Methods("POST")
 	authRouter.HandleFunc("/token/refresh/", authHandler.RefreshToken).Methods("POST")
+	authRouter.HandleFunc("/logout", authHandler.Logout).Methods("POST")
+	authRouter.HandleFunc("/logout/", authHandler.Logout).Methods("POST")
+	
 
 
 	// Configure CORS

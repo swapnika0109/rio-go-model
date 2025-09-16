@@ -44,7 +44,7 @@ type RefreshTokenRequest struct {
 // @Failure      400 {object} util.HttpError "Invalid request body or missing access_token"
 // @Failure      401 {object} util.HttpError "Invalid Google token"
 // @Failure      500 {object} util.HttpError "Internal server error"
-// @Router       /auth/google/ [post]
+// @Router       /auth/google [post]
 func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	var req GoogleLoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -96,8 +96,28 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	// 	username = userProfile["username"].(string) // Use existing username if profile exists
 	// }
 
-	// 4. Issue our own JWT access and refresh tokens.
-	tokenPair, err := util.GenerateTokens(username, googleEmail)
+	// 4. Get or create user profile and get token version
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	
+	userProfile, err := h.db.GetUserProfileByEmail(ctx, googleEmail)
+	if err != nil {
+		log.Printf("ERROR: Failed to query user profile: %v", err)
+		http.Error(w, "Internal server error during user lookup", http.StatusInternalServerError)
+		return
+	}
+
+	var tokenVersion int64 = 0
+	if userProfile != nil {
+		if version, exists := userProfile["token_version"]; exists {
+			if v, ok := version.(int64); ok {
+				tokenVersion = v
+			}
+		}
+	}
+
+	// 5. Issue our own JWT access and refresh tokens.
+	tokenPair, err := util.GenerateTokens(username, googleEmail, tokenVersion)
 	if err != nil {
 		log.Printf("ERROR: Failed to generate local JWTs: %v", err)
 		http.Error(w, "Internal server error during token generation", http.StatusInternalServerError)
@@ -119,7 +139,7 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 // @Failure      400 {object} util.HttpError "Invalid request body or missing refresh token"
 // @Failure      401 {object} util.HttpError "Invalid refresh token"
 // @Failure      500 {object} util.HttpError "Failed to generate new access token"
-// @Router       /auth/token/refresh/ [post]
+// @Router       /auth/token/refresh [post]
 func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	var req RefreshTokenRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -154,5 +174,58 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"access":  newAccessToken,
 		"refresh": req.RefreshToken,
+	})
+}
+
+// LogoutRequest represents the expected JSON body for the logout endpoint.
+type LogoutRequest struct {
+	Refresh string `json:"refresh"`
+}
+
+// Logout handles user logout by invalidating the refresh token.
+// @Summary      User Logout
+// @Description  Logs out a user by invalidating their refresh token. This is a client-side operation that clears tokens from storage.
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        logout_request body LogoutRequest true "Refresh Token to Invalidate"
+// @Success      200 {object} map[string]string "Logout successful"
+// @Failure      400 {object} util.HttpError "Invalid request body or missing refresh token"
+// @Failure      500 {object} util.HttpError "Internal server error"
+// @Router       /auth/logout [post]
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	var req LogoutRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.Refresh == "" {
+		http.Error(w, "refresh token is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate the refresh token to get user email
+	_, email, err := util.VerifyToken(req.Refresh)
+	if err != nil {
+		log.Printf("WARNING: Invalid refresh token during logout: %v", err)
+		// Don't return error for invalid token during logout - just log it
+	} else {
+		// Increment token version to invalidate all existing tokens for this user
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		
+		if err := h.db.IncrementTokenVersion(ctx, email); err != nil {
+			log.Printf("WARNING: Failed to increment token version: %v", err)
+		} else {
+			log.Printf("Token version incremented for user: %s", email)
+		}
+	}
+	
+	log.Printf("User logged out successfully")
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Logout successful",
 	})
 }

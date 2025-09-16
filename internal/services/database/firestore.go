@@ -150,6 +150,64 @@ func (db *StoryDatabase) GetUserProfileByEmail(ctx context.Context, email string
 	return doc.Data(), nil
 }
 
+// IncrementTokenVersion increments the token version for a user (for logout)
+func (db *StoryDatabase) IncrementTokenVersion(ctx context.Context, email string) error {
+	iter := db.client.Collection(db.userProfiles).Where("email", "==", email).Limit(1).Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return fmt.Errorf("failed to query user profile: %w", err)
+	}
+
+	// Get current token version or default to 0
+	var currentVersion int64 = 0
+	if version, exists := doc.Data()["token_version"]; exists {
+		if v, ok := version.(int64); ok {
+			currentVersion = v
+		}
+	}
+
+	// Increment token version
+	_, err = doc.Ref.Update(ctx, []firestore.Update{
+		{Path: "token_version", Value: currentVersion + 1},
+		{Path: "last_logout", Value: time.Now()},
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to update token version: %w", err)
+	}
+
+	return nil
+}
+
+// GetTokenVersion retrieves the current token version for a user
+func (db *StoryDatabase) GetTokenVersion(ctx context.Context, email string) (int64, error) {
+	iter := db.client.Collection(db.userProfiles).Where("email", "==", email).Limit(1).Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return 0, fmt.Errorf("user not found")
+	}
+	if err != nil {
+		return 0, fmt.Errorf("failed to query user profile: %w", err)
+	}
+
+	// Get current token version or default to 0
+	var currentVersion int64 = 0
+	if version, exists := doc.Data()["token_version"]; exists {
+		if v, ok := version.(int64); ok {
+			currentVersion = v
+		}
+	}
+
+	return currentVersion, nil
+}
+
 // CreateUserProfile creates a new user profile
 func (s *StoryDatabase) CreateUserProfile(ctx context.Context, userData map[string]interface{}) (string, error) {
 	email := userData["email"].(string)

@@ -553,3 +553,61 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(storiesData)
 }
+
+// UserProfile gets the user profile information for the authenticated user.
+// @Summary      Get User Profile
+// @Description  Gets the user profile information for the authenticated user.
+// @Tags         User
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]bool "User profile retrieved successfully"
+// @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
+// @Failure      500 {object} util.HttpError "Internal server error"
+// @Router       /user-profile [get]
+func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request){
+	logger := h.logger
+	logger.Println("Starting user_profile request")
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer "){
+		logger.Println("WARNING: Invalid or missing authorization token")
+		http.Error(w, "Invalid or missing authorization token", http.StatusUnauthorized)
+		return
+	}
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	username, email, err := util.VerifyToken(token)
+	if err != nil {
+		logger.Printf("WARNING: Invalid token: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+	logger.Printf("INFO: Extracted username: %s, email: %s", username, email)
+	user, err := h.storyDB.GetUserProfileByEmail(r.Context(), email)
+	if err != nil {
+		logger.Printf("ERROR: Error getting user profile: %v", err)
+		http.Error(w, "Internal server error during user lookup", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	
+	if user == nil {
+		logger.Println("WARNING: User profile not found")
+		response := map[string]bool{"exists": false}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	
+	// Check if username matches
+	if userUsername, ok := user["username"].(string); !ok || userUsername != username {
+		logger.Println("WARNING: User profile not found")
+		response := map[string]bool{"exists": false}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	logger.Printf("INFO: User profile data: %v", user)
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]bool{"exists": true}
+	json.NewEncoder(w).Encode(response)
+	
+}

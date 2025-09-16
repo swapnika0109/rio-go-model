@@ -21,7 +21,7 @@ type TokenPair struct {
 }
 
 // GenerateTokens creates a new pair of access and refresh tokens for a user.
-func GenerateTokens(username, email string) (*TokenPair, error) {
+func GenerateTokens(username, email string, tokenVersion int64) (*TokenPair, error) {
 	secretKey := os.Getenv("SECRET_KEY")
 	if secretKey == "" {
 		return nil, fmt.Errorf("SECRET_KEY environment variable not set")
@@ -29,13 +29,13 @@ func GenerateTokens(username, email string) (*TokenPair, error) {
 	secretKeyBytes := []byte(secretKey)
 
 	// Create access token (short-lived)
-	accessToken, err := createToken(username, email, 1*time.Hour, "access", secretKeyBytes)
+	accessToken, err := createTokenWithVersion(username, email, 1*time.Hour, "access", tokenVersion, secretKeyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create access token: %w", err)
 	}
 
 	// Create refresh token (long-lived)
-	refreshToken, err := createToken(username, email, 7*24*time.Hour, "refresh", secretKeyBytes)
+	refreshToken, err := createTokenWithVersion(username, email, 7*24*time.Hour, "refresh", tokenVersion, secretKeyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create refresh token: %w", err)
 	}
@@ -60,6 +60,23 @@ func GenerateAccessTokenFromRefresh(refreshTokenStr string) (string, error) {
 	secretKeyBytes := []byte(secretKey)
 
 	return createToken(username, email, 1*time.Hour, "access", secretKeyBytes)
+}
+
+func createTokenWithVersion(username, email string, expiryDuration time.Duration, tokenType string, tokenVersion int64, secret []byte) (string, error) {
+	token := jwt.New()
+	_ = token.Set(jwt.JwtIDKey, uuid.New().String())
+	_ = token.Set(jwt.IssuedAtKey, time.Now().Unix())
+	_ = token.Set(jwt.ExpirationKey, time.Now().Add(expiryDuration).Unix())
+	_ = token.Set("username", username)
+	_ = token.Set("email", email)
+	_ = token.Set("token_type", tokenType)
+	_ = token.Set("token_version", tokenVersion)
+
+	signed, err := jwt.Sign(token, jwt.WithKey(jwa.HS256, secret))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+	return string(signed), nil
 }
 
 func createToken(username, email string, expiryDuration time.Duration, tokenType string, secret []byte) (string, error) {
@@ -99,9 +116,45 @@ func VerifyToken(token string) (string, string, error) {
 	return username, email, nil
 }
 
+// GetTokenVersion extracts the token version from a JWT token
+func GetTokenVersion(tokenStr string) (int64, error) {
+	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		return 0, fmt.Errorf("SECRET_KEY environment variable not set")
+	}
+	secretKeyBytes := []byte(secretKey)
+
+	token, err := jwt.Parse(
+		[]byte(tokenStr),
+		jwt.WithKey(jwa.HS256, secretKeyBytes),
+		jwt.WithValidate(false),
+	)
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	versionClaim, ok := token.Get("token_version")
+	if !ok {
+		return 0, fmt.Errorf("token_version claim not found in token")
+	}
+
+	version, ok := versionClaim.(int64)
+	if !ok {
+		return 0, fmt.Errorf("token_version claim is not an int64")
+	}
+
+	return version, nil
+}
+
 func validateToken(tokenStr string) (string, string, error) {
 	var username, email string
 	if tokenStr != "" {
+		// Check if token is blacklisted first
+		// if GlobalBlacklist.IsBlacklisted(tokenStr) {
+		// 	return "", "", fmt.Errorf("token has been revoked")
+		// }
+		
 		secretKey := os.Getenv("SECRET_KEY")
 		if secretKey == "" {
 			return "", "", fmt.Errorf("SECRET_KEY environment variable not set")

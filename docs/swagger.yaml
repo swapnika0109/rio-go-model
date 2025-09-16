@@ -1,26 +1,49 @@
 basePath: /api/v1
 definitions:
-  handlers.CreateStoryRequest:
+  handlers.GoogleLoginRequest:
     properties:
-      city:
+      access_token:
         type: string
-      country:
-        type: string
-      preferences:
-        items:
-          type: string
-        type: array
-      religions:
-        items:
-          type: string
-        type: array
     type: object
-  handlers.StoryResponse:
+  handlers.LogoutRequest:
     properties:
-      data: {}
-      error:
+      refresh:
         type: string
+    type: object
+  handlers.RefreshTokenRequest:
+    properties:
+      refresh:
+        type: string
+    type: object
+  handlers.StoryData:
+    properties:
+      audio:
+        type: string
+      audio_type:
+        type: string
+      image:
+        type: string
+      story_id:
+        type: string
+      story_text:
+        type: string
+      theme:
+        type: string
+      title:
+        type: string
+    type: object
+  util.HttpError:
+    properties:
       message:
+        type: string
+      status:
+        type: integer
+    type: object
+  util.TokenPair:
+    properties:
+      access:
+        type: string
+      refresh:
         type: string
     type: object
 host: localhost:8080
@@ -37,47 +60,176 @@ info:
   title: Story API
   version: "1.0"
 paths:
-  /story:
+  /auth/google:
     post:
       consumes:
       - application/json
-      description: Create a new story with the provided details
+      description: Accepts a Google access token, validates it, and returns a local
+        JWT pair (access and refresh tokens). If the user doesn't exist, a new user
+        profile is created.
+      parameters:
+      - description: Google Access Token
+        in: body
+        name: google_login_request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GoogleLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/util.TokenPair'
+        "400":
+          description: Invalid request body or missing access_token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "401":
+          description: Invalid Google token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      summary: Google Login
+      tags:
+      - Authentication
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logs out a user by invalidating their refresh token. This is a
+        client-side operation that clears tokens from storage.
+      parameters:
+      - description: Refresh Token to Invalidate
+        in: body
+        name: logout_request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request body or missing refresh token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      summary: User Logout
+      tags:
+      - Authentication
+  /auth/token/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Accepts a refresh token and returns a new, short-lived access token.
+      parameters:
+      - description: Refresh Token
+        in: body
+        name: refresh_token_request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{\"access\":\"new_access_token\", \"refresh\":\"original_refresh_token\"}'
+          schema:
+            $ref: '#/definitions/util.TokenPair'
+        "400":
+          description: Invalid request body or missing refresh token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "401":
+          description: Invalid refresh token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Failed to generate new access token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      summary: Refresh Access Token
+      tags:
+      - Authentication
+  /stories:
+    get:
+      consumes:
+      - application/json
+      description: Lists stories for a user based on their profile and theme preference.
+        Returns stories with signed URLs for images and audio.
       parameters:
       - description: Bearer token
         in: header
         name: Authorization
         required: true
         type: string
-      - description: Story creation request
-        in: body
-        name: story
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.CreateStoryRequest'
+      - description: Theme filter (1, 2, or 3)
+        in: query
+        name: theme
+        type: string
+      - description: 'Number of stories to return (default: 10)'
+        in: query
+        name: limit
+        type: integer
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           schema:
-            $ref: '#/definitions/handlers.StoryResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handlers.StoryResponse'
+            items:
+              $ref: '#/definitions/handlers.StoryData'
+            type: array
         "401":
-          description: Unauthorized
+          description: Invalid or missing authorization token
           schema:
-            $ref: '#/definitions/handlers.StoryResponse'
+            $ref: '#/definitions/util.HttpError'
         "500":
-          description: Internal Server Error
+          description: Internal server error
           schema:
-            $ref: '#/definitions/handlers.StoryResponse'
+            $ref: '#/definitions/util.HttpError'
+      summary: List Generated Stories
+      tags:
+      - Stories
+  /user-profile:
+    get:
+      consumes:
+      - application/json
+      description: Gets the user profile information for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile retrieved successfully
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "401":
+          description: Invalid or missing authorization token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/util.HttpError'
       security:
       - BearerAuth: []
-      summary: Create a new story
+      summary: Get User Profile
       tags:
-      - stories
+      - User
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and JWT token.

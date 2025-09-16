@@ -24,7 +24,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/auth/google/": {
+        "/auth/google": {
             "post": {
                 "description": "Accepts a Google access token, validates it, and returns a local JWT pair (access and refresh tokens). If the user doesn't exist, a new user profile is created.",
                 "consumes": [
@@ -76,7 +76,56 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/token/refresh/": {
+        "/auth/logout": {
+            "post": {
+                "description": "Logs out a user by invalidating their refresh token. This is a client-side operation that clears tokens from storage.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "User Logout",
+                "parameters": [
+                    {
+                        "description": "Refresh Token to Invalidate",
+                        "name": "logout_request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.LogoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logout successful",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/token/refresh": {
             "post": {
                 "description": "Accepts a refresh token and returns a new, short-lived access token.",
                 "consumes": [
@@ -102,7 +151,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "{\\\"access\\\":\\\"new_access_token\\\", \\\"refresh\\\":\\\"original_refresh_token\\\"}",
                         "schema": {
                             "$ref": "#/definitions/util.TokenPair"
                         }
@@ -128,78 +177,12 @@ const docTemplate = `{
                 }
             }
         },
-        "/story": {
-            "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Create a new story with the provided details",
+        "/stories": {
+            "get": {
+                "description": "Lists stories for a user based on their profile and theme preference. Returns stories with signed URLs for images and audio.",
                 "consumes": [
                     "application/json"
                 ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "stories"
-                ],
-                "summary": "Create a new story",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "description": "Story creation request",
-                        "name": "story",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.CreateStoryRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.StoryResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.StoryResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.StoryResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.StoryResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/stories": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Lists stories for a user based on their profile and theme preference. Returns stories with signed URLs for images and audio.",
                 "produces": [
                     "application/json"
                 ],
@@ -219,15 +202,13 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Theme filter (1, 2, or 3)",
                         "name": "theme",
-                        "in": "query",
-                        "required": false
+                        "in": "query"
                     },
                     {
                         "type": "integer",
                         "description": "Number of stories to return (default: 10)",
                         "name": "limit",
-                        "in": "query",
-                        "required": false
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -254,36 +235,64 @@ const docTemplate = `{
                     }
                 }
             }
-        }
-    },
-    "definitions": {
-        "handlers.CreateStoryRequest": {
-            "type": "object",
-            "properties": {
-                "city": {
-                    "type": "string"
-                },
-                "country": {
-                    "type": "string"
-                },
-                "preferences": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
+        },
+        "/user-profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
                     }
-                },
-                "religions": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
+                ],
+                "description": "Gets the user profile information for the authenticated user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Get User Profile",
+                "responses": {
+                    "200": {
+                        "description": "User profile retrieved successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or missing authorization token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
                     }
                 }
             }
-        },
+        }
+    },
+    "definitions": {
         "handlers.GoogleLoginRequest": {
             "type": "object",
             "properties": {
                 "access_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.LogoutRequest": {
+            "type": "object",
+            "properties": {
+                "refresh": {
                     "type": "string"
                 }
             }
@@ -296,40 +305,28 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.StoryResponse": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "error": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
         "handlers.StoryData": {
             "type": "object",
             "properties": {
-                "story_id": {
-                    "type": "string"
-                },
-                "title": {
-                    "type": "string"
-                },
-                "story_text": {
-                    "type": "string"
-                },
-                "image": {
-                    "type": "string"
-                },
                 "audio": {
                     "type": "string"
                 },
                 "audio_type": {
                     "type": "string"
                 },
+                "image": {
+                    "type": "string"
+                },
+                "story_id": {
+                    "type": "string"
+                },
+                "story_text": {
+                    "type": "string"
+                },
                 "theme": {
+                    "type": "string"
+                },
+                "title": {
                     "type": "string"
                 }
             }
