@@ -271,6 +271,8 @@ CRITICAL REQUIREMENTS - FOLLOW THESE EXACTLY:
 - Explore more emotions & ending resolution
 - The story has to interact more deeply with characters/places but not with the user.
 - Don't end the story abruptly, don't ask user to share ideas. and also don't repeat the story at the end.
+- Don't add scene 1, secne 2 ..etc in the story. it should be a continuous story.
+- Don't add ** symbols in the story.
 IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Use only words a 3-year-old would understand. NO complex terms!`,
 		},
 		"2": {
@@ -285,6 +287,8 @@ Add more interactions with characters and places to the story.
 - Whenever needed Add surprising twists and discoveries and illustration too
 - The story has to interact more deeply with characters/places but not with the user.
 - Don't mention about learnings in the end of the story. it should be part of story.
+- Don't add scene 1, secne 2 ..etc in the story. it should be a continuous story.
+- Don't add ** symbols in the story.
 IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Ensure children can understand and implement the teachings in their daily lives.`,
 		},
 		"3": {
@@ -300,6 +304,8 @@ Add more interactions with characters and places to the story.
 - The story has to interact more deeply with characters/places but not with the user.
 - Don't mention about learnings in the end of the story. it should be part of story.
 - Don't end the story abruptly.
+- Don't add scene 1, secne 2 ..etc in the story. it should be a continuous story.
+- Don't add ** symbols in the story.
 IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Ensure children can understand and implement the teachings in their daily lives.`,
 		},
 	}

@@ -24,6 +24,110 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/auth/google/": {
+            "post": {
+                "description": "Accepts a Google access token, validates it, and returns a local JWT pair (access and refresh tokens). If the user doesn't exist, a new user profile is created.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Google Login",
+                "parameters": [
+                    {
+                        "description": "Google Access Token",
+                        "name": "google_login_request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.GoogleLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/util.TokenPair"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing access_token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid Google token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/token/refresh/": {
+            "post": {
+                "description": "Accepts a refresh token and returns a new, short-lived access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Refresh Access Token",
+                "parameters": [
+                    {
+                        "description": "Refresh Token",
+                        "name": "refresh_token_request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RefreshTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/util.TokenPair"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to generate new access token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    }
+                }
+            }
+        },
         "/story": {
             "post": {
                 "security": [
@@ -87,6 +191,69 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/stories": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Lists stories for a user based on their profile and theme preference. Returns stories with signed URLs for images and audio.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Stories"
+                ],
+                "summary": "List Generated Stories",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Theme filter (1, 2, or 3)",
+                        "name": "theme",
+                        "in": "query",
+                        "required": false
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of stories to return (default: 10)",
+                        "name": "limit",
+                        "in": "query",
+                        "required": false
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.StoryData"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or missing authorization token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -113,6 +280,22 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.GoogleLoginRequest": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.RefreshTokenRequest": {
+            "type": "object",
+            "properties": {
+                "refresh": {
+                    "type": "string"
+                }
+            }
+        },
         "handlers.StoryResponse": {
             "type": "object",
             "properties": {
@@ -121,6 +304,54 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.StoryData": {
+            "type": "object",
+            "properties": {
+                "story_id": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "story_text": {
+                    "type": "string"
+                },
+                "image": {
+                    "type": "string"
+                },
+                "audio": {
+                    "type": "string"
+                },
+                "audio_type": {
+                    "type": "string"
+                },
+                "theme": {
+                    "type": "string"
+                }
+            }
+        },
+        "util.HttpError": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "integer"
+                }
+            }
+        },
+        "util.TokenPair": {
+            "type": "object",
+            "properties": {
+                "access": {
+                    "type": "string"
+                },
+                "refresh": {
                     "type": "string"
                 }
             }

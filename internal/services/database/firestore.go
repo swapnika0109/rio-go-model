@@ -122,7 +122,7 @@ func (s *StoryDatabase) GetUserProfile(ctx context.Context, username, emailID st
 		return nil, fmt.Errorf("Firestore client not initialized")
 	}
 
-	doc, err := s.client.Collection(s.userProfiles).Doc(emailID).Get(ctx)
+	doc, err := s.client.Collection("user_profiles").Doc(emailID).Get(ctx)
 	if err != nil {
 		log.Printf("❌ DEBUG: Error reading user profile: %v", err)
 		return nil, fmt.Errorf("error reading user profile: %v", err)
@@ -131,6 +131,23 @@ func (s *StoryDatabase) GetUserProfile(ctx context.Context, username, emailID st
 	data := doc.Data()
 	log.Printf("✅ DEBUG: User profile data: %v", data)
 	return data, nil
+}
+
+// GetUserProfileByEmail retrieves a user profile from Firestore by email.
+// Returns nil if the user is not found.
+func (db *StoryDatabase) GetUserProfileByEmail(ctx context.Context, email string) (map[string]interface{}, error) {
+	iter := db.client.Collection(db.userProfiles).Where("email", "==", email).Limit(1).Documents(ctx)
+	defer iter.Stop()
+
+	doc, err := iter.Next()
+	if err == iterator.Done {
+		return nil, nil // User not found, which is not an error in this case
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query user profile by email: %w", err)
+	}
+
+	return doc.Data(), nil
 }
 
 // CreateUserProfile creates a new user profile
@@ -165,26 +182,42 @@ func (s *StoryDatabase) UpdateUserProfile(ctx context.Context, email string, dat
 }
 
 // ReadMDTopics1 reads metadata topics collection 1
-func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string, preferences []string) (*firestore.DocumentSnapshot, error) {
+func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string, preferences []string) ([]map[string]interface{}, error) {
 	log.Printf("Reading metadata topics 1 for country: %s, city: %s, preferences: %v", country, city, preferences)
 
-	query := s.client.Collection(s.mdCollection1).
-		Where("country", "==", country).
-		Where("city", "==", city).
-		Where("preferences", "array-contains-any", preferences)
+	var allDocs []*firestore.DocumentSnapshot
+	for _, preference := range preferences {
+		query := s.client.Collection(s.mdCollection1).
+			Where("country", "==", country).
+			Where("city", "==", city).
+			Where("preference", "==", preference)
 
-	docs, err := query.Documents(ctx).GetAll()
-	if err != nil {
-		return nil, fmt.Errorf("error executing query: %v", err)
+		iterationDocs, err := query.Documents(ctx).GetAll()
+		if err != nil {
+			return nil, fmt.Errorf("error executing query: %v", err)
+		}
+		
+		if len(iterationDocs) == 0 {
+			log.Printf("No metadata topics found for preference: %s", preference)
+			continue
+		}
+		allDocs = append(allDocs, iterationDocs...)
 	}
 
-	if len(docs) == 0 {
-		log.Println("No metadata topics found")
+	if len(allDocs) == 0 {
+		log.Println("No metadata topics found for any preference")
 		return nil, nil
 	}
 
-	log.Printf("Found metadata topics: %v", docs[0].Data())
-	return docs[0], nil
+	var results []map[string]interface{}
+	for _, doc := range allDocs {
+		results = append(results, doc.Data())
+	}
+
+	if len(results) > 0 {
+		log.Printf("Found metadata topics: %v", results[0])
+	}
+	return results, nil
 }
 
 // CreateMDTopics2 creates metadata topics collection 2
@@ -207,32 +240,43 @@ func (s *StoryDatabase) CreateMDTopics2(ctx context.Context, country string, rel
 }
 
 // ReadMDTopics2 reads metadata topics collection 2
-func (s *StoryDatabase) ReadMDTopics2(ctx context.Context, country string, religions, preferences []string) (*firestore.DocumentSnapshot, error) {
+func (s *StoryDatabase) ReadMDTopics2(ctx context.Context, country string, religions, preferences []string) ([]map[string]interface{}, error) {
 	// First filter by country and religions using array-contains-any
-	initialQuery := s.client.Collection(s.mdCollection2).
-		Where("country", "==", country).
-		Where("religions", "array-contains-any", religions)
+	var allDocs []*firestore.DocumentSnapshot
+	for _, religion := range religions {
+		query := s.client.Collection(s.mdCollection2).
+			Where("country", "==", country).
+			Where("religion", "==", religion).
+			Where("preferences", "array-contains-any", preferences)
 
-	docs, err := initialQuery.Documents(ctx).GetAll()
-	if err != nil {
-		return nil, fmt.Errorf("error executing initial query: %v", err)
-	}
-
-	// Then filter results in memory for preferences match
-	for _, doc := range docs {
-		docPreferences := doc.Data()["preferences"].([]interface{})
-		// Check if any preference matches
-		for _, pref := range preferences {
-			for _, docPref := range docPreferences {
-				if pref == docPref {
-					return doc, nil
-				}
-			}
+		iterationDocs, err := query.Documents(ctx).GetAll()
+		if err != nil {
+			return nil, fmt.Errorf("error executing query: %v", err)
 		}
+		if len(iterationDocs) == 0 {
+			log.Printf("No metadata topics found for religion: %s", religion)
+			continue
+		}
+		allDocs = append(allDocs, iterationDocs...)
 	}
 
-	return nil, nil
+	if len(allDocs) == 0 {
+		log.Println("No metadata topics found for any religion")
+		return nil, nil
+	}
+
+	var results []map[string]interface{}
+	for _, doc := range allDocs {
+		results = append(results, doc.Data())
+	}
+
+	if len(results) > 0 {
+		log.Printf("Found metadata topics: %v", results[0])
+	}
+	return results, nil
 }
+
+
 
 // CreateMDTopics3 creates metadata topics collection 3
 func (s *StoryDatabase) CreateMDTopics3(ctx context.Context, preference string, topics []string) (string, error) {
@@ -252,21 +296,39 @@ func (s *StoryDatabase) CreateMDTopics3(ctx context.Context, preference string, 
 }
 
 // ReadMDTopics3 reads metadata topics collection 3
-func (s *StoryDatabase) ReadMDTopics3(ctx context.Context, preferences []string) (*firestore.DocumentSnapshot, error) {
-	query := s.client.Collection(s.mdCollection3).
-		Where("preferences", "array-contains-any", preferences)
+func (s *StoryDatabase) ReadMDTopics3(ctx context.Context, preferences []string) ([]map[string]interface{}, error) {
+	var allDocs []*firestore.DocumentSnapshot
+	for _, preference := range preferences {
+		query := s.client.Collection(s.mdCollection3).
+			Where("preference", "==", preference)
 
-	docs, err := query.Documents(ctx).GetAll()
-	if err != nil {
-		return nil, fmt.Errorf("error executing query: %v", err)
+		iterationDocs, err := query.Documents(ctx).GetAll()
+		if err != nil {
+			return nil, fmt.Errorf("error executing query: %v", err)
+		}
+		if len(iterationDocs) == 0 {
+			log.Printf("No metadata topics found for preference: %s", preference)
+			continue
+		}
+		allDocs = append(allDocs, iterationDocs...)
 	}
 
-	if len(docs) > 0 {
-		return docs[0], nil
+	if len(allDocs) == 0 {
+		log.Println("No metadata topics found for any preference")
+		return nil, nil
 	}
 
-	return nil, nil
+	var results []map[string]interface{}
+	for _, doc := range allDocs {
+		results = append(results, doc.Data())
+	}
+
+	if len(results) > 0 {
+		log.Printf("Found metadata topics: %v", results[0])
+	}
+	return results, nil
 }
+
 
 // CreateStory creates a new story
 func (s *StoryDatabase) CreateStory(ctx context.Context, storyData map[string]interface{}) (string, error) {
@@ -421,7 +483,7 @@ func (s *StoryDatabase) HealthCheck(ctx context.Context) error {
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return fmt.Errorf("Firestore health check failed: %v", err)
 	}
-
+                                                       
 	return nil
 }
 

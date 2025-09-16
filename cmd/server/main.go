@@ -21,11 +21,11 @@
 package main
 
 import (
-	// "context"
+	"context"
 	"log"
 	"net/http"
 	"os"
-	// "time"
+	"time"
 
 	"rio-go-model/docs"
 	"rio-go-model/internal/handlers"
@@ -33,13 +33,41 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
+	"github.com/rs/cors"
 )
 
 // Global variables for services and handler, initialized in background
 var storyDB *database.StoryDatabase
 var storageService *database.StorageService
 var storyTopicsHandler *handlers.Story
+var authHandler *handlers.AuthHandler
 // var servicesReady bool // No longer needed
+
+func init() {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	log.Println("🔧 Initializing services at startup...")
+
+	// Database
+	storyDB = database.NewStoryDatabase()
+	if err := storyDB.Init(ctx); err != nil {
+		log.Fatalf("❌ Failed to initialize database: %v", err)
+	}
+	log.Println("✅ Database service initialized successfully")
+
+	// Storage
+	storageService = database.NewStorageService("kutty_bucket")
+	if err := storageService.Init(ctx); err != nil {
+		log.Fatalf("❌ Failed to initialize storage service: %v", err)
+	}
+	log.Println("✅ Storage service initialized successfully")
+
+	// Handlers
+	storyTopicsHandler = handlers.NewStory(storyDB, storageService)
+	authHandler = handlers.NewAuthHandler(storyDB)
+	log.Println("✅ All services initialized successfully!")
+}
 
 func main() {
 	// Load environment variables
@@ -82,7 +110,7 @@ func main() {
 
 	// Directly initialize the handler with nil services.
 	// The services will be created on the first request.
-	storyTopicsHandler = handlers.NewStory(nil, nil)
+	// storyTopicsHandler = handlers.NewStory(nil, nil)
 
 
 	// Create router
@@ -155,12 +183,28 @@ func main() {
 	// Register API routes
 	api := r.PathPrefix("/api/v1").Subrouter()
 	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
+	api.HandleFunc("/stories", storyTopicsHandler.ListStories).Methods("GET")
 
+	// Add the new authentication routes
+	authRouter := api.PathPrefix("/auth").Subrouter()
+	authRouter.HandleFunc("/google", authHandler.GoogleLogin).Methods("POST")
+	authRouter.HandleFunc("/google/", authHandler.GoogleLogin).Methods("POST")
+	authRouter.HandleFunc("/token/refresh", authHandler.RefreshToken).Methods("POST")
+	authRouter.HandleFunc("/token/refresh/", authHandler.RefreshToken).Methods("POST")
+
+
+	// Configure CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"}, // Allow all origins for development
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"*"},
+		AllowCredentials: true,
+	})
 
 	// Create server with graceful shutdown
 	srv := &http.Server{
 		Addr:    ":" + port,
-		Handler: r,
+		Handler: c.Handler(r),
 	}
 
 	// Start server immediately in main thread

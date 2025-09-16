@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,7 @@ type Story struct {
 	storageService   *database.StorageService
 	initMutex        sync.Mutex // Protects initialization
 	isInitialized    bool       // Flag to check if services are initialized
+	logger           *log.Logger
 }
 
 // NewStory creates a new story topics handler
@@ -32,6 +34,7 @@ func NewStory(storyDB *database.StoryDatabase,
 		storyGenerator: nil,
 		storyDB: storyDB,
 		storageService: storageService,
+		logger: log.New(log.Writer(), "[Story] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 
@@ -61,6 +64,23 @@ type StoryResponse struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
+}
+
+// ListStoriesRequest represents the expected query parameters for listing stories
+type ListStoriesRequest struct {
+	Theme  string `json:"theme"`
+	Limit  int    `json:"limit"`
+}
+
+// StoryData represents a single story in the response
+type StoryData struct {
+	StoryID    string `json:"story_id"`
+	Title      string `json:"title"`
+	StoryText  string `json:"story_text"`
+	Image      string `json:"image"`
+	Audio      string `json:"audio"`
+	AudioType  string `json:"audio_type"`
+	Theme      string `json:"theme"`
 }
 
 // GetStoryTopics handles GET request for story topics
@@ -135,45 +155,45 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("✅ DEBUG: Authentication successful - Username: %s, Email: %s", username, email)
 	// Thread-safe lazy initialization
-	h.initMutex.Lock()
-	if !h.isInitialized {
-		// Use a new context for initialization; r.Context() might be cancelled
-		// if the client disconnects, but we want initialization to complete.
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Longer timeout for initialization
-		defer cancel()
+	// h.initMutex.Lock()
+	// if !h.isInitialized {
+	// 	// Use a new context for initialization; r.Context() might be cancelled
+	// 	// if the client disconnects, but we want initialization to complete.
+	// 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Longer timeout for initialization
+	// 	defer cancel()
 
-		log.Println("🔧 Lazily initializing services for the first time...")
+	// 	log.Println("🔧 Lazily initializing services for the first time...")
 
-		// Initialize database service
-		storyDB := database.NewStoryDatabase()
-		if err := storyDB.Init(ctx); err != nil {
-			log.Printf("❌ Failed to initialize database: %v", err)
-			h.initMutex.Unlock() // Unlock on error
-			http.Error(w, "Database initialization failed", http.StatusInternalServerError)
-			return
-		}
-		h.storyDB = storyDB
-		log.Println("✅ Database service initialized successfully")
+	// 	// Initialize database service
+	// 	storyDB := database.NewStoryDatabase()
+	// 	if err := storyDB.Init(ctx); err != nil {
+	// 		log.Printf("❌ Failed to initialize database: %v", err)
+	// 		h.initMutex.Unlock() // Unlock on error
+	// 		http.Error(w, "Database initialization failed", http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	h.storyDB = storyDB
+	// 	log.Println("✅ Database service initialized successfully")
 
-		// Initialize storage service
-		storageService := database.NewStorageService("kutty_bucket")
-		if err := storageService.Init(ctx); err != nil {
-			log.Printf("❌ Failed to initialize storage service: %v", err)
-			h.initMutex.Unlock() // Unlock on error
-			http.Error(w, "Storage initialization failed", http.StatusInternalServerError)
-			return
-		}
-		h.storageService = storageService
-		log.Println("✅ Storage service initialized successfully")
+	// 	// Initialize storage service
+	// 	storageService := database.NewStorageService("kutty_bucket")
+	// 	if err := storageService.Init(ctx); err != nil {
+	// 		log.Printf("❌ Failed to initialize storage service: %v", err)
+	// 		h.initMutex.Unlock() // Unlock on error
+	// 		http.Error(w, "Storage initialization failed", http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	h.storageService = storageService
+	// 	log.Println("✅ Storage service initialized successfully")
 
-		// Create story generator with initialized services
-		h.storyGenerator = helpers.NewStoryGenerationHelper(h.storyDB, h.storageService)
-		h.isInitialized = true // Mark as initialized
-		log.Println("✅ All services initialized successfully!")
-	}
-	h.initMutex.Unlock()
+	// 	// Create story generator with initialized services
+	// 	h.storyGenerator = helpers.NewStoryGenerationHelper(h.storyDB, h.storageService)
+	// 	h.isInitialized = true // Mark as initialized
+	// 	log.Println("✅ All services initialized successfully!")
+	// }
+	// h.initMutex.Unlock()
 
-
+	h.storyGenerator = helpers.NewStoryGenerationHelper(h.storyDB, h.storageService)
 	// Parse request body
 	var req CreateStoryRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -245,4 +265,291 @@ func (h *Story) sendErrorResponse(w http.ResponseWriter, statusCode int, message
 		Error: message,
 	}
 	h.sendJSONResponse(w, statusCode, response)
+}
+
+// ListStories handles listing generated stories for a user
+// @Summary      List Generated Stories
+// @Description  Lists stories for a user based on their profile and theme preference. Returns stories with signed URLs for images and audio.
+// @Tags         Stories
+// @Accept       json
+// @Produce      json
+// @Param        Authorization header string true "Bearer token"
+// @Param        theme query string false "Theme filter (1, 2, or 3)"
+// @Param        limit query int false "Number of stories to return (default: 10)"
+// @Success      200 {array} StoryData
+// @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
+// @Failure      500 {object} util.HttpError "Internal server error"
+// @Router       /stories [get]
+func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
+	logger := h.logger
+	logger.Println("Starting list_generated_stories request")
+
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Printf("ERROR: Error listing stories: %v", r)
+			http.Error(w, fmt.Sprintf("Error listing stories: %v", r), http.StatusInternalServerError)
+		}
+	}()
+
+	// Get JWT token from Authorization header
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+		logger.Println("WARNING: Invalid or missing authorization token")
+		http.Error(w, "Invalid or missing authorization token", http.StatusUnauthorized)
+		return
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	username, email, err := util.VerifyToken(token)
+	if err != nil {
+		logger.Printf("WARNING: Invalid token: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	logger.Printf("INFO: Extracted username: %s, email: %s", username, email)
+
+	// Get user profile data - exactly like Python: getUserProfile(username, email)
+	var userProfile map[string]interface{}
+	if username != "" && email != "" {
+		userProfile, err = h.storyDB.GetUserProfileByEmail(r.Context(), email)
+		if err != nil {
+			logger.Printf("ERROR: Error getting user profile: %v", err)
+		}
+		logger.Printf("INFO: User profile data: %v", userProfile)
+	}
+
+	if userProfile == nil {
+		logger.Println("WARNING: User profile not found")
+		http.Error(w, "User profile not found", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract user data exactly like Python
+	country := ""
+	city := ""
+	var preferences []string
+	var religions []string
+
+	if countryVal, ok := userProfile["country"].(string); ok {
+		country = countryVal
+	}
+	if cityVal, ok := userProfile["city"].(string); ok {
+		city = cityVal
+	}
+	if prefsVal, ok := userProfile["preferences"].([]interface{}); ok {
+		for _, pref := range prefsVal {
+			if prefStr, ok := pref.(string); ok {
+				preferences = append(preferences, prefStr)
+			}
+		}
+	}
+	if relsVal, ok := userProfile["religions"].([]interface{}); ok {
+		for _, rel := range relsVal {
+			if relStr, ok := rel.(string); ok {
+				religions = append(religions, relStr)
+			}
+		}
+	}
+
+	logger.Printf("INFO: User details - Country: %s, City: %s, Preferences: %v, Religions: %v", country, city, preferences, religions)
+
+	// Get query parameters exactly like Python
+	theme := r.URL.Query().Get("theme")
+	limitStr := r.URL.Query().Get("limit")
+	limit := 10
+
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err != nil {
+			logger.Printf("WARNING: Invalid limit provided, using default: %d", limit)
+		} else {
+			limit = parsedLimit
+		}
+	}
+
+	logger.Printf("INFO: Requested theme: %s, limit: %d", theme, limit)
+
+	// Fetch theme data exactly like Python
+	var themeData []map[string]interface{}
+	switch theme {
+	case "1":
+		logger.Println("INFO: Fetching theme 1 data")
+		themeData, err = h.storyDB.ReadMDTopics1(r.Context(), country, city, preferences)
+		if err != nil {
+			logger.Printf("ERROR: Error fetching theme 1 data: %v", err)
+		}
+		logger.Printf("INFO: Theme 1 data: %v", themeData)
+	case "2":
+		logger.Println("INFO: Fetching theme 2 data")
+		themeData, err = h.storyDB.ReadMDTopics2(r.Context(), country, religions, preferences)
+		if err != nil {
+			logger.Printf("ERROR: Error fetching theme 2 data: %v", err)
+		}
+		logger.Printf("INFO: Theme 2 data: %v", themeData)
+	case "3":
+		logger.Println("INFO: Fetching theme 3 data")
+		themeData, err = h.storyDB.ReadMDTopics3(r.Context(), preferences)
+		if err != nil {
+			logger.Printf("ERROR: Error fetching theme 3 data: %v", err)
+		}
+		logger.Printf("INFO: Theme 3 data: %v", themeData)
+	}
+
+	var storiesData []StoryData
+	var stories []map[string]interface{}
+
+	// Exactly like Python: if theme_data is None or theme_data == []
+	if len(themeData) == 0 {
+		logger.Println("INFO: No theme data found, fetching stories directly")
+		stories, err = h.storyDB.ListStories(r.Context(), limit, theme)
+		if err != nil {
+			logger.Printf("ERROR: Error fetching stories directly: %v", err)
+		}
+		logger.Printf("INFO: Direct stories fetch result: %v", stories)
+	} else {
+		// Exactly like Python: for theme_topic in theme_data
+		for _, themeTopic := range themeData {
+			if themeTopic != nil {
+				topicsInterface, ok := themeTopic["topics"]
+				if ok {
+					topics, ok := topicsInterface.([]interface{})
+					if ok {
+						logger.Printf("INFO: Found topics: %v", topics)
+						// Exactly like Python: temp = [self.db.list_stories_v2(limit, theme=theme, title=topic) for topic in topics]
+						for _, topicInterface := range topics {
+							if topic, ok := topicInterface.(string); ok {
+								topicStories, err := h.storyDB.ListStoriesV2(r.Context(), limit, theme, topic)
+								if err != nil {
+									logger.Printf("ERROR: Error fetching stories for topic %s: %v", topic, err)
+									continue
+								}
+								if topicStories != nil {
+									stories = append(stories, topicStories)
+								}
+							}
+						}
+						logger.Printf("INFO: Stories from topics: %v", stories)
+					}
+				}
+			}
+		}
+	}
+
+	// Exactly like Python: stories = [story for story in stories if story is not None]
+	var filteredStories []map[string]interface{}
+	for _, story := range stories {
+		if story != nil {
+			filteredStories = append(filteredStories, story)
+		}
+	}
+
+	logger.Printf("INFO: Filtered stories count: %d", len(filteredStories))
+
+	// Exactly like Python: if stories is None or stories == []
+	if len(filteredStories) == 0 {
+		logger.Println("INFO: No stories found from topics, fetching stories directly")
+		directStories, err := h.storyDB.ListStories(r.Context(), limit, theme)
+		if err != nil {
+			logger.Printf("ERROR: Error in fallback stories fetch: %v", err)
+		} else {
+			filteredStories = directStories
+		}
+		logger.Printf("INFO: Fallback stories fetch result: %v", filteredStories)
+	}
+
+	// Process stories exactly like Python
+	for _, story := range filteredStories {
+		// Exactly like Python: image_blob_path = story.get('image_url', '').split('kutty_bucket/')[-1] if story.get('image_url') else None
+		imageURL := ""
+		audioURL := ""
+		
+		if imgVal, ok := story["image_url"].(string); ok {
+			imageURL = imgVal
+		}
+		if audVal, ok := story["audio_url"].(string); ok {
+			audioURL = audVal
+		}
+
+		var imageBlobPath string
+		var audioBlobPath string
+
+		if imageURL != "" && strings.Contains(imageURL, "kutty_bucket/") {
+			parts := strings.Split(imageURL, "kutty_bucket/")
+			if len(parts) > 1 {
+				imageBlobPath = parts[1]
+			}
+		}
+
+		if audioURL != "" && strings.Contains(audioURL, "kutty_bucket/") {
+			parts := strings.Split(audioURL, "kutty_bucket/")
+			if len(parts) > 1 {
+				audioBlobPath = parts[1]
+			}
+		}
+
+		logger.Printf("DEBUG: Processing story - Image path: %s, Audio path: %s", imageBlobPath, audioBlobPath)
+
+		// Exactly like Python: image_signed_url = self.bucket.generate_signed_url(image_blob_path) if image_blob_path else None
+		var imageSignedURL string
+		var audioSignedURL string
+
+		if imageBlobPath != "" {
+			if signedURL, err := h.storageService.GenerateSignedURL(imageBlobPath, 3600); err == nil {
+				imageSignedURL = signedURL
+			}
+		}
+		if imageSignedURL == "" {
+			imageSignedURL = imageURL
+		}
+
+		if audioBlobPath != "" {
+			if signedURL, err := h.storageService.GenerateSignedURL(audioBlobPath, 3600); err == nil {
+				audioSignedURL = signedURL
+			}
+		}
+		if audioSignedURL == "" {
+			audioSignedURL = audioURL
+		}
+
+		// Extract story data exactly like Python
+		storyID := ""
+		title := ""
+		storyText := ""
+		audioType := "audio/wav"
+		storyTheme := ""
+
+		if idVal, ok := story["id"].(string); ok {
+			storyID = idVal
+		} else if idVal, ok := story["story_id"].(string); ok {
+			storyID = idVal
+		}
+		if titleVal, ok := story["title"].(string); ok {
+			title = titleVal
+		}
+		if textVal, ok := story["story_text"].(string); ok {
+			storyText = textVal
+		}
+		if audioTypeVal, ok := story["audio_type"].(string); ok {
+			audioType = audioTypeVal
+		}
+		if themeVal, ok := story["theme"].(string); ok {
+			storyTheme = themeVal
+		}
+
+		// Exactly like Python: stories_data.append({...})
+		storiesData = append(storiesData, StoryData{
+			StoryID:   storyID,
+			Title:     title,
+			StoryText: storyText,
+			Image:     imageSignedURL,
+			Audio:     audioSignedURL,
+			AudioType: audioType,
+			Theme:     storyTheme,
+		})
+	}
+
+	logger.Printf("INFO: Returning %d stories", len(storiesData))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(storiesData)
 }

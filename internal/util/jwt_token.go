@@ -11,8 +11,75 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 	"os"
+	"github.com/google/uuid"
 )
 
+// TokenPair represents a pair of access and refresh tokens
+type TokenPair struct {
+	AccessToken  string `json:"access"`
+	RefreshToken string `json:"refresh"`
+}
+
+// GenerateTokens creates a new pair of access and refresh tokens for a user.
+func GenerateTokens(username, email string) (*TokenPair, error) {
+	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		return nil, fmt.Errorf("SECRET_KEY environment variable not set")
+	}
+	secretKeyBytes := []byte(secretKey)
+
+	// Create access token (short-lived)
+	accessToken, err := createToken(username, email, 1*time.Hour, "access", secretKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create access token: %w", err)
+	}
+
+	// Create refresh token (long-lived)
+	refreshToken, err := createToken(username, email, 7*24*time.Hour, "refresh", secretKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create refresh token: %w", err)
+	}
+
+	return &TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+// GenerateAccessTokenFromRefresh creates a new access token from a valid refresh token.
+func GenerateAccessTokenFromRefresh(refreshTokenStr string) (string, error) {
+	username, email, err := validateToken(refreshTokenStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid refresh token: %w", err)
+	}
+	
+	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		return "", fmt.Errorf("SECRET_KEY environment variable not set")
+	}
+	secretKeyBytes := []byte(secretKey)
+
+	return createToken(username, email, 1*time.Hour, "access", secretKeyBytes)
+}
+
+func createToken(username, email string, expiryDuration time.Duration, tokenType string, secret []byte) (string, error) {
+	token := jwt.New()
+	_ = token.Set(jwt.JwtIDKey, uuid.New().String())
+	_ = token.Set(jwt.IssuedAtKey, time.Now().Unix())
+	_ = token.Set(jwt.ExpirationKey, time.Now().Add(expiryDuration).Unix())
+	_ = token.Set("username", username)
+	_ = token.Set("email", email)
+	_ = token.Set("token_type", tokenType)
+
+	signed, err := jwt.Sign(token, jwt.WithKey(jwa.HS256, secret))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+	return string(signed), nil
+}
+
+
+// HttpError represents an HTTP error response
 type HttpError struct {
 	Status  int    `json:"status"`
 	Message string `json:"message"`
@@ -78,8 +145,23 @@ func validateToken(tokenStr string) (string, string, error) {
 		if !ok {
 			return "", "", fmt.Errorf("username claim is not a string")
 		}
-	}
 
+		// Check for token_type claim
+		tokenTypeClaim, ok := token.Get("token_type")
+		if ok {
+			tokenType, ok := tokenTypeClaim.(string)
+			if !ok {
+				return "", "", fmt.Errorf("token_type claim not a string")
+			}
+			if tokenType != "refresh" && tokenType != "access" {
+				return "", "", fmt.Errorf("invalid token_type: %s", tokenType)
+			}
+
+			// For refresh endpoint, we must ensure the token is a refresh token
+			// We can add this check later in the handler itself if needed.
+		}
+
+	}
 	return username, email, nil
 }
 

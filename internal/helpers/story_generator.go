@@ -454,6 +454,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 		return nil
 	}
 
+
 	var allTopics []topicWithKey
 	var concatTopics = make(map[string][]string)
 	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
