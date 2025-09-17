@@ -131,6 +131,8 @@ type StoryData struct {
 // CreateStory handles the creation of a new story
 func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	// Authentication
+	logger := h.logger
+	logger.Println("r.Header ", r.Header)
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		log.Printf("❌ DEBUG: Authorization header is required")
@@ -405,7 +407,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logger.Printf("ERROR: Error fetching stories directly: %v", err)
 		}
-		logger.Printf("INFO: Direct stories fetch result: %v", stories)
+		logger.Printf("INFO: Direct stories fetch result: %v", len(stories))
 	} else {
 		// Exactly like Python: for theme_topic in theme_data
 		for _, themeTopic := range themeData {
@@ -414,7 +416,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 				if ok {
 					topics, ok := topicsInterface.([]interface{})
 					if ok {
-						logger.Printf("INFO: Found topics: %v", topics)
+						logger.Printf("INFO: Found topics: %v", len(topics))
 						// Exactly like Python: temp = [self.db.list_stories_v2(limit, theme=theme, title=topic) for topic in topics]
 						for _, topicInterface := range topics {
 							if topic, ok := topicInterface.(string); ok {
@@ -428,7 +430,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 								}
 							}
 						}
-						logger.Printf("INFO: Stories from topics: %v", stories)
+						// logger.Printf("INFO: Stories from topics: %v", stories)
 					}
 				}
 			}
@@ -470,22 +472,25 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 			audioURL = audVal
 		}
 
-		var imageBlobPath string
-		var audioBlobPath string
+		var imageBlobPath = imageURL
+		var audioBlobPath = audioURL
 
-		if imageURL != "" && strings.Contains(imageURL, "kutty_bucket/") {
-			parts := strings.Split(imageURL, "kutty_bucket/")
-			if len(parts) > 1 {
-				imageBlobPath = parts[1]
-			}
-		}
+		// if imageURL != "" && strings.Contains(imageURL, "kutty_bucket/") {
+		// 	parts := strings.Split(imageURL, "kutty_bucket/")
+		// 	if len(parts) > 1 {
+		// 		imageBlobPath = parts[1]
+		// 	}
+		// }
 
-		if audioURL != "" && strings.Contains(audioURL, "kutty_bucket/") {
-			parts := strings.Split(audioURL, "kutty_bucket/")
-			if len(parts) > 1 {
-				audioBlobPath = parts[1]
-			}
-		}
+		// log.Println("imageBlobPath ", imageBlobPath)
+
+		// if audioURL != "" && strings.Contains(audioURL, "kutty_bucket/") {
+		// 	parts := strings.Split(audioURL, "kutty_bucket/")
+		// 	if len(parts) > 1 {
+		// 		audioBlobPath = parts[1]
+		// 	}
+		// }
+		// log.Println("audioBlobPath ", audioBlobPath)
 
 		logger.Printf("DEBUG: Processing story - Image path: %s, Audio path: %s", imageBlobPath, audioBlobPath)
 
@@ -497,8 +502,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 			if signedURL, err := h.storageService.GenerateSignedURL(imageBlobPath, 3600); err == nil {
 				imageSignedURL = signedURL
 			}
-		}
-		if imageSignedURL == "" {
+		}else {
 			imageSignedURL = imageURL
 		}
 
@@ -506,8 +510,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 			if signedURL, err := h.storageService.GenerateSignedURL(audioBlobPath, 3600); err == nil {
 				audioSignedURL = signedURL
 			}
-		}
-		if audioSignedURL == "" {
+		}else {
 			audioSignedURL = audioURL
 		}
 

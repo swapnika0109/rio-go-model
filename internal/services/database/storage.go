@@ -88,6 +88,7 @@ func (s *StorageService) GenerateSignedURL(blobPath string, expiration time.Dura
 	}
 
 	url , err := s.bucket.SignedURL(blobPath, opts)
+	log.Println("signed url for blob path ", blobPath, " is ", url)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to generate signed URL: %v", err)

@@ -111,7 +111,7 @@ func (sgh *StoryGenerationHelper) GenerateImage(prompt string) (string, error){
 }
 
 // StoryHelper generates a complete story with image and audio
-func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic string, version int, kwargs map[string]interface{}) (*StoryGenerationResponse, error) {
+func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic string, version int, kwargs map[string]interface{}) (error) {
 	sgh.logger.Infof("Generating story for theme: %s, topic: %s, version: %d", theme, topic, version)
 
 	// Generate story using StoryCreator
@@ -120,26 +120,26 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 	if version == 1 {
 		response, err := sgh.storyCreator.CreateStory(theme, topic, version, kwargs)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate story: %v", err)
+			return fmt.Errorf("failed to generate story: %v", err)
 		}
 		if response.Error != "" {
-			return nil, fmt.Errorf("story generation error: %s", response.Error)
+			return fmt.Errorf("story generation error: %s", response.Error)
 		}
 		if response.Story == "" {
-			return nil, fmt.Errorf("no story text generated")
+			return fmt.Errorf("no story text generated")
 		}
 		storyResponse = &StoryGenerationResponse{StoryText: response.Story}
 	} else {
 		// Version 2 with dynamic parameters
 		response, err := sgh.storyCreator.CreateStory(theme, topic, version, kwargs)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate story: %v", err)
+			return fmt.Errorf("failed to generate story: %v", err)
 		}
 		if response.Error != "" {
-			return nil, fmt.Errorf("story generation error: %s", response.Error)
+			return fmt.Errorf("story generation error: %s", response.Error)
 		}
 		if response.Story == "" {
-			return nil, fmt.Errorf("no story text generated")
+			return fmt.Errorf("no story text generated")
 		}
 		storyResponse = &StoryGenerationResponse{StoryText: response.Story}
 	}
@@ -189,18 +189,18 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 			audioData = audioResult.data
 			audioErr = audioResult.err
 		case <-ctx.Done():
-			return nil, fmt.Errorf("timeout waiting for image/audio generation")
+			return fmt.Errorf("timeout waiting for image/audio generation")
 		}
 	}
 
 	if imageErr != nil {
 		sgh.logger.Errorf("Image generation error: %v", imageErr)
-		return nil, fmt.Errorf("image generation failed: %v", imageErr)
+		return fmt.Errorf("image generation failed: %v", imageErr)
 	}
 
 	if audioErr != nil {
 		sgh.logger.Errorf("Audio generation error: %v", audioErr)
-		return nil, fmt.Errorf("audio generation failed: %v", audioErr)
+		return fmt.Errorf("audio generation failed: %v", audioErr)
 	}
 
 	// Generate unique story ID
@@ -274,38 +274,39 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 				audioURL = audioResult.url
 			}
 		case <-ctx.Done():
-			return nil, fmt.Errorf("timeout waiting for file uploads")
+			return fmt.Errorf("timeout waiting for file uploads")
 		}
 	}
 
 	if uploadErr != nil {
 		sgh.logger.Errorf("Upload error: %v", uploadErr)
-		return nil, fmt.Errorf("file upload failed: %v", uploadErr)
+		return fmt.Errorf("file upload failed: %v", uploadErr)
 	}
 
 	// Generate signed URLs for frontend access
-	imageSignedURL, err := sgh.storageService.GenerateSignedURL(imageURL, 24*time.Hour)
-	if err != nil {
-		sgh.logger.Errorf("Failed to generate signed URL for image: %v", err)
-		return nil, fmt.Errorf("failed to generate image URL: %v", err)
-	}
+	// imageSignedURL, err := sgh.storageService.GenerateSignedURL(imageURL, 24*time.Hour)
+	// log.Println("signed url for blob path ", blobPath, " is ", imageSignedURL)
+	// if err != nil {
+	// 	sgh.logger.Errorf("Failed to generate signed URL for image: %v", err)
+	// 	return nil, fmt.Errorf("failed to generate image URL: %v", err)
+	// }
 
-	audioSignedURL, err := sgh.storageService.GenerateSignedURL(audioURL, 24*time.Hour)
-	if err != nil {
-		sgh.logger.Errorf("Failed to generate signed URL for audio: %v", err)
-		return nil, fmt.Errorf("failed to generate audio URL: %v", err)
-	}
+	// audioSignedURL, err := sgh.storageService.GenerateSignedURL(audioURL, 24*time.Hour)
+	// if err != nil {
+	// 	sgh.logger.Errorf("Failed to generate signed URL for audio: %v", err)
+	// 	return nil, fmt.Errorf("failed to generate audio URL: %v", err)
+	// }
 
 	// Prepare response data
-	responseData := &StoryGenerationResponse{
-		StoryID:   storyID,
-		Title:     topic,
-		StoryText: storyResponse.StoryText,
-		ImageURL:  imageSignedURL,
-		AudioURL:  audioSignedURL,
-		AudioType: "wav",
-		Theme:     theme,
-	}
+	// responseData := &StoryGenerationResponse{
+	// 	StoryID:   storyID,
+	// 	Title:     topic,
+	// 	StoryText: storyResponse.StoryText,
+	// 	ImageURL:  imageSignedURL,
+	// 	AudioURL:  audioSignedURL,
+	// 	AudioType: "wav",
+	// 	Theme:     theme,
+	// }
 
 	// Save to database (non-blocking)
 	go func() {
@@ -337,7 +338,8 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 	}()
 
 	// log.Println("Story response: %v", storyResponse)
-	return responseData, nil
+	// return responseData, nil
+	return nil
 }
 
 // UploadMetadata handles metadata upload and triggers background processing
@@ -388,7 +390,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	ctx := context.Background()
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(1)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
@@ -403,21 +405,21 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		}
 	}()
 
-	// Process theme 2 in a goroutine
-	go func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 2 processing error: %v", err)
-		}
-	}()
+	// // Process theme 2 in a goroutine
+	// go func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
+	// 	}
+	// }()
 
-	// Process theme 3 in a goroutine
-	go func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 3 processing error: %v", err)
-		}
-	}()
+	// // Process theme 3 in a goroutine
+	// go func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
+	// 	}
+	// }()
 
 	// Wait for all theme processing to complete
 	wg.Wait()
@@ -513,7 +515,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 				"preferences": currentTopic.Key,
 			}
 
-			_, err := sgh.StoryHelper(ctx, "1", currentTopic.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "1", currentTopic.Topic, 2, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentTopic, err)
 			}
@@ -596,7 +598,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 				"preferences": preferences,
 			}
 
-			_, err := sgh.StoryHelper(ctx, "2", currentItem.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "2", currentItem.Topic, 2, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentItem.Topic, err)
 			}
@@ -683,7 +685,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 			kwargs := map[string]interface{}{
 				"preferences": currentTopic.Key,
 			}
-			_, err := sgh.StoryHelper(ctx, "3", currentTopic.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "3", currentTopic.Topic, 2, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentTopic, err)
 			}
