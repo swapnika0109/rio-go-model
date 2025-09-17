@@ -33,7 +33,7 @@ type AIImageRequest struct {
 
 // TopicResponse represents the response for topic generation
 type ImageResponse struct {
-	Base64 string `json:"base64,omitempty"`
+	Data []byte `json:"data,omitempty"`
 	Error string   `json:"error,omitempty"`
 }
 
@@ -122,49 +122,53 @@ func (s *ImageCreator) makeAIRequest(endpoint string, request AIImageRequest) (*
 		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 	
-
-	
 	// Try to parse as JSON first
 	var jsonResponse struct {
 		Data []struct {
 			Base64 string `json:"b64_json"`
+			URL    string `json:"url"`      // optional, some APIs return url
 		} `json:"data"`
 		Error *struct {
 			Message string `json:"message"`
 		} `json:"error"`
 	}
-	
+
 	if err := json.Unmarshal(body, &jsonResponse); err == nil {
-		// It's a JSON response
 		if jsonResponse.Error != nil {
-			return &ImageResponse{
-				Error: jsonResponse.Error.Message,
-			}, nil
+			return &ImageResponse{Error: jsonResponse.Error.Message}, nil
 		}
-		
-		if len(jsonResponse.Data) > 0 && jsonResponse.Data[0].Base64 != "" {
-			return &ImageResponse{
-				Base64: jsonResponse.Data[0].Base64,
-				Error: "",
-			}, nil
+		if len(jsonResponse.Data) > 0 {
+			if s := jsonResponse.Data[0].Base64; s != "" {
+				img, err := base64.StdEncoding.DecodeString(s)
+				if err != nil {
+					return &ImageResponse{Error: fmt.Sprintf("Failed to decode image: %v", err)}, nil
+				}
+				return &ImageResponse{Data: img, Error: ""}, nil
+			}
+			log.Printf("jsonResponse.Data: %v", jsonResponse.Data)
+			if u := jsonResponse.Data[0].URL; u != "" {
+				// fetch bytes if API returned a URL
+				r2, err := http.Get(u)
+				if err != nil {
+					return &ImageResponse{Error: fmt.Sprintf("Failed to fetch image URL: %v", err)}, nil
+				}
+				defer r2.Body.Close()
+				img, err := io.ReadAll(r2.Body)
+				if err != nil {
+					return &ImageResponse{Error: fmt.Sprintf("Failed to read image: %v", err)}, nil
+				}
+				return &ImageResponse{Data: img, Error: ""}, nil
+			}
+
 		}
 	}
-	
-	// If JSON parsing failed, try treating as raw base64
-	base64Image := string(body)
-	
-	// Validate it's actually base64 by trying to decode it
-	_, err = base64.StdEncoding.DecodeString(base64Image)
+
+	// Fallback: treat whole body as base64 string
+	img, err := base64.StdEncoding.DecodeString(string(body))
 	if err != nil {
-		return &ImageResponse{
-			Error: fmt.Sprintf("Invalid base64 data: %v", err),
-		}, nil
+		return &ImageResponse{Error: fmt.Sprintf("Invalid base64 data: %v", err)}, nil
 	}
-	
-	return &ImageResponse{
-		Base64: base64Image,
-		Error: "",
-	}, nil
+	return &ImageResponse{Data: img, Error: ""}, nil
 
 }
 

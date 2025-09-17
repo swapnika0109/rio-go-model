@@ -94,7 +94,7 @@ func NewStoryGenerationHelper(
 }
 
 // GenerateImage generates an image from a prompt using AI
-func (sgh *StoryGenerationHelper) GenerateImage(prompt string) (string, error){
+func (sgh *StoryGenerationHelper) GenerateImage(prompt string) ([]byte, error){
 	sgh.logger.Infof("Generating image for prompt: %s", prompt[:min(len(prompt), 50)])
 
 	// Add kid-friendly modifiers to the prompt
@@ -104,10 +104,10 @@ func (sgh *StoryGenerationHelper) GenerateImage(prompt string) (string, error){
 	)
 	imgResp, err := sgh.imageCreator.CreateImage(kidFriendlyPrompt)
 	if err != nil {
-		return "", err
+		return nil, err
 
 	}
-	return imgResp.Base64, nil
+	return imgResp.Data, nil
 }
 
 // StoryHelper generates a complete story with image and audio
@@ -146,7 +146,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 
 	// Generate image and audio in parallel using worker pools
 	imageResultChan := make(chan struct {
-		data string
+		data []byte
 		err  error
 	}, 1)
 	audioResultChan := make(chan struct {
@@ -158,7 +158,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 	go func() {
 		imageData, err := sgh.GenerateImage(topic)
 		imageResultChan <- struct {
-			data string
+			data []byte
 			err  error
 		}{imageData, err}
 	}()
@@ -176,7 +176,8 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 	ctx, cancel := context.WithTimeout(ctx, sgh.settings.HuggingFaceTimeout)
 	defer cancel()
 
-	var imageData, audioData string
+	var imageData []byte
+	var audioData string
 	var imageErr, audioErr error
 
 	// Collect results
@@ -218,18 +219,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 
 	// Start image upload worker
 	go func() {
-		// Decode base64 image data
-		imageBytes, err := base64.StdEncoding.DecodeString(imageData)
-
-		if err != nil {
-			imageUploadChan <- struct {
-				url string
-				err error
-			}{"", fmt.Errorf("failed to decode image: %v", err)}
-			return
-		}
-
-		url, err := sgh.storageService.UploadFile(imageBytes, "images", "png")
+		url, err := sgh.storageService.UploadFile(imageData, "images", "png")
 		imageUploadChan <- struct {
 			url string
 			err error
@@ -390,7 +380,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	ctx := context.Background()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(3)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
@@ -405,21 +395,21 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		}
 	}()
 
-	// // Process theme 2 in a goroutine
-	// go func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
-	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
-	// 	}
-	// }()
+	// Process theme 2 in a goroutine
+	go func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 2 processing error: %v", err)
+		}
+	}()
 
-	// // Process theme 3 in a goroutine
-	// go func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
-	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
-	// 	}
-	// }()
+	// Process theme 3 in a goroutine
+	go func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 3 processing error: %v", err)
+		}
+	}()
 
 	// Wait for all theme processing to complete
 	wg.Wait()
