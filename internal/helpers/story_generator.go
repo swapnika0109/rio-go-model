@@ -380,7 +380,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	ctx := context.Background()
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(1)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
@@ -395,21 +395,21 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		}
 	}()
 
-	// Process theme 2 in a goroutine
-	go func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 2 processing error: %v", err)
-		}
-	}()
+	// // Process theme 2 in a goroutine
+	// go func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
+	// 	}
+	// }()
 
-	// Process theme 3 in a goroutine
-	go func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 3 processing error: %v", err)
-		}
-	}()
+	// // Process theme 3 in a goroutine
+	// go func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
+	// 	}
+	// }()
 
 	// Wait for all theme processing to complete
 	wg.Wait()

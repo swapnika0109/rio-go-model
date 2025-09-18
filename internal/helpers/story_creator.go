@@ -256,11 +256,18 @@ func (s *StoryCreator) parseTopics(topicsData string) []string {
 		if strings.Contains(topic, `"`) {
 			parts := strings.Split(topic, `"`)
 			if len(parts) > 1 {
-				topics = append(topics, strings.TrimSpace(parts[1]))
+				finalTopic := strings.TrimSpace(parts[1])
+				formatingValidation := strings.Split(finalTopic, ":")
+				if len(formatingValidation) == 2 {
+					topics = append(topics, finalTopic)
+				}
 			}
 		} else {
 			if len(topic) > 10 {
-				topics = append(topics, topic)
+				formatingValidation := strings.Split(topic, ":")
+				if len(formatingValidation) == 2 {
+					topics = append(topics, topic)
+				}
 			}
 			
 		}
