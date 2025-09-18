@@ -380,6 +380,13 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logger.Printf("ERROR: Error fetching theme 1 data: %v", err)
 		}
+		if len(themeData) == 0 {
+			logger.Println("INFO: No theme data found, fetching theme 1 data directly")
+			themeData, err = h.storyDB.InitialReadMDTopics1(r.Context())
+			if err != nil {
+				logger.Printf("ERROR: Error fetching theme 1 data directly: %v", err)
+			}
+		}
 		logger.Printf("INFO: Theme 1 data: %v", themeData)
 	case "2":
 		logger.Println("INFO: Fetching theme 2 data")
@@ -387,12 +394,26 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logger.Printf("ERROR: Error fetching theme 2 data: %v", err)
 		}
+		if len(themeData) == 0 {
+			logger.Println("INFO: No theme data found, fetching theme 2 data directly")
+			themeData, err = h.storyDB.InitialReadMDTopics2(r.Context())
+			if err != nil {
+				logger.Printf("ERROR: Error fetching theme 2 data directly: %v", err)
+			}
+		}
 		logger.Printf("INFO: Theme 2 data: %v", themeData)
 	case "3":
 		logger.Println("INFO: Fetching theme 3 data")
 		themeData, err = h.storyDB.ReadMDTopics3(r.Context(), preferences)
 		if err != nil {
 			logger.Printf("ERROR: Error fetching theme 3 data: %v", err)
+		}
+		if len(themeData) == 0 {
+			logger.Println("INFO: No theme data found, fetching theme 3 data directly")
+			themeData, err = h.storyDB.InitialReadMDTopics3(r.Context())
+			if err != nil {
+				logger.Printf("ERROR: Error fetching theme 3 data directly: %v", err)
+			}
 		}
 		logger.Printf("INFO: Theme 3 data: %v", themeData)
 	}
