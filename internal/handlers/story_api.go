@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"runtime/debug"
 
 	"rio-go-model/internal/helpers"
 	"rio-go-model/internal/services/database"
@@ -288,7 +289,8 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Printf("ERROR: Error listing stories: %v", r)
+			stack := debug.Stack()
+			logger.Printf("PANIC: %v\nSTACK:\n%s", r, string(stack))
 			http.Error(w, fmt.Sprintf("Error listing stories: %v", r), http.StatusInternalServerError)
 		}
 	}()

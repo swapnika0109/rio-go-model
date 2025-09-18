@@ -15,6 +15,29 @@ import (
 	// "rio-go-model/configs"
 )
 
+// safeStringSlice converts interface{} to []string safely
+func safeStringSlice(val interface{}) []string {
+	if val == nil {
+		return nil
+	}
+	
+	switch v := val.(type) {
+	case []string:
+		return v
+	case []interface{}:
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			if str, ok := item.(string); ok {
+				result = append(result, str)
+			}
+		}
+		return result
+	default:
+		log.Printf("WARNING: unexpected type for string slice: %T", val)
+		return nil
+	}
+}
+
 // StoryDatabase represents a Firestore database service for stories
 type StoryDatabase struct {
 	client            *firestore.Client
@@ -248,7 +271,7 @@ func (s *StoryDatabase) InitialReadMDTopics1(ctx context.Context) ([]map[string]
 	log.Printf("User profile: %v", userProfile)
 	country := userProfile["country"].(string)
 	city := userProfile["city"].(string)
-	preferences := userProfile["preferences"].([]string)
+	preferences := safeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
@@ -354,8 +377,8 @@ func (s *StoryDatabase) InitialReadMDTopics2(ctx context.Context) ([]map[string]
 	}
 	log.Printf("User profile: %v", userProfile)
 	country := userProfile["country"].(string)
-	religions := userProfile["religions"].([]string)
-	preferences := userProfile["preferences"].([]string)
+	religions := safeStringSlice(userProfile["religions"])
+	preferences := safeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, religion := range religions {
@@ -455,7 +478,7 @@ func (s *StoryDatabase) InitialReadMDTopics3(ctx context.Context) ([]map[string]
 		return nil, fmt.Errorf("error getting user profile: %v", err)
 	}
 	log.Printf("User profile: %v", userProfile)
-	preferences := userProfile["preferences"].([]string)
+	preferences := safeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
