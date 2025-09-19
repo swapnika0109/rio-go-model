@@ -441,15 +441,15 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("error checking existing topics: %v", err)
 	}
-	if existing != nil {
+
+	if existing != nil && len(existing) >= sgh.settings.DefaultStoryToGenerate {
 		sgh.logger.Infof("Topics already exist for theme 1")
 		return nil
 	}
 
-
+	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
 	var allTopics []topicWithKey
 	var concatTopics = make(map[string][]string)
-	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
 	for _, preference := range preferences {
 		// Generate prompt
 		prompt, err := sgh.dynamicPrompting.GetPlanetProtectorsStories(country, city, preference, storiesPerPreference)
@@ -526,7 +526,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("error checking existing topics: %v", err)
 	}
-	if existing != nil {
+	if existing != nil && len(existing) >= sgh.settings.DefaultStoryToGenerate {
 		sgh.logger.Infof("Topics already exist for theme 2")
 		return nil
 	}
@@ -609,7 +609,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("error checking existing topics: %v", err)
 	}
-	if existing != nil {
+	if existing != nil && len(existing) >= sgh.settings.DefaultStoryToGenerate {
 		sgh.logger.Infof("Topics already exist for theme 3")
 		return nil
 	}
