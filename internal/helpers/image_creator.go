@@ -145,7 +145,6 @@ func (s *ImageCreator) makeAIRequest(endpoint string, request AIImageRequest) (*
 				}
 				return &ImageResponse{Data: img, Error: ""}, nil
 			}
-			log.Printf("jsonResponse.Data: %v", jsonResponse.Data)
 			if u := jsonResponse.Data[0].URL; u != "" {
 				// fetch bytes if API returned a URL
 				r2, err := http.Get(u)
