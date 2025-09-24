@@ -16,6 +16,7 @@ import (
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
 	"rio-go-model/configs"
+	"rio-go-model/internal/model"
 )
 
 // StoryTopics represents the story topics handler
@@ -617,23 +618,23 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request){
 	}
 	w.Header().Set("Content-Type", "application/json")
 	
-	if user == nil {
-		logger.Println("WARNING: User profile not found")
-		response := map[string]bool{"exists": false}
-		json.NewEncoder(w).Encode(response)
-		return
-	}
+    if user == nil {
+        logger.Println("WARNING: User profile not found")
+        response := map[string]interface{}{"exists": false, "user": nil}
+        json.NewEncoder(w).Encode(response)
+        return
+    }
 	
 	// Check if username matches
-	if userUsername, ok := user["username"].(string); !ok || userUsername != username {
-		logger.Println("WARNING: User profile not found")
-		response := map[string]bool{"exists": false}
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-	logger.Printf("INFO: User profile data: %v", user)
-	w.Header().Set("Content-Type", "application/json")
-	response := map[string]bool{"exists": true}
-	json.NewEncoder(w).Encode(response)
+    if userUsername, ok := user["username"].(string); !ok || userUsername != username {
+        logger.Println("WARNING: User profile not found")
+        response := map[string]interface{}{"exists": false, "user" : (&model.UserProfile{}).FromMap(user)}
+        json.NewEncoder(w).Encode(response)
+        return
+    }
+    logger.Printf("INFO: User profile data: %v", user)
+    w.Header().Set("Content-Type", "application/json")
+    response := map[string]interface{}{"exists": true, "user": (&model.UserProfile{}).FromMap(user)}
+    json.NewEncoder(w).Encode(response)
 	
 }

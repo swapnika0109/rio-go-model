@@ -12,31 +12,12 @@ import (
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"rio-go-model/internal/util"
 	// "rio-go-model/configs"
 )
 
 // safeStringSlice converts interface{} to []string safely
-func safeStringSlice(val interface{}) []string {
-	if val == nil {
-		return nil
-	}
-	
-	switch v := val.(type) {
-	case []string:
-		return v
-	case []interface{}:
-		result := make([]string, 0, len(v))
-		for _, item := range v {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			}
-		}
-		return result
-	default:
-		log.Printf("WARNING: unexpected type for string slice: %T", val)
-		return nil
-	}
-}
+// moved to util.SafeStringSlice
 
 // StoryDatabase represents a Firestore database service for stories
 type StoryDatabase struct {
@@ -271,7 +252,7 @@ func (s *StoryDatabase) InitialReadMDTopics1(ctx context.Context) ([]map[string]
 	log.Printf("User profile: %v", userProfile)
 	country := userProfile["country"].(string)
 	city := userProfile["city"].(string)
-	preferences := safeStringSlice(userProfile["preferences"])
+    preferences := util.SafeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
@@ -377,8 +358,8 @@ func (s *StoryDatabase) InitialReadMDTopics2(ctx context.Context) ([]map[string]
 	}
 	log.Printf("User profile: %v", userProfile)
 	country := userProfile["country"].(string)
-	religions := safeStringSlice(userProfile["religions"])
-	preferences := safeStringSlice(userProfile["preferences"])
+    religions := util.SafeStringSlice(userProfile["religions"])
+    preferences := util.SafeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, religion := range religions {
@@ -478,7 +459,7 @@ func (s *StoryDatabase) InitialReadMDTopics3(ctx context.Context) ([]map[string]
 		return nil, fmt.Errorf("error getting user profile: %v", err)
 	}
 	log.Printf("User profile: %v", userProfile)
-	preferences := safeStringSlice(userProfile["preferences"])
+    preferences := util.SafeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
