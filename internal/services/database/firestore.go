@@ -13,6 +13,7 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 	"rio-go-model/internal/util"
+	"rio-go-model/internal/model"
 	// "rio-go-model/configs"
 )
 
@@ -226,6 +227,26 @@ func (s *StoryDatabase) CreateUserProfile(ctx context.Context, userData map[stri
 	}
 
 	return email, nil
+}
+
+
+func (s *StoryDatabase) UpdateUserProfileByEmail(ctx context.Context, email string, data model.UserProfile) error {
+	userProfile, err := s.GetUserProfileByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("error getting user profile: %v", err)
+	}
+
+	userProfile["country"] = data.Country
+	userProfile["city"] = data.City
+	userProfile["religions"] = data.Religions
+	userProfile["preferences"] = data.Preferences
+	userProfile["updated_at"] = firestore.ServerTimestamp
+
+	_, err = s.client.Collection(s.userProfiles).Doc(email).Set(ctx, userProfile)
+	if err != nil {
+		return fmt.Errorf("error updating user profile: %v", err)
+	}
+	return nil
 }
 
 // UpdateUserProfile updates an existing user profile

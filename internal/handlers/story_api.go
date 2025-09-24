@@ -130,6 +130,18 @@ type StoryData struct {
 // }
 
 
+// @Summary      Create a new story
+// @Description  Creates a new story based on the user's profile and preferences.
+// @Tags         Story
+// @Accept       json
+// @Produce      json
+// @Param        Authorization header string true "Bearer token"
+// @Param        story body CreateStoryRequest true "Story creation request"
+// @Success      201 {object} StoryResponse "Story created successfully"
+// @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
+// @Failure      400 {object} util.HttpError "Invalid request body"
+// @Failure      500 {object} util.HttpError "Internal server error"
+// @Router       /story [post]
 // CreateStory handles the creation of a new story
 func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	// Authentication
@@ -637,4 +649,49 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request){
     response := map[string]interface{}{"exists": true, "user": (&model.UserProfile{}).FromMap(user)}
     json.NewEncoder(w).Encode(response)
 	
+}
+
+// UpdateUserProfile updates the user profile for the authenticated user.
+// @Summary      Update User Profile
+// @Description  Updates the user profile for the authenticated user.
+// @Tags         User
+// @Accept       json
+// @Produce      json
+// @Param       //@Param userProfile body model.userProfile true "User profile request"
+// @Security     BearerAuth
+// @Success      200 {object} map[string]bool "User profile updated successfully"
+// @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
+// @Failure      500 {object} util.HttpError "Internal server error"
+// @Router       /user-profile [put]	
+func (h *Story) UpdateUserProfile(w http.ResponseWriter, r *http.Request){
+	logger := h.logger
+	logger.Println("Starting update_user_profile request")
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer "){
+		logger.Println("WARNING: Invalid or missing authorization token")
+		http.Error(w, "Invalid or missing authorization token", http.StatusUnauthorized)
+		return
+	}
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	_, email, err := util.VerifyToken(token)
+	if err != nil {
+		logger.Printf("WARNING: Invalid token: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	var userProfileRequest model.UserProfile
+    if err := json.NewDecoder(r.Body).Decode(&userProfileRequest); err != nil {
+        http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+        return
+    }
+	if err:= h.storyDB.UpdateUserProfileByEmail(r.Context(), email, userProfileRequest); err != nil {
+		logger.Printf("ERROR: Error updating user profile: %v", err)
+		http.Error(w, "Internal server error during user profile update", http.StatusInternalServerError)
+		return
+	}
+	logger.Println("INFO: User profile updated successfully")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"message": "User profile updated successfully"})
 }

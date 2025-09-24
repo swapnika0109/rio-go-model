@@ -1,5 +1,20 @@
 basePath: /api/v1
 definitions:
+  handlers.CreateStoryRequest:
+    properties:
+      city:
+        type: string
+      country:
+        type: string
+      preferences:
+        items:
+          type: string
+        type: array
+      religions:
+        items:
+          type: string
+        type: array
+    type: object
   handlers.GoogleLoginRequest:
     properties:
       access_token:
@@ -30,6 +45,23 @@ definitions:
       theme:
         type: string
       title:
+        type: string
+    type: object
+  handlers.StoryResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+    type: object
+  model.EmailRequest:
+    properties:
+      email:
+        type: string
+      message:
+        type: string
+      name:
         type: string
     type: object
   util.HttpError:
@@ -163,6 +195,34 @@ paths:
       summary: Refresh Access Token
       tags:
       - Authentication
+  /email:
+    post:
+      consumes:
+      - application/json
+      description: Sends an email to the user
+      parameters:
+      - description: Email request
+        in: body
+        name: emailRequest
+        required: true
+        schema:
+          $ref: '#/definitions/model.EmailRequest'
+      responses:
+        "200":
+          description: Email sent successfully
+          schema:
+            type: string
+        "400":
+          description: Invalid JSON body
+          schema:
+            type: string
+        "500":
+          description: Failed to send email
+          schema:
+            type: string
+      summary: Sends an email to the user
+      tags:
+      - Email
   /stories:
     get:
       consumes:
@@ -203,6 +263,45 @@ paths:
       summary: List Generated Stories
       tags:
       - Stories
+  /story:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new story based on the user's profile and preferences.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Story creation request
+        in: body
+        name: story
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateStoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Story created successfully
+          schema:
+            $ref: '#/definitions/handlers.StoryResponse'
+        "400":
+          description: Invalid request body
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "401":
+          description: Invalid or missing authorization token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      summary: Create a new story
+      tags:
+      - Story
   /user-profile:
     get:
       consumes:
@@ -228,6 +327,32 @@ paths:
       security:
       - BearerAuth: []
       summary: Get User Profile
+      tags:
+      - User
+    put:
+      consumes:
+      - application/json
+      description: Updates the user profile for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile updated successfully
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "401":
+          description: Invalid or missing authorization token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      security:
+      - BearerAuth: []
+      summary: Update User Profile
       tags:
       - User
 securityDefinitions:

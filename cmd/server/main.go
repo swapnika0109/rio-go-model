@@ -41,6 +41,7 @@ var storyDB *database.StoryDatabase
 var storageService *database.StorageService
 var storyTopicsHandler *handlers.Story
 var authHandler *handlers.AuthHandler
+var emailHandler *handlers.Email
 // var servicesReady bool // No longer needed
 
 func init() {
@@ -66,6 +67,7 @@ func init() {
 	// Handlers
 	storyTopicsHandler = handlers.NewStory(storyDB, storageService)
 	authHandler = handlers.NewAuthHandler(storyDB)
+	emailHandler = &handlers.Email{}
 	log.Println("✅ All services initialized successfully!")
 }
 
@@ -100,7 +102,7 @@ func main() {
 	}
 	 // This will be overridden in production
 	docs.SwaggerInfo.BasePath = "/api/v1"
-	docs.SwaggerInfo.Schemes = []string{"https", "http"}
+	// docs.SwaggerInfo.Schemes = []string{"https", "http"}
 
 
 	log.Printf("🚀 Server will start on port: %s", port)
@@ -185,6 +187,8 @@ func main() {
 	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
 	api.HandleFunc("/stories", storyTopicsHandler.ListStories).Methods("GET")
 	api.HandleFunc("/user-profile", storyTopicsHandler.UserProfile).Methods("GET")
+	api.HandleFunc("/user-profile", storyTopicsHandler.UpdateUserProfile).Methods("PUT")
+	api.HandleFunc("/email", emailHandler.NewEmail).Methods("POST")
 
 	// Add the new authentication routes
 	authRouter := api.PathPrefix("/auth").Subrouter()

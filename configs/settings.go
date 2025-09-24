@@ -14,6 +14,12 @@ type Settings struct {
 	// API Keys and Authentication
 	HuggingFaceToken string
 	SecretKey        string
+	EmailHost        string
+	EmailPort        int
+	EmailAppPassword string
+	EmailSender      string
+	EmailTo          string
+
 
 	// Story Generation Settings
 	DefaultStoryToGenerate int
@@ -81,10 +87,18 @@ type PromptConfig struct {
 
 // NewSettings creates a new Settings instance with default values
 func NewSettings() *Settings {
+
+
 	return &Settings{
 		// Default values
 		HuggingFaceToken:       getEnvString("HUGGINGFACE_TOKEN", ""),
 		SecretKey:             getEnvString("SECRET_KEY", "********"),
+		EmailHost:             getEnvString("EMAIL_HOST", "smtp.gmail.com"),
+		EmailPort:             getEnvInt("EMAIL_PORT", 587),
+		EmailAppPassword:      getEnvString("EMAIL_APP_PASSWORD", ""),
+		EmailSender:           getEnvString("EMAIL_SENDER", ""),
+		EmailTo:               getEnvString("EMAIL_TO", ""),
+
 		DefaultStoryToGenerate: getEnvInt("DEFAULT_STORY_TO_GENERATE", 10),
 		StoriesPerTheme:       getEnvInt("STORIES_PER_THEME", 10),
 		DataUploadMaxMemorySize: getEnvInt("DATA_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
