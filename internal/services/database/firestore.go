@@ -230,6 +230,14 @@ func (s *StoryDatabase) CreateUserProfile(ctx context.Context, userData map[stri
 }
 
 
+func (s *StoryDatabase) DeleteUserProfile(ctx context.Context, email string) error {
+	_, err := s.client.Collection(s.userProfiles).Doc(email).Delete(ctx)
+	if err != nil {
+		return fmt.Errorf("error deleting user profile: %v", err)
+	}
+	return nil
+}
+
 func (s *StoryDatabase) UpdateUserProfileByEmail(ctx context.Context, email string, data model.UserProfile) error {
 	userProfile, err := s.GetUserProfileByEmail(ctx, email)
 	if err != nil {

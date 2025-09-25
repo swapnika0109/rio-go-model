@@ -64,6 +64,25 @@ definitions:
       name:
         type: string
     type: object
+  model.UserProfile:
+    properties:
+      city:
+        type: string
+      country:
+        type: string
+      email:
+        type: string
+      preferences:
+        items:
+          type: string
+        type: array
+      religions:
+        items:
+          type: string
+        type: array
+      username:
+        type: string
+    type: object
   util.HttpError:
     properties:
       message:
@@ -269,11 +288,6 @@ paths:
       - application/json
       description: Creates a new story based on the user's profile and preferences.
       parameters:
-      - description: Bearer token
-        in: header
-        name: Authorization
-        required: true
-        type: string
       - description: Story creation request
         in: body
         name: story
@@ -299,10 +313,38 @@ paths:
           description: Internal server error
           schema:
             $ref: '#/definitions/util.HttpError'
+      security:
+      - BearerAuth: []
       summary: Create a new story
       tags:
       - Story
   /user-profile:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the user profile for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile deleted successfully
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "401":
+          description: Invalid or missing authorization token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      security:
+      - BearerAuth: []
+      summary: Delete User Profile
+      tags:
+      - User
     get:
       consumes:
       - application/json
@@ -333,6 +375,13 @@ paths:
       consumes:
       - application/json
       description: Updates the user profile for the authenticated user.
+      parameters:
+      - description: User profile request
+        in: body
+        name: userProfile
+        required: true
+        schema:
+          $ref: '#/definitions/model.UserProfile'
       produces:
       - application/json
       responses:

@@ -281,6 +281,11 @@ const docTemplate = `{
         },
         "/story": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Creates a new story based on the user's profile and preferences.",
                 "consumes": [
                     "application/json"
@@ -293,13 +298,6 @@ const docTemplate = `{
                 ],
                 "summary": "Create a new story",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer token",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "description": "Story creation request",
                         "name": "story",
@@ -397,9 +395,61 @@ const docTemplate = `{
                     "User"
                 ],
                 "summary": "Update User Profile",
+                "parameters": [
+                    {
+                        "description": "User profile request",
+                        "name": "userProfile",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.UserProfile"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "User profile updated successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or missing authorization token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Deletes the user profile for the authenticated user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "Delete User Profile",
+                "responses": {
+                    "200": {
+                        "description": "User profile deleted successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -519,6 +569,35 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.UserProfile": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "preferences": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "religions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "username": {
                     "type": "string"
                 }
             }

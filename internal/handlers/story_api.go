@@ -135,7 +135,7 @@ type StoryData struct {
 // @Tags         Story
 // @Accept       json
 // @Produce      json
-// @Param        Authorization header string true "Bearer token"
+// @Security     BearerAuth
 // @Param        story body CreateStoryRequest true "Story creation request"
 // @Success      201 {object} StoryResponse "Story created successfully"
 // @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
@@ -657,8 +657,8 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request){
 // @Tags         User
 // @Accept       json
 // @Produce      json
-// @Param       //@Param userProfile body model.userProfile true "User profile request"
 // @Security     BearerAuth
+// @Param        userProfile body model.UserProfile true "User profile request"
 // @Success      200 {object} map[string]bool "User profile updated successfully"
 // @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
 // @Failure      500 {object} util.HttpError "Internal server error"
@@ -694,4 +694,43 @@ func (h *Story) UpdateUserProfile(w http.ResponseWriter, r *http.Request){
 	logger.Println("INFO: User profile updated successfully")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"message": "User profile updated successfully"})
+}
+
+// DeleteUserProfile deletes the user profile for the authenticated user.
+// @Summary      Delete User Profile
+// @Description  Deletes the user profile for the authenticated user.
+// @Tags         User
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200 {object} map[string]bool "User profile deleted successfully"
+// @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
+// @Failure      500 {object} util.HttpError "Internal server error"
+// @Router       /user-profile [delete]
+func (h *Story) DeleteUserProfile(w http.ResponseWriter, r *http.Request){
+	logger := h.logger
+	logger.Println("Starting delete_user_profile request")
+
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer "){
+		logger.Println("WARNING: Invalid or missing authorization token")
+		http.Error(w, "Invalid or missing authorization token", http.StatusUnauthorized)
+		return
+	}
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	_, email, err := util.VerifyToken(token)
+	if err != nil {
+		logger.Printf("WARNING: Invalid token: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+
+	if err:= h.storyDB.DeleteUserProfile(r.Context(), email); err != nil {
+		logger.Printf("ERROR: Error deleting user profile: %v", err)
+		http.Error(w, "Internal server error during user profile deletion", http.StatusInternalServerError)
+		return
+	}
+	logger.Println("INFO: User profile deleted successfully")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"message": "User profile deleted successfully"})
 }

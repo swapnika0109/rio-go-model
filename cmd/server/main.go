@@ -188,6 +188,7 @@ func main() {
 	api.HandleFunc("/stories", storyTopicsHandler.ListStories).Methods("GET")
 	api.HandleFunc("/user-profile", storyTopicsHandler.UserProfile).Methods("GET")
 	api.HandleFunc("/user-profile", storyTopicsHandler.UpdateUserProfile).Methods("PUT")
+	api.HandleFunc("/user-profile", storyTopicsHandler.DeleteUserProfile).Methods("DELETE")
 	api.HandleFunc("/email", emailHandler.NewEmail).Methods("POST")
 
 	// Add the new authentication routes
