@@ -286,7 +286,6 @@ func (s *StoryCreator) generateFormattedPrompt(theme, topic string, version int,
 		if err != nil {
 			return "", "", err
 		}
-
 		// Extract parameters
 		country := s.getStringFromMap(kwargs, "country", "")
 		city := s.getStringFromMap(kwargs, "city", "")
@@ -295,8 +294,37 @@ func (s *StoryCreator) generateFormattedPrompt(theme, topic string, version int,
 
 		religionsStr := strings.Join(religions, ", ")
 
+		if theme == "1" {
+			cfg := configs.PlanetProtectorPromptConfig(topic, country, city)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
+			}
+			
+			formattedPrompt = promptTemplate.Prompt
+			systemMessage = promptTemplate.System
+		}else if theme == "2" {
+			cfg := configs.MindfulStoriesPromptConfig(topic, religionsStr)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
+			}
+			formattedPrompt = promptTemplate.Prompt
+			systemMessage = promptTemplate.System
+		}else if theme == "3" {
+			cfg := configs.ChillStoriesPromptConfig(topic)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
+			}
+			formattedPrompt = promptTemplate.Prompt
+			systemMessage = promptTemplate.System
+		}else{
 		// Format the prompt
-		formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religionsStr, strings.Join(preferences, ", "))
+			formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religionsStr, strings.Join(preferences, ", "))
+			s.logger.Printf("Generated prompt 2: %s", formattedPrompt)
+			systemMessage = promptTemplate.System
+		}
 
 		// Add preference-specific content
 		for _, preference := range preferences {
@@ -304,8 +332,8 @@ func (s *StoryCreator) generateFormattedPrompt(theme, topic string, version int,
 				formattedPrompt += prefContent
 			}
 		}
-
-		systemMessage = promptTemplate.System
+		s.logger.Printf("Generated prompt 3: %s", formattedPrompt)
+		
 	} else {
 		// Standard prompt for version 1
 		promptTemplate, err := s.getPromptConfig(theme)

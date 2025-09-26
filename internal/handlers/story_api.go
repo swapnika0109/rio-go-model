@@ -15,7 +15,7 @@ import (
 	"rio-go-model/internal/helpers"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
-	"rio-go-model/configs"
+	// "rio-go-model/configs"
 	"rio-go-model/internal/model"
 )
 
@@ -145,8 +145,8 @@ type StoryData struct {
 // CreateStory handles the creation of a new story
 func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	// Authentication
-	logger := h.logger
-	logger.Println("r.Header ", r.Header)
+	// logger := h.logger
+	// logger.Println("r.Header ", r.Header)
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		log.Printf("❌ DEBUG: Authorization header is required")
@@ -160,9 +160,9 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := authHeader
-	log.Println("token ", token)
-	secretKey := configs.LoadSettings().SecretKey
-	log.Println("token secretKey ", strings.TrimSpace(secretKey))
+	// log.Println("token ", token)
+	// secretKey := configs.LoadSettings().SecretKey
+	// log.Println("token secretKey ", strings.TrimSpace(secretKey))
 	username, email, err := util.VerifyToken(token)
 	if err != nil {
 		log.Printf("❌ DEBUG: Invalid token: %v", err)

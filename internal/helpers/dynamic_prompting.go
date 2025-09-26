@@ -24,12 +24,29 @@ func NewDynamicPrompting() *DynamicPrompting {
 func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, preference string, storiesPerPreference int) (string, error) {
 	d.logger.Printf("Generating planet protector stories for country: %s, city: %s", country, city)
 
+	planetProtectors := configs.ThemesSettings()
+	var promptText string
+
+	for i := 0; i < storiesPerPreference; i++ {
+		topicNumber, err := configs.RandomFrom(planetProtectors.PlanetProtectorTopicsList)
+		if err != nil {
+			topicNumber = 0
+		}
+		topic := planetProtectors.PlanetProtectorTopicsList[topicNumber]
+		if i < storiesPerPreference - 1 {
+			promptText += topic + ", "
+		} else {
+			promptText += topic
+		}	
+	}
+
 	
 	superPrompt := fmt.Sprintf(
-		"Generate a minimum of %d topics based on PLANET, ENVIRONMENT, ANIMALS, PLACES, PEOPLE, and other things that are related to the theme %s. "+
-			"The topics should be easy, catchy and interesting in a way that kids can understand."+
+		
+			"Generate one topic for each topic in the list "+ promptText + " and other things that are related to the theme %s. "+
+			"The topics should be very easy, catchy and interesting in a way that toddlers can understand."+
 			"The topics should be illustrate a story that kids can understand."+
-			"The topics should also take them to different world and to illustrate what is environment/nature."+
+			"The topics should also take them to different world and to illustrate the topic in a very creative way."+
 			"Each topic should be creative, entertainment-driven, engaging, fantasy-based, and align with the provided preferences: %s. "+
 			"Each topic should be have exactly two parts title and description."+
 			"title should be a short and catchy title that kids can understand."+
@@ -37,8 +54,7 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 			"seperate title and description with a colon. and maintain only one colon in the whole string."+
 			"Return the topics as a list of strings and it should be in title:description format."+
 			"Always validate the length of the topics should be alwys %d.",
-		storiesPerPreference,
-		GetStoryTheme("1"),
+		GetStoryTheme("1"),	
 		preference,
 	)
 	
@@ -49,18 +65,31 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 // GetMindfulStories generates mindful story prompts
 func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferences []string, storiesPerPreference int) (string, error) {
 	d.logger.Printf("Generating mindful stories for country: %s, religion: %s", country, religion)
+
+	mindfulStoriesSettings := configs.ThemesSettings()
+	var promptText string
+
+	for i := 0; i < storiesPerPreference; i++ {
+		topicNumber, err := configs.RandomFrom(mindfulStoriesSettings.MindfulStoriesList[religion])
+		if err != nil {
+			topicNumber = 0
+		}
+		topic := mindfulStoriesSettings.MindfulStoriesList[religion][topicNumber]
+		if i < storiesPerPreference - 1 {
+			promptText += topic + ", "
+		} else {
+			promptText += topic
+		}	
+	}
 	
 	superPrompt := fmt.Sprintf(
-		"Create %d story topics that TEACH %s VALUES through SIMPLE STORIES. "+
-			"Extract the topics from real %s scriptures/books/history and turn easy topic that kids can understand. "+
+		"Create one topic for each topic in the list "+ promptText + ". that TEACH %s VALUES through SIMPLE STORIES. "+
+			"The topic should be based on a real/existing topic that kids can understand. "+
 			"Each topic should be have exactly two parts title and description."+
 			"title should be a short and catchy title that kids can understand."+
 			"description should also be short and concise."+
 			"seperate title and description with a colon. and maintain only one colon in the whole string."+
-			"Return the topics as a list of strings and it should be in title:description format."+
-			"Always validate the length of the topics should be alwys %d.",
-		storiesPerPreference,
-		religion,
+			"Return the topics as a list of strings and it should be in title:description format.",
 		religion,
 	)
 	
@@ -71,9 +100,25 @@ func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferenc
 // GetChillStories generates chill story prompts
 func (d *DynamicPrompting) GetChillStories(preference string, storiesPerPreference int) (string, error) {
 	d.logger.Printf("Generating chill stories for preferences: %v", preference)
+
+	chillStoriesSettings := configs.ThemesSettings()
+	var promptText string
+
+	for i := 0; i < storiesPerPreference; i++ {
+		topicNumber, err := configs.RandomFrom(chillStoriesSettings.ChillStoriesList)
+		if err != nil {
+			topicNumber = 0
+		}
+		topic := chillStoriesSettings.ChillStoriesList[topicNumber]
+		if i < storiesPerPreference - 1 {
+			promptText += topic + ", "
+		} else {
+			promptText += topic
+		}	
+	}
 	
 	superPrompt := fmt.Sprintf(
-		"Create %d story topics that TEACH Simple/Slow Living VALUES through SIMPLE STORIES. "+
+		"Create one topic for each topic in the list "+ promptText + ". that TEACH VALUES and Courage "+
 			"The topics should illustrate a journey of %s. "+
 			"Each topic should be have exactly two parts title and description."+
 			"title should be a short and catchy title that kids can understand."+
@@ -81,12 +126,11 @@ func (d *DynamicPrompting) GetChillStories(preference string, storiesPerPreferen
 			"seperate title and description with a colon. and maintain only one colon in the whole string."+
 			"Return the topics as a list of strings and it should be in title:description format."+
 			"Always validate the length of the topics should be alwys %d.",
-		storiesPerPreference,
 		preference,
 		storiesPerPreference,
 	)
 	
-	// d.logger.Printf("Generated prompt: %s", superPrompt)
+	d.logger.Printf("Generated prompt: %s", superPrompt)
 	return superPrompt, nil
 }
 

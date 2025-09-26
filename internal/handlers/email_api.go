@@ -4,7 +4,7 @@ import(
     "encoding/json"
     "net/http"
     "rio-go-model/internal/model"
-    "rio-go-model/internal/services"
+    "rio-go-model/internal/services/emails"
 )
 
 type Email struct {
@@ -37,7 +37,7 @@ func (e *Email) NewEmail(w http.ResponseWriter, r *http.Request){
     }
 
     e.EmailRequest = &emailRequest
-    emailService := services.NewEmailService(emailRequest.Name, emailRequest.Email, emailRequest.Message)
+    emailService := emails.NewEmailService(emailRequest.Name, emailRequest.Email, emailRequest.Message)
     if err := emailService.SendEmail(); err != nil {
         http.Error(w, "Failed to send email", http.StatusInternalServerError)
         return
