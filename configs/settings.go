@@ -96,8 +96,8 @@ func NewSettings() *Settings {
 		EmailHost:             getEnvString("EMAIL_HOST", "smtp.gmail.com"),
 		EmailPort:             getEnvInt("EMAIL_PORT", 587),
 		EmailAppPassword:      getEnvString("EMAIL_APP_PASSWORD", ""),
-		EmailSender:           getEnvString("EMAIL_SENDER", ""),
-		EmailTo:               getEnvString("EMAIL_TO", ""),
+		EmailSender:           getEnvString("EMAIL_SENDER", "rio.oly.pluto@gmail.com"),
+		EmailTo:               getEnvString("EMAIL_TO", "rio.oly.pluto@gmail.com"),
 
 		DefaultStoryToGenerate: getEnvInt("DEFAULT_STORY_TO_GENERATE", 10),
 		StoriesPerTheme:       getEnvInt("STORIES_PER_THEME", 10),
@@ -269,8 +269,10 @@ func initDynamicPromptsConfig() map[string]PromptConfig {
 	return map[string]PromptConfig{
 		"1": {
 			System: "You are a creative entertainment-driven and animated imaginative storyteller who weaves magical tales that inspire children to think innovatively about environmental themes. NEVER use complex terms like 'rainforest', 'ecosystem', 'warriors', or 'enchantment'. Write ONLY simple, engaging stories with natural dialogue.",
-			Prompt: `Create a VERY ELABORATE and enchanting story about {topic} that can be easily understandable by people staying in {country} and {city}. 
+			Prompt: `Create a VERY ELABORATE and enchanting story about {topic} that can be easily understandable by people staying in {country} and {city}. but dont use country and city directly in the story.
 CRITICAL REQUIREMENTS - FOLLOW THESE EXACTLY: 
+- Always drive the story by choosing a challenge based on the {topic}.
+- Generat only Medium size story.
 - The story should include humour and should be understandable by kids of 3-5 years old
 - Write this as a VERY ELABORATE STORY with rich details and have at least 8 to 10 illustrated/animated detailed scenes with vivid descriptions
 - Add interactivity, challenges & choices to the story by having deep character development
@@ -280,6 +282,7 @@ CRITICAL REQUIREMENTS - FOLLOW THESE EXACTLY:
 - Whenever needed Add rich sensory details (sounds, smells, colors, textures, tastes) and support illustration/animation
 - Add brief moments of character when they are having uncertain emotions
 - Add more educational elements, STEM learning, nature learning, scientific learning etc.
+- Include some basic science and moral in the story. so that they can learn why, how and what is happening in the story.
 - Whenever needed Add surprising twists and discoveries and illustration too
 - Add clear descriptions of any new places or objects to make kids imagine like an animation movie
 - Explore more emotions & ending resolution
@@ -287,6 +290,7 @@ CRITICAL REQUIREMENTS - FOLLOW THESE EXACTLY:
 - Don't end the story abruptly, don't ask user to share ideas. and also don't repeat the story at the end.
 - Don't add scene 1, secne 2 ..etc in the story. it should be a continuous story.
 - Don't add ** symbols in the story.
+- Don't use country, city directly names in the story.
 IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Use only words a 3-year-old would understand. NO complex terms!`,
 		},
 		"2": {
