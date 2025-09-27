@@ -23,7 +23,7 @@ func NewDynamicPrompting() *DynamicPrompting {
 // GetPlanetProtectorsStories generates planet protector story prompts
 func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, preference string, storiesPerPreference int) (string, error) {
 	d.logger.Printf("Generating planet protector stories for country: %s, city: %s", country, city)
-
+	
 	planetProtectors := configs.ThemesSettings()
 	var promptText string
 
@@ -58,7 +58,7 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 		preference,
 	)
 	
-	// d.logger.Printf("Generated prompt: %s", superPrompt)
+	d.logger.Printf("Generated prompt: %s", superPrompt)
 	return superPrompt, nil
 }
 
@@ -83,23 +83,27 @@ func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferenc
 	}
 	
 	superPrompt := fmt.Sprintf(
-		"Create one topic for each topic in the list "+ promptText + ". that TEACH %s VALUES through SIMPLE STORIES. "+
+		"Create one topic for each topic in the list : "+ promptText + ". that TEACH %s VALUES through SIMPLE STORIES. "+
 			"The topic should be based on a real/existing topic that kids can understand. "+
 			"Each topic should be have exactly two parts title and description."+
 			"title should be a short and catchy title that kids can understand."+
 			"description should also be short and concise."+
 			"seperate title and description with a colon. and maintain only one colon in the whole string."+
 			"Return the topics as a list of strings and it should be in title:description format.",
+			"Always validate the length of the topics should be alwys %d.",
+			"Dont add any direct book or scripture name in the title or description.",
 		religion,
+		storiesPerPreference,
 	)
 	
-	// d.logger.Printf("Generated prompt: %s", superPrompt)
+	d.logger.Printf("Generated prompt: %s", superPrompt)
 	return superPrompt, nil
 }
 
 // GetChillStories generates chill story prompts
 func (d *DynamicPrompting) GetChillStories(preference string, storiesPerPreference int) (string, error) {
 	d.logger.Printf("Generating chill stories for preferences: %v", preference)
+	d.logger.Printf("storiesPerPreference: %s", storiesPerPreference)
 
 	chillStoriesSettings := configs.ThemesSettings()
 	var promptText string
