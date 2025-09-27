@@ -29,6 +29,8 @@ type StoryDatabase struct {
 	mdCollection2     string
 	mdCollection3     string
 	userProfiles      string
+	tcDocuments       string
+	storyFeedback     string
 	appHelper         *AppHelper
 	// configs           *configs.ServiceAccount
 }
@@ -47,6 +49,8 @@ func NewStoryDatabase() *StoryDatabase {
 		mdCollection2: "riostories_topics_metadata_2",
 		mdCollection3: "riostories_topics_metadata_3",
 		userProfiles:  "user_profiles",
+		tcDocuments:   "tc_documents",
+		storyFeedback: "story_feedback",
 		appHelper:     &AppHelper{},
 	}
 }
@@ -98,6 +102,41 @@ func (s *StoryDatabase) Close() error {
 	}
 	return nil
 }
+
+// Create TC Document on a user 
+func (s *StoryDatabase) CreateTc(ctx context.Context, data *model.Tc) (string, error) {
+	
+	userData := map[string]interface{}{
+		"accepted": data.Accepted,
+		"created_at": firestore.ServerTimestamp,
+		"updated_at": firestore.ServerTimestamp,
+		"email": data.Email,
+	}
+	_, err := s.client.Collection(s.tcDocuments).Doc(data.Email).Set(ctx, userData)
+	if err != nil {
+		return "", fmt.Errorf("error creating user profile: %v", err)
+	}
+
+	return "Document written successfully", nil
+}
+
+// Create TC Document on a user 
+func (s *StoryDatabase) CreateStoryFeedback(ctx context.Context, data *model.StoryFeedback) (string, error) {
+	
+	userData := map[string]interface{}{
+		"like": data.Like,
+		"created_at": firestore.ServerTimestamp,
+		"storyId":data.StoryId,
+		"email": data.Email,
+	}
+	_, err := s.client.Collection(s.storyFeedback).Doc(data.StoryId).Set(ctx, userData)
+	if err != nil {
+		return "", fmt.Errorf("error creating user profile: %v", err)
+	}
+
+	return "Document written successfully", nil
+}
+
 
 // CreateMDTopics1 creates metadata topics collection 1
 func (s *StoryDatabase) CreateMDTopics1(ctx context.Context, country, city string, preference string, topics []string) (string, error) {

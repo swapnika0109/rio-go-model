@@ -318,6 +318,75 @@ paths:
       summary: Create a new story
       tags:
       - Story
+  /story-feedback:
+    get:
+      consumes:
+      - application/json
+      description: Create story feedback
+      parameters:
+      - description: Story ID
+        in: path
+        name: storyId
+        required: true
+        type: string
+      - description: Like
+        in: body
+        name: like
+        required: true
+        schema:
+          type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Story feedback created successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      summary: Create story feedback
+      tags:
+      - story-feedback
+  /tc:
+    get:
+      consumes:
+      - application/json
+      description: Create TC
+      parameters:
+      - description: Accepted
+        in: body
+        name: accepted
+        required: true
+        schema:
+          type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: TC created successfully
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      summary: Create TC
+      tags:
+      - tc
   /user-profile:
     delete:
       consumes:

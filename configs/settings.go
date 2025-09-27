@@ -99,8 +99,8 @@ func NewSettings() *Settings {
 		EmailSender:           getEnvString("EMAIL_SENDER", "rio.oly.pluto@gmail.com"),
 		EmailTo:               getEnvString("EMAIL_TO", "rio.oly.pluto@gmail.com"),
 
-		DefaultStoryToGenerate: getEnvInt("DEFAULT_STORY_TO_GENERATE", 10),
-		StoriesPerTheme:       getEnvInt("STORIES_PER_THEME", 10),
+		DefaultStoryToGenerate: getEnvInt("DEFAULT_STORY_TO_GENERATE", 5),
+		StoriesPerTheme:       getEnvInt("STORIES_PER_THEME", 5),
 		DataUploadMaxMemorySize: getEnvInt("DATA_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
 		FileUploadMaxMemorySize: getEnvInt("FILE_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
 

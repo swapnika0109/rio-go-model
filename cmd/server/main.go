@@ -42,6 +42,8 @@ var storageService *database.StorageService
 var storyTopicsHandler *handlers.Story
 var authHandler *handlers.AuthHandler
 var emailHandler *handlers.Email
+var tcHandler *handlers.TcHandler
+var storyFeedbackHandler *handlers.StoryFeedbackHandler
 // var servicesReady bool // No longer needed
 
 func init() {
@@ -68,6 +70,8 @@ func init() {
 	storyTopicsHandler = handlers.NewStory(storyDB, storageService)
 	authHandler = handlers.NewAuthHandler(storyDB)
 	emailHandler = &handlers.Email{}
+	tcHandler = handlers.NewTcHandler(storyDB)
+	storyFeedbackHandler = handlers.NewStoryFeedbackHandler(storyDB)
 	log.Println("✅ All services initialized successfully!")
 }
 
@@ -190,6 +194,8 @@ func main() {
 	api.HandleFunc("/user-profile", storyTopicsHandler.UpdateUserProfile).Methods("PUT")
 	api.HandleFunc("/user-profile", storyTopicsHandler.DeleteUserProfile).Methods("DELETE")
 	api.HandleFunc("/email", emailHandler.NewEmail).Methods("POST")
+	api.HandleFunc("/tc", tcHandler.TcHandler).Methods("GET")
+	api.HandleFunc("/story-feedback", storyFeedbackHandler.StoryFeedbackHandler).Methods("GET")
 
 	// Add the new authentication routes
 	authRouter := api.PathPrefix("/auth").Subrouter()
