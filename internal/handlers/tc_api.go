@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"rio-go-model/internal/helpers/tc"
+	"rio-go-model/internal/model"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
 	"strings"
@@ -25,12 +25,13 @@ func NewTcHandler(tcDB *database.StoryDatabase) *TcHandler {
 // @Tags tc
 // @Accept json
 // @Produce json
-// @Param accepted body bool true "Accepted"
+//@Param emailRequest body model.EmailRequest true "Email request"
+// @Security BearerAuth
 // @Success 200 {object} map[string]string "TC created successfully"
 // @Failure 401 {object} util.HttpError "Unauthorized"
 // @Failure 500 {object} util.HttpError "Internal Server Error"
-// @Router /tc [get]
-func (h *TcHandler) TcHandler(w http.ResponseWriter, r *http.Request) {
+// @Router /tc [post]
+func (h *TcHandler) HandleTc(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -44,12 +45,21 @@ func (h *TcHandler) TcHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	accepted := r.URL.Query().Get("accepted")
-	_, err = tc.CreateTc(r.Context(), h.tcDB, accepted == "true", email)
+	var tc model.Tc
+	if err := json.NewDecoder(r.Body).Decode(tc); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+	tc.Email = email
+
+	_, err = h.tcDB.CreateTc(r.Context(), &tc)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
+
+
+
 	json.NewEncoder(w).Encode(map[string]string{"message": "TC created successfully"})
 	w.WriteHeader(http.StatusOK)
 	return

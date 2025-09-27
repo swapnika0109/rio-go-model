@@ -319,7 +319,7 @@ paths:
       tags:
       - Story
   /story-feedback:
-    get:
+    post:
       consumes:
       - application/json
       description: Create story feedback
@@ -352,21 +352,23 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/util.HttpError'
+      security:
+      - BearerAuth: []
       summary: Create story feedback
       tags:
       - story-feedback
   /tc:
-    get:
+    post:
       consumes:
       - application/json
       description: Create TC
       parameters:
-      - description: Accepted
+      - description: Email request
         in: body
-        name: accepted
+        name: emailRequest
         required: true
         schema:
-          type: boolean
+          $ref: '#/definitions/model.EmailRequest'
       produces:
       - application/json
       responses:
@@ -384,6 +386,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/util.HttpError'
+      security:
+      - BearerAuth: []
       summary: Create TC
       tags:
       - tc

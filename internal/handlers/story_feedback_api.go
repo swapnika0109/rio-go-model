@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"rio-go-model/internal/helpers/feedback"
+	"rio-go-model/internal/model"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
 	"strings"
@@ -27,11 +27,12 @@ func NewStoryFeedbackHandler(storyFeedbackDB *database.StoryDatabase) *StoryFeed
 // @Produce json
 // @Param storyId path string true "Story ID"
 // @Param like body bool true "Like"
+// @Security BearerAuth
 // @Success 200 {object} map[string]string "Story feedback created successfully"
 // @Failure 401 {object} util.HttpError "Unauthorized"
 // @Failure 500 {object} util.HttpError "Internal Server Error"
-// @Router /story-feedback [get]
-func (h *StoryFeedbackHandler) StoryFeedbackHandler(w http.ResponseWriter, r *http.Request) {
+// @Router /story-feedback [post]
+func (h *StoryFeedbackHandler) HandleStoryFeedback(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -46,10 +47,14 @@ func (h *StoryFeedbackHandler) StoryFeedbackHandler(w http.ResponseWriter, r *ht
 		return
 	}
 
-	storyId := r.URL.Query().Get("storyId")
-	like := r.URL.Query().Get("like")
+	var storyFeedback model.StoryFeedback
+	if err := json.NewDecoder(r.Body).Decode(&storyFeedback); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
 
-	_, err = feedback.CreateStoryFeedback(r.Context(), h.storyFeedbackDB, storyId, like == "true", email)
+	storyFeedback.Email = email
+	_, err = h.storyFeedbackDB.CreateStoryFeedback(r.Context(), &storyFeedback)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

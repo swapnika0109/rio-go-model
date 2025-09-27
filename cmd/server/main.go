@@ -194,8 +194,8 @@ func main() {
 	api.HandleFunc("/user-profile", storyTopicsHandler.UpdateUserProfile).Methods("PUT")
 	api.HandleFunc("/user-profile", storyTopicsHandler.DeleteUserProfile).Methods("DELETE")
 	api.HandleFunc("/email", emailHandler.NewEmail).Methods("POST")
-	api.HandleFunc("/tc", tcHandler.TcHandler).Methods("GET")
-	api.HandleFunc("/story-feedback", storyFeedbackHandler.StoryFeedbackHandler).Methods("GET")
+	api.HandleFunc("/tc", tcHandler.HandleTc).Methods("GET")
+	api.HandleFunc("/story-feedback", storyFeedbackHandler.HandleStoryFeedback).Methods("GET")
 
 	// Add the new authentication routes
 	authRouter := api.PathPrefix("/auth").Subrouter()

@@ -337,7 +337,12 @@ const docTemplate = `{
             }
         },
         "/story-feedback": {
-            "get": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Create story feedback",
                 "consumes": [
                     "application/json"
@@ -393,7 +398,12 @@ const docTemplate = `{
             }
         },
         "/tc": {
-            "get": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Create TC",
                 "consumes": [
                     "application/json"
@@ -407,12 +417,12 @@ const docTemplate = `{
                 "summary": "Create TC",
                 "parameters": [
                     {
-                        "description": "Accepted",
-                        "name": "accepted",
+                        "description": "Email request",
+                        "name": "emailRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "boolean"
+                            "$ref": "#/definitions/model.EmailRequest"
                         }
                     }
                 ],
