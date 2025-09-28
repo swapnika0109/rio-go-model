@@ -155,22 +155,22 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 	}, 1)
 
 	// Start image generation worker
-	go func() {
+	util.GoroutineWithRecovery(func() {
 		imageData, err := sgh.GenerateImage(topic)
 		imageResultChan <- struct {
 			data []byte
 			err  error
 		}{imageData, err}
-	}()
+	})
 
 	// Start audio generation worker
-	go func() {
+	util.GoroutineWithRecovery(func() {
 		audioData, err := sgh.audioGenerator.GenerateAudio(storyResponse.StoryText)
 		audioResultChan <- struct {
 			data string
 			err  error
 		}{audioData, err}
-	}()
+	})
 
 	// Wait for both operations to complete with timeout
 	ctx, cancel := context.WithTimeout(ctx, sgh.settings.HuggingFaceTimeout)
@@ -218,16 +218,16 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 	}, 1)
 
 	// Start image upload worker
-	go func() {
+	util.GoroutineWithRecovery(func() {
 		url, err := sgh.storageService.UploadFile(imageData, "images", "png")
 		imageUploadChan <- struct {
 			url string
 			err error
 		}{url, err}
-	}()
+	})
 
 	// Start audio upload worker
-	go func() {
+	util.GoroutineWithRecovery(func() {
 		// Decode base64 audio data
 		audioBytes, err := base64.StdEncoding.DecodeString(audioData)
 		if err != nil {
@@ -243,7 +243,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 			url string
 			err error
 		}{url, err}
-	}()
+	})
 
 	// Wait for uploads to complete
 	var imageURL, audioURL string
@@ -299,7 +299,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 	// }
 
 	// Save to database (non-blocking)
-	go func() {
+	util.GoroutineWithRecovery(func() {
 		dbData := map[string]interface{}{
 			"story_id":   storyID,
 			"title":      topic,
@@ -325,7 +325,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 		} else {
 			sgh.logger.Infof("Story saved to database with ID: %s", storyID)
 		}
-	}()
+	})
 
 	// log.Println("Story response: %v", storyResponse)
 	// return responseData, nil
@@ -378,6 +378,9 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	sgh.logger.Infof("Starting background tasks for user: %s", email)
 
 	ctx := context.Background()
+	// Add panic recovery for the entire background task
+	defer util.RecoverPanic()
+
 
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -388,28 +391,34 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	semaphore := make(chan struct{}, maxConcurrentStories)
 
 	// Process theme 1 in a goroutine
-	go func() {
+	util.GoroutineWithRecoveryAndHandler(func() {
 		defer wg.Done()
 		if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences, semaphore); err != nil {
 			sgh.logger.Errorf("Theme 1 processing error: %v", err)
 		}
-	}()
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
 	// Process theme 2 in a goroutine
-	go func() {
+	util.GoroutineWithRecoveryAndHandler(func() {
 		defer wg.Done()
 		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
 			sgh.logger.Errorf("Theme 2 processing error: %v", err)
 		}
-	}()
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
 	// Process theme 3 in a goroutine
-	go func() {
+	util.GoroutineWithRecoveryAndHandler(func() {
 		defer wg.Done()
 		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
 			sgh.logger.Errorf("Theme 3 processing error: %v", err)
 		}
-	}()
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
 	// Wait for all theme processing to complete
 	wg.Wait()
@@ -495,21 +504,24 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 
 	for _, topic := range allTopics[:storiesPerTheme] {
 		wg.Add(1)
-		go func(currentTopic topicWithKey) {
+		util.GoroutineWithRecoveryAndHandler(func() {
 			semaphore <- struct{}{}        // Acquire a spot
 			defer func() { <-semaphore }() // Release the spot
 			defer wg.Done()
 			kwargs := map[string]interface{}{
 				"country":     country,
 				"city":        city,
-				"preferences": currentTopic.Key,
+				"preferences": topic.Key,
 			}
 
-			err := sgh.StoryHelper(ctx, "1", currentTopic.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "1", topic.Topic, 2, kwargs)
 			if err != nil {
-				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentTopic, err)
+				sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 			}
-		}(topic)
+		}, func(r interface{}) {
+			<-semaphore // Release semaphore on panic
+			wg.Done()   // Ensure wg.Done() is called even on panic
+		})
 	}
 	wg.Wait()
 
@@ -536,6 +548,9 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 	storiesPerPreference := int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(religions))))
 
 	for _, religion := range religions {
+		if religion == "others" {
+			continue
+		}
 		prompt, err := sgh.dynamicPrompting.GetMindfulStories(country, religion, preferences, storiesPerPreference)
 		if err != nil {
 			return fmt.Errorf("failed to generate prompt: %v", err)
@@ -577,22 +592,25 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 	var wg sync.WaitGroup
 	for _, item := range allTopics[:storiesPerTheme] {
 		wg.Add(1)
-		go func(currentItem topicWithKey) {
+		util.GoroutineWithRecoveryAndHandler(func() {
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 			defer wg.Done()
 
 			kwargs := map[string]interface{}{
 				"country":     country,
-				"religions":   currentItem.Key,
+				"religions":   item.Key,
 				"preferences": preferences,
 			}
 
-			err := sgh.StoryHelper(ctx, "2", currentItem.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "2", item.Topic, 2, kwargs)
 			if err != nil {
-				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentItem.Topic, err)
+				sgh.logger.Errorf("Failed to generate story for topic %s: %v", item.Topic, err)
 			}
-		}(item)
+		}, func(r interface{}) {
+			<-semaphore // Release semaphore on panic
+			wg.Done()   // Ensure wg.Done() is called even on panic
+		})
 	}
 	wg.Wait()
 
@@ -667,19 +685,22 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 
 	for _, topic := range allTopics[:storiesPerTheme] {
 		wg.Add(1)
-		go func(currentTopic topicWithKey) {
+		util.GoroutineWithRecoveryAndHandler(func() {
 			semaphore <- struct{}{}        // Acquire a spot
 			defer func() { <-semaphore }() // Release the spot
 			defer wg.Done()
 
 			kwargs := map[string]interface{}{
-				"preferences": currentTopic.Key,
+				"preferences": topic.Key,
 			}
-			err := sgh.StoryHelper(ctx, "3", currentTopic.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "3", topic.Topic, 2, kwargs)
 			if err != nil {
-				sgh.logger.Errorf("Failed to generate story for topic %s: %v", currentTopic, err)
+				sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 			}
-		}(topic)
+		}, func(r interface{}) {
+			<-semaphore // Release semaphore on panic
+			wg.Done()   // Ensure wg.Done() is called even on panic
+		})
 	}
 	wg.Wait()
 

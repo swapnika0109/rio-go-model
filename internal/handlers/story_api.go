@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"runtime/debug"
+	// "runtime/debug"
 
 	"rio-go-model/internal/helpers"
 	"rio-go-model/internal/services/database"
@@ -300,13 +300,9 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 	logger := h.logger
 	logger.Println("Starting list_generated_stories request")
 
-	defer func() {
-		if r := recover(); r != nil {
-			stack := debug.Stack()
-			logger.Printf("PANIC: %v\nSTACK:\n%s", r, string(stack))
-			http.Error(w, fmt.Sprintf("Error listing stories: %v", r), http.StatusInternalServerError)
-		}
-	}()
+	defer util.RecoverPanicWithHandler(func(r interface{}) {
+		http.Error(w, fmt.Sprintf("Error listing stories: %v", r), http.StatusInternalServerError)
+	})
 
 	// Get JWT token from Authorization header
 	authHeader := r.Header.Get("Authorization")

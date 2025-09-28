@@ -34,6 +34,7 @@ import (
 	"github.com/gorilla/mux"
 	httpSwagger "github.com/swaggo/http-swagger"
 	"github.com/rs/cors"
+	"rio-go-model/internal/util"
 )
 
 // Global variables for services and handler, initialized in background
@@ -76,6 +77,7 @@ func init() {
 }
 
 func main() {
+	defer util.RecoverPanic()
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
         log.Println("ℹ️  No .env file found, using system environment variables")
@@ -186,8 +188,9 @@ func main() {
 		httpSwagger.DomID("swagger-ui"),
 	))
 
-	// Register API routes
+	// Register API routes with panic recovery middleware
 	api := r.PathPrefix("/api/v1").Subrouter()
+	api.Use(util.HTTPPanicRecoveryMiddleware)
 	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
 	api.HandleFunc("/stories", storyTopicsHandler.ListStories).Methods("GET")
 	api.HandleFunc("/user-profile", storyTopicsHandler.UserProfile).Methods("GET")

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -274,4 +276,108 @@ func CloseLogging() error {
 		return globalLogger.Close()
 	}
 	return nil
+}
+
+// PanicRecovery provides panic recovery functionality
+type PanicRecovery struct {
+	logger *CustomLogger
+}
+
+// NewPanicRecovery creates a new panic recovery instance
+func NewPanicRecovery(logger *CustomLogger) *PanicRecovery {
+	return &PanicRecovery{logger: logger}
+}
+
+// Recover recovers from panics and logs them
+func (pr *PanicRecovery) Recover() {
+	if r := recover(); r != nil {
+		if pr.logger != nil {
+			pr.logger.Errorf("🚨 Panic recovered: %v", r)
+			pr.logger.Errorf("Stack trace: %s", debug.Stack())
+		} else {
+			log.Printf("🚨 Panic recovered: %v", r)
+			log.Printf("Stack trace: %s", debug.Stack())
+		}
+	}
+}
+
+// RecoverWithHandler recovers from panics and calls a handler function
+func (pr *PanicRecovery) RecoverWithHandler(handler func(interface{})) {
+	if r := recover(); r != nil {
+		if pr.logger != nil {
+			pr.logger.Errorf("🚨 Panic recovered: %v", r)
+			pr.logger.Errorf("Stack trace: %s", debug.Stack())
+		} else {
+			log.Printf("🚨 Panic recovered: %v", r)
+			log.Printf("Stack trace: %s", debug.Stack())
+		}
+		if handler != nil {
+			handler(r)
+		}
+	}
+}
+
+// RecoverFunc returns a defer function for panic recovery
+func (pr *PanicRecovery) RecoverFunc() func() {
+	return func() {
+		pr.Recover()
+	}
+}
+
+// RecoverFuncWithHandler returns a defer function for panic recovery with handler
+func (pr *PanicRecovery) RecoverFuncWithHandler(handler func(interface{})) func() {
+	return func() {
+		pr.RecoverWithHandler(handler)
+	}
+}
+
+// Global panic recovery functions
+
+// RecoverPanic is a simple panic recovery function
+func RecoverPanic() {
+	if r := recover(); r != nil {
+		Errorf("🚨 Panic recovered: %v", r)
+		Errorf("Stack trace: %s", debug.Stack())
+	}
+}
+
+// RecoverPanicWithHandler recovers from panic and calls handler
+func RecoverPanicWithHandler(handler func(interface{})) {
+	if r := recover(); r != nil {
+		Errorf("🚨 Panic recovered: %v", r)
+		Errorf("Stack trace: %s", debug.Stack())
+		if handler != nil {
+			handler(r)
+		}
+	}
+}
+
+// HTTPPanicRecoveryMiddleware creates a middleware for HTTP panic recovery
+func HTTPPanicRecoveryMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if r := recover(); r != nil {
+				Errorf("🚨 Panic recovered in HTTP handler: %v", r)
+				Errorf("Stack trace: %s", debug.Stack())
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+// GoroutineWithRecovery runs a function in a goroutine with panic recovery
+func GoroutineWithRecovery(fn func()) {
+	go func() {
+		defer RecoverPanic()
+		fn()
+	}()
+}
+
+// GoroutineWithRecoveryAndHandler runs a function in a goroutine with panic recovery and handler
+func GoroutineWithRecoveryAndHandler(fn func(), handler func(interface{})) {
+	go func() {
+		defer RecoverPanicWithHandler(handler)
+		fn()
+	}()
 }
