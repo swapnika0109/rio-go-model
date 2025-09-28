@@ -25,7 +25,7 @@ func NewTcHandler(tcDB *database.StoryDatabase) *TcHandler {
 // @Tags tc
 // @Accept json
 // @Produce json
-//@Param emailRequest body model.EmailRequest true "Email request"
+// @Param tc body model.Tc true "Tc request"
 // @Security BearerAuth
 // @Success 200 {object} map[string]string "TC created successfully"
 // @Failure 401 {object} util.HttpError "Unauthorized"

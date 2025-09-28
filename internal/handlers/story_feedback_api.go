@@ -25,8 +25,7 @@ func NewStoryFeedbackHandler(storyFeedbackDB *database.StoryDatabase) *StoryFeed
 // @Tags story-feedback
 // @Accept json
 // @Produce json
-// @Param storyId path string true "Story ID"
-// @Param like body bool true "Like"
+// @Param storyFeedback body model.StoryFeedback true "StoryFeedback request"
 // @Security BearerAuth
 // @Success 200 {object} map[string]string "Story feedback created successfully"
 // @Failure 401 {object} util.HttpError "Unauthorized"

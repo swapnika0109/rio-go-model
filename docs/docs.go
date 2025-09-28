@@ -356,19 +356,12 @@ const docTemplate = `{
                 "summary": "Create story feedback",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "Story ID",
-                        "name": "storyId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Like",
-                        "name": "like",
+                        "description": "StoryFeedback request",
+                        "name": "storyFeedback",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "boolean"
+                            "$ref": "#/definitions/model.StoryFeedback"
                         }
                     }
                 ],
@@ -417,12 +410,12 @@ const docTemplate = `{
                 "summary": "Create TC",
                 "parameters": [
                     {
-                        "description": "Email request",
-                        "name": "emailRequest",
+                        "description": "Tc request",
+                        "name": "tc",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.EmailRequest"
+                            "$ref": "#/definitions/model.Tc"
                         }
                     }
                 ],
@@ -684,6 +677,31 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.StoryFeedback": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "like": {
+                    "type": "boolean"
+                },
+                "storyId": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.Tc": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "boolean"
+                },
+                "email": {
                     "type": "string"
                 }
             }

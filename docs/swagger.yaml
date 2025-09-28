@@ -64,6 +64,22 @@ definitions:
       name:
         type: string
     type: object
+  model.StoryFeedback:
+    properties:
+      email:
+        type: string
+      like:
+        type: boolean
+      storyId:
+        type: string
+    type: object
+  model.Tc:
+    properties:
+      accepted:
+        type: boolean
+      email:
+        type: string
+    type: object
   model.UserProfile:
     properties:
       city:
@@ -324,17 +340,12 @@ paths:
       - application/json
       description: Create story feedback
       parameters:
-      - description: Story ID
-        in: path
-        name: storyId
-        required: true
-        type: string
-      - description: Like
+      - description: StoryFeedback request
         in: body
-        name: like
+        name: storyFeedback
         required: true
         schema:
-          type: boolean
+          $ref: '#/definitions/model.StoryFeedback'
       produces:
       - application/json
       responses:
@@ -363,12 +374,12 @@ paths:
       - application/json
       description: Create TC
       parameters:
-      - description: Email request
+      - description: Tc request
         in: body
-        name: emailRequest
+        name: tc
         required: true
         schema:
-          $ref: '#/definitions/model.EmailRequest'
+          $ref: '#/definitions/model.Tc'
       produces:
       - application/json
       responses:
