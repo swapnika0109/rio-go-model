@@ -58,7 +58,7 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 		preference,
 	)
 	
-	d.logger.Printf("Generated prompt: %s", superPrompt)
+	// d.logger.Printf("Generated prompt: %s", superPrompt)
 	return superPrompt, nil
 }
 
@@ -96,7 +96,7 @@ func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferenc
 		storiesPerPreference,
 	)
 	
-	d.logger.Printf("Generated prompt: %s", superPrompt)
+	// d.logger.Printf("Generated prompt: %s", superPrompt)
 	return superPrompt, nil
 }
 
@@ -134,7 +134,7 @@ func (d *DynamicPrompting) GetChillStories(preference string, storiesPerPreferen
 		storiesPerPreference,
 	)
 	
-	d.logger.Printf("Generated prompt: %s", superPrompt)
+	// d.logger.Printf("Generated prompt: %s", superPrompt)
 	return superPrompt, nil
 }
 

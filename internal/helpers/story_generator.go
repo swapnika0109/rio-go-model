@@ -548,7 +548,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 	storiesPerPreference := int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(religions))))
 
 	for _, religion := range religions {
-		if religion == "others" {
+		if strings.EqualFold(religion, "any") {
 			continue
 		}
 		prompt, err := sgh.dynamicPrompting.GetMindfulStories(country, religion, preferences, storiesPerPreference)
