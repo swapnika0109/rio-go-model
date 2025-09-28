@@ -46,7 +46,7 @@ func (h *TcHandler) HandleTc(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	var tc model.Tc
-	if err := json.NewDecoder(r.Body).Decode(tc); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&tc); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
@@ -58,9 +58,8 @@ func (h *TcHandler) HandleTc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
-
-	json.NewEncoder(w).Encode(map[string]string{"message": "TC created successfully"})
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "TC created successfully"})
 	return
 }
