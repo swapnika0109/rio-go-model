@@ -43,7 +43,7 @@ jobs:
           --max-instances 5 \
           --min-instances 0 \
           --port 8080 \
-          --set-env-vars "HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }},EMAIL_APP_PASSWORD=${{ secrets.EMAIL_APP_PASSWORD }},GOOGLE_CLOUD_PROJECT=riokutty,STORAGE_BUCKET_NAME=kutty_bucket,SECRET_KEY=${{ secrets.SECRET_KEY }}"
+          --set-env-vars "HUGGINGFACE_TOKEN=${{ secrets.HUGGINGFACE_TOKEN }},EMAIL_APP_PASSWORD=${{ secrets.EMAIL_APP_PASSWORD }},HOST=rio-go-model-89695899419.us-central1.run.app,GOOGLE_CLOUD_PROJECT=riokutty,STORAGE_BUCKET_NAME=kutty_bucket,SECRET_KEY=${{ secrets.SECRET_KEY }}"
 
     - name: Show service URL
       run: |

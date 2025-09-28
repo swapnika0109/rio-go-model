@@ -90,11 +90,10 @@ func main() {
 	}
 
 	// Get host from environment variable or use default
-    // host := os.Getenv("HOST")
-    // if host == "" {
-    //     host = "localhost"
-    // }
-	host := "rio-go-model-89695899419.us-central1.run.app"
+    host := os.Getenv("HOST")
+    if host == "" {
+        host = "localhost"
+    }
 
 	// Initialize Swagger docs
 	docs.SwaggerInfo.Title = "Story API"
