@@ -332,7 +332,7 @@ func (s *StoryCreator) generateFormattedPrompt(theme, topic string, version int,
 				formattedPrompt += prefContent
 			}
 		}
-		s.logger.Printf("Generated prompt 3: %s", formattedPrompt)
+		// s.logger.Printf("Generated prompt 3: %s", formattedPrompt)
 		
 	} else {
 		// Standard prompt for version 1
