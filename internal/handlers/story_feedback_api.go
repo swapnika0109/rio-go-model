@@ -6,16 +6,19 @@ import (
 	"rio-go-model/internal/model"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
-	"strings"
+	"log"
+	// "strings"
 )
 
 type StoryFeedbackHandler struct {
 	storyFeedbackDB *database.StoryDatabase
+	logger *log.Logger
 }
 
 func NewStoryFeedbackHandler(storyFeedbackDB *database.StoryDatabase) *StoryFeedbackHandler {
 	return &StoryFeedbackHandler{
 		storyFeedbackDB: storyFeedbackDB,
+		logger: log.New(log.Writer(), "[Story Feedback Service] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 
@@ -32,17 +35,10 @@ func NewStoryFeedbackHandler(storyFeedbackDB *database.StoryDatabase) *StoryFeed
 // @Failure 500 {object} util.HttpError "Internal Server Error"
 // @Router /story-feedback [post]
 func (h *StoryFeedbackHandler) HandleStoryFeedback(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	_, email, err := util.VerifyToken(token)
+	_, email, err := util.VerifyAuth(r)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		h.logger.Printf("WARNING: Invalid token: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
 

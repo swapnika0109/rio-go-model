@@ -208,6 +208,9 @@ func main() {
 	authRouter.HandleFunc("/token/refresh/", authHandler.RefreshToken).Methods("POST")
 	authRouter.HandleFunc("/logout", authHandler.Logout).Methods("POST")
 	authRouter.HandleFunc("/logout/", authHandler.Logout).Methods("POST")
+	authRouter.HandleFunc("/w/logout/", authHandler.LogoutWeb).Methods("POST")
+	authRouter.HandleFunc("/w/token/refresh/", authHandler.RefreshTokenWeb).Methods("POST")
+	
 	
 
 

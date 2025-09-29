@@ -280,3 +280,90 @@ func ValidateGoogleToken(token string) (string, string, error) {
 
 	return username, email, nil
 }
+
+
+func SetAuthCookies(w http.ResponseWriter, accessToken, refreshToken string) {
+	http.SetCookie(w, &http.Cookie{
+		Name : "session_token",
+		Value : accessToken,
+		HttpOnly : true,
+		Secure : true,
+		SameSite : http.SameSiteLaxMode,
+		MaxAge : 3600,
+		Path : "/",
+	})
+
+	http.SetCookie(w, &http.Cookie{
+		Name : "refresh_token",
+		Value : refreshToken,
+		HttpOnly : true,
+		Secure : true,
+		SameSite : http.SameSiteLaxMode,
+		MaxAge : 604800,
+		Path : "/",
+	})
+
+}
+
+func IsCookiesPresent(r *http.Request) bool {
+	_, err := r.Cookie("session_token")
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func ValidateSessionCookies(r *http.Request) (string, string, error){
+	cookie, err := r.Cookie("session_token")
+	if err != nil {
+		log.Println("session token not found in cookies: " + err.Error())
+		return "", "", fmt.Errorf("session token not found")
+	}
+	return validateToken(cookie.Value)
+}
+
+func ValidateRefreshCookies(r *http.Request) (string, string, error){
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		log.Println("refresh token not found in cookies: " + err.Error())
+		return "", "", fmt.Errorf("refresh token not found")
+	}
+	return validateToken(cookie.Value)
+}
+
+// Helper methods
+
+// VerifyAuth verifies the authentication token
+func VerifyAuth(r *http.Request) (string, string, error) {
+	var token string
+	if !IsCookiesPresent(r) {
+		// If cookies are not present, use the Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			log.Printf("❌ DEBUG: Authorization header is required")
+			return "", "", fmt.Errorf("Authorization header is required")
+		}
+
+		// Remove "Bearer " prefix if present
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			authHeader = authHeader[7:]
+		}
+
+		token = authHeader
+
+	}else{
+		cookie, err := r.Cookie("session_token")
+		if err != nil {
+			return "", "", fmt.Errorf("Session token not found")
+		}
+		token = cookie.Value
+	}
+
+	username, email, err := VerifyToken(token)
+	if err != nil {
+		log.Printf("❌ DEBUG: Invalid token: %v", err)
+		return "", "", fmt.Errorf("Invalid token: %v", err)
+	}
+
+	return username, email, nil
+}

@@ -7,7 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
+	// "strings"
 	"sync"
 	"time"
 	// "runtime/debug"
@@ -147,19 +147,32 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	// Authentication
 	// logger := h.logger
 	// logger.Println("r.Header ", r.Header)
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		log.Printf("❌ DEBUG: Authorization header is required")
-		h.sendErrorResponse(w, http.StatusUnauthorized, "Authorization header is required")
-		return
-	}
+	var token string
+	if !util.IsCookiesPresent(r) {
+		// If cookies are not present, use the Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			log.Printf("❌ DEBUG: Authorization header is required")
+			h.sendErrorResponse(w, http.StatusUnauthorized, "Authorization header is required")
+			return
+		}
 
-	// Remove "Bearer " prefix if present
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		authHeader = authHeader[7:]
-	}
+		// Remove "Bearer " prefix if present
+		if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+			authHeader = authHeader[7:]
+		}
 
-	token := authHeader
+		token = authHeader
+
+	}else{
+		cookie, err := r.Cookie("session_token")
+		if err != nil {
+			h.sendErrorResponse(w, http.StatusUnauthorized, "Session token not found")
+			return
+		}
+		token = cookie.Value
+	}
+	
 	// log.Println("token ", token)
 	// secretKey := configs.LoadSettings().SecretKey
 	// log.Println("token secretKey ", strings.TrimSpace(secretKey))
@@ -246,28 +259,6 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	h.sendJSONResponse(w, http.StatusCreated, response)
 }
 
-// Helper methods
-
-// verifyAuth verifies the authentication token
-func (h *Story) verifyAuth(r *http.Request) (string, string, error) {
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		return "", "", fmt.Errorf("Authorization header is required")
-	}
-
-	// Remove "Bearer " prefix if present
-	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-		authHeader = authHeader[7:]
-	}
-
-	username, email, err := util.VerifyToken(authHeader)
-	if err != nil {
-		return "", "", fmt.Errorf("Invalid token: %v", err)
-	}
-
-	return username, email, nil
-}
-
 // sendJSONResponse sends a JSON response
 func (h *Story) sendJSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -304,16 +295,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error listing stories: %v", r), http.StatusInternalServerError)
 	})
 
-	// Get JWT token from Authorization header
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-		logger.Println("WARNING: Invalid or missing authorization token")
-		http.Error(w, "Invalid or missing authorization token", http.StatusUnauthorized)
-		return
-	}
-
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	username, email, err := util.VerifyToken(token)
+	username, email, err := util.VerifyAuth(r)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
@@ -604,19 +586,13 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request){
 	logger := h.logger
 	logger.Println("Starting user_profile request")
 
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer "){
-		logger.Println("WARNING: Invalid or missing authorization token")
-		http.Error(w, "Invalid or missing authorization token", http.StatusUnauthorized)
-		return
-	}
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	username, email, err := util.VerifyToken(token)
+	username, email, err := util.VerifyAuth(r)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
+
 	logger.Printf("INFO: Extracted username: %s, email: %s", username, email)
 	user, err := h.storyDB.GetUserProfileByEmail(r.Context(), email)
 	if err != nil {
@@ -663,14 +639,7 @@ func (h *Story) UpdateUserProfile(w http.ResponseWriter, r *http.Request){
 	logger := h.logger
 	logger.Println("Starting update_user_profile request")
 
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer "){
-		logger.Println("WARNING: Invalid or missing authorization token")
-		http.Error(w, "Invalid or missing authorization token", http.StatusUnauthorized)
-		return
-	}
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	_, email, err := util.VerifyToken(token)
+	_, email, err := util.VerifyAuth(r)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
@@ -707,14 +676,7 @@ func (h *Story) DeleteUserProfile(w http.ResponseWriter, r *http.Request){
 	logger := h.logger
 	logger.Println("Starting delete_user_profile request")
 
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer "){
-		logger.Println("WARNING: Invalid or missing authorization token")
-		http.Error(w, "Invalid or missing authorization token", http.StatusUnauthorized)
-		return
-	}
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	_, email, err := util.VerifyToken(token)
+	_, email, err := util.VerifyAuth(r)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)

@@ -177,6 +177,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/auth/w/logout": {
+            "post": {
+                "description": "Logs out a user by invalidating their refresh token. This is a client-side operation that clears tokens from storage.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "User Logout",
+                "parameters": [
+                    {
+                        "description": "Refresh Token to Invalidate",
+                        "name": "logout_request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.LogoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logout successful",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/w/token/refresh": {
+            "post": {
+                "description": "Accepts a refresh token and returns a new, short-lived access token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Refresh Access Token",
+                "parameters": [
+                    {
+                        "description": "Refresh Token",
+                        "name": "refresh_token_request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RefreshTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{\\\"access\\\":\\\"new_access_token\\\", \\\"refresh\\\":\\\"original_refresh_token\\\"}",
+                        "schema": {
+                            "$ref": "#/definitions/util.TokenPair"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Failed to generate new access token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    }
+                }
+            }
+        },
         "/email": {
             "post": {
                 "description": "Sends an email to the user",

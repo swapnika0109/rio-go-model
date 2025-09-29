@@ -5,10 +5,13 @@ import(
     "net/http"
     "rio-go-model/internal/model"
     "rio-go-model/internal/services/emails"
+    "rio-go-model/internal/util"
+    "log"
 )
 
 type Email struct {
     EmailRequest *model.EmailRequest
+	logger *log.Logger
 }
 
 
@@ -24,7 +27,13 @@ type Email struct {
 // NewEmail handles POST /email and expects JSON body: {"name":"...","email":"...","message":"..."}
 func (e *Email) NewEmail(w http.ResponseWriter, r *http.Request){
     defer r.Body.Close()
-
+    e.logger = log.New(log.Writer(), "[Email Service] ", log.LstdFlags|log.Lshortfile)
+    _, _, err := util.VerifyAuth(r)
+	if err != nil {
+		e.logger.Printf("WARNING: Invalid token: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
     var emailRequest model.EmailRequest
     if err := json.NewDecoder(r.Body).Decode(&emailRequest); err != nil {
         http.Error(w, "Invalid JSON body", http.StatusBadRequest)

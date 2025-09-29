@@ -123,6 +123,7 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error during token generation", http.StatusInternalServerError)
 		return
 	}
+	util.SetAuthCookies(w, tokenPair.AccessToken, tokenPair.RefreshToken)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(tokenPair)
@@ -177,6 +178,50 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// RefreshToken validates a refresh token and issues a new access token.
+// @Summary      Refresh Access Token
+// @Description  Accepts a refresh token and returns a new, short-lived access token.
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        refresh_token_request body RefreshTokenRequest true "Refresh Token"
+// @Success      200 {object} util.TokenPair "{\"access\":\"new_access_token\", \"refresh\":\"original_refresh_token\"}"
+// @Failure      400 {object} util.HttpError "Invalid request body or missing refresh token"
+// @Failure      401 {object} util.HttpError "Invalid refresh token"
+// @Failure      500 {object} util.HttpError "Failed to generate new access token"
+// @Router       /auth/w/token/refresh [post]
+func (h *AuthHandler) RefreshTokenWeb(w http.ResponseWriter, r *http.Request) {
+	_, _, err := util.ValidateRefreshCookies(r)
+	if err != nil {
+		log.Printf("ERROR: Invalid refresh token provided: %v", err)
+		http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
+		return
+	}
+
+	cookie, err := r.Cookie("refresh_token")
+	if err != nil {
+		log.Printf("ERROR: Invalid refresh token provided: %v", err)
+		http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
+		return
+	}
+	
+	// (Optional check for token type if you added it to validateToken)
+	
+	// 2. Generate a new access token.
+	newAccessToken, err := util.GenerateAccessTokenFromRefresh(cookie.Value)
+	if err != nil {
+		log.Printf("ERROR: Failed to generate new access token: %v", err)
+		http.Error(w, "Failed to generate new access token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"access":  newAccessToken,
+		"refresh": cookie.Value,
+	})
+}
+
 // LogoutRequest represents the expected JSON body for the logout endpoint.
 type LogoutRequest struct {
 	Refresh string `json:"refresh"`
@@ -207,6 +252,42 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	// Validate the refresh token to get user email
 	_, email, err := util.VerifyToken(req.Refresh)
+	if err != nil {
+		log.Printf("WARNING: Invalid refresh token during logout: %v", err)
+		// Don't return error for invalid token during logout - just log it
+	} else {
+		// Increment token version to invalidate all existing tokens for this user
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		
+		if err := h.db.IncrementTokenVersion(ctx, email); err != nil {
+			log.Printf("WARNING: Failed to increment token version: %v", err)
+		} else {
+			log.Printf("Token version incremented for user: %s", email)
+		}
+	}
+	
+	log.Printf("User logged out successfully")
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Logout successful",
+	})
+}
+
+// Logout handles user logout by invalidating the refresh token.
+// @Summary      User Logout
+// @Description  Logs out a user by invalidating their refresh token. This is a client-side operation that clears tokens from storage.
+// @Tags         Authentication
+// @Accept       json
+// @Produce      json
+// @Param        logout_request body LogoutRequest true "Refresh Token to Invalidate"
+// @Success      200 {object} map[string]string "Logout successful"
+// @Failure      400 {object} util.HttpError "Invalid request body or missing refresh token"
+// @Failure      500 {object} util.HttpError "Internal server error"
+// @Router       /auth/w/logout [post]
+func (h *AuthHandler) LogoutWeb(w http.ResponseWriter, r *http.Request) {
+	_, email, err := util.ValidateRefreshCookies(r)
 	if err != nil {
 		log.Printf("WARNING: Invalid refresh token during logout: %v", err)
 		// Don't return error for invalid token during logout - just log it

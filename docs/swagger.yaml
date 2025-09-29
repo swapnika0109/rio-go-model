@@ -230,6 +230,73 @@ paths:
       summary: Refresh Access Token
       tags:
       - Authentication
+  /auth/w/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logs out a user by invalidating their refresh token. This is a
+        client-side operation that clears tokens from storage.
+      parameters:
+      - description: Refresh Token to Invalidate
+        in: body
+        name: logout_request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LogoutRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request body or missing refresh token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      summary: User Logout
+      tags:
+      - Authentication
+  /auth/w/token/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Accepts a refresh token and returns a new, short-lived access token.
+      parameters:
+      - description: Refresh Token
+        in: body
+        name: refresh_token_request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: '{\"access\":\"new_access_token\", \"refresh\":\"original_refresh_token\"}'
+          schema:
+            $ref: '#/definitions/util.TokenPair'
+        "400":
+          description: Invalid request body or missing refresh token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "401":
+          description: Invalid refresh token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+        "500":
+          description: Failed to generate new access token
+          schema:
+            $ref: '#/definitions/util.HttpError'
+      summary: Refresh Access Token
+      tags:
+      - Authentication
   /email:
     post:
       consumes:
