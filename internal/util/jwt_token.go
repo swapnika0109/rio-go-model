@@ -283,26 +283,36 @@ func ValidateGoogleToken(token string) (string, string, error) {
 
 
 func SetAuthCookies(w http.ResponseWriter, accessToken, refreshToken string) {
-	http.SetCookie(w, &http.Cookie{
-		Name : "session_token",
-		Value : accessToken,
-		HttpOnly : true,
-		Secure : true,
-		SameSite : http.SameSiteLaxMode,
-		MaxAge : 3600,
-		Path : "/",
-	})
+    // Use environment to decide cookie flags for dev vs prod
+    // In production we expect HTTPS and cross-site usage → SameSite=None; Secure=true
+    // In local development over HTTP we use SameSite=Lax and Secure=false
+    isProd := os.Getenv("ENVIRONMENT") == "production"
+    sameSite := http.SameSiteLaxMode
+    secure := false
+    if isProd {
+        sameSite = http.SameSiteNoneMode
+        secure = true
+    }
 
-	http.SetCookie(w, &http.Cookie{
-		Name : "refresh_token",
-		Value : refreshToken,
-		HttpOnly : true,
-		Secure : true,
-		SameSite : http.SameSiteLaxMode,
-		MaxAge : 604800,
-		Path : "/",
-	})
+    http.SetCookie(w, &http.Cookie{
+        Name:     "session_token",
+        Value:    accessToken,
+        Path:     "/",
+        HttpOnly: true,
+        Secure:   secure,
+        SameSite: sameSite,
+        MaxAge:   3600,
+    })
 
+    http.SetCookie(w, &http.Cookie{
+        Name:     "refresh_token",
+        Value:    refreshToken,
+        Path:     "/",
+        HttpOnly: true,
+        Secure:   secure,
+        SameSite: sameSite,
+        MaxAge:   604800,
+    })
 }
 
 func IsCookiesPresent(r *http.Request) bool {

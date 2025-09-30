@@ -76,6 +76,7 @@ func init() {
 	log.Println("✅ All services initialized successfully!")
 }
 
+
 func main() {
 	defer util.RecoverPanic()
 	// Load environment variables
@@ -93,6 +94,12 @@ func main() {
     host := os.Getenv("HOST")
     if host == "" {
         host = "localhost"
+    }
+
+    // Read allowed origin from env (supports dev default)
+    frontendOrigin := os.Getenv("FRONTEND_ORIGIN")
+    if frontendOrigin == "" {
+        frontendOrigin = "http://localhost:8081"
     }
 
 	// Initialize Swagger docs
@@ -211,17 +218,15 @@ func main() {
 	authRouter.HandleFunc("/w/logout/", authHandler.LogoutWeb).Methods("POST")
 	authRouter.HandleFunc("/w/token/refresh/", authHandler.RefreshTokenWeb).Methods("POST")
 	
-	
-
-
-	// Configure CORS
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Allow all origins for development
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
-	})
-
+    // Configure CORS (use rs/cors only)
+    c := cors.New(cors.Options{
+        AllowedOrigins:   []string{frontendOrigin},
+        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowedHeaders:   []string{"Content-Type", "Authorization"},
+        AllowCredentials: true,
+    })
+    // Do not also use the custom CorsMiddleware when using rs/cors
+	// r.Use(CorsMiddleware)
 	// Create server with graceful shutdown
 	srv := &http.Server{
 		Addr:    ":" + port,
