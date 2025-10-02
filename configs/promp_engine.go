@@ -90,13 +90,13 @@ func GetPlanetProtectorList() []string {
 			"Power and controll",
 			"Force of vents",
 		"Life of extreme environment",
-			"The comets",
-			"The universe",
-			"The asteroids",
+			"The comets. Don't mention comets directly in the story. it should described in a very creative way. ",
+			"The universe. Don't mention universe directly in the story. it should described in a very creative way. ",
+			"The asteroids. Don't mention asteroids directly in the story. it should described in a very creative way. ",
 		"The stars",
-			"The ocean",
-			"The sea",
-			"The coral reefs",
+			"The ocean.",
+			"The sea.",
+			"The coral reefs. Don't mention coral reefs directly in the story. it should described in a very creative way. ",
 	}
 }
 

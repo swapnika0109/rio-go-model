@@ -96,10 +96,19 @@ func main() {
         host = "localhost"
     }
 
-    // Read allowed origin from env (supports dev default)
-    frontendOrigin := os.Getenv("FRONTEND_ORIGIN")
-    if frontendOrigin == "" {
-        frontendOrigin = "http://localhost:8081"
+    // Read allowed origins from env (supports dev default)
+    frontendOrigins := os.Getenv("FRONTEND_ORIGINS")
+    var allowedOrigins []string
+    if frontendOrigins != "" {
+        // Split by comma for multiple origins
+        allowedOrigins = []string{frontendOrigins}
+    } else {
+        // Default origins for development and production
+        allowedOrigins = []string{
+            "http://localhost:8081",           // Local development
+            "https://riokutty.web.app",        // Firebase production
+            "https://riokutty.firebaseapp.com", // Firebase alternative domain
+        }
     }
 
 	// Initialize Swagger docs
@@ -220,11 +229,14 @@ func main() {
 	
     // Configure CORS (use rs/cors only)
     c := cors.New(cors.Options{
-        AllowedOrigins:   []string{frontendOrigin},
+        AllowedOrigins:   allowedOrigins,
         AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
         AllowedHeaders:   []string{"Content-Type", "Authorization"},
         AllowCredentials: true,
     })
+    
+    // Log CORS configuration for debugging
+    log.Printf("🌐 CORS configured with allowed origins: %v", allowedOrigins)
     // Do not also use the custom CorsMiddleware when using rs/cors
 	// r.Use(CorsMiddleware)
 	// Create server with graceful shutdown
