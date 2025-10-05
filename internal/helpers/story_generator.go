@@ -13,6 +13,9 @@ import (
 	"rio-go-model/configs"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
+	"rio-go-model/internal/helpers/google/gemini"
+	"rio-go-model/internal/helpers/google/vertex"
+	"rio-go-model/internal/helpers/huggingface"
 
 	"github.com/google/uuid"
 )
@@ -21,7 +24,9 @@ import (
 type StoryGenerationHelper struct {
 	settings         *configs.Settings
 	logger           *util.CustomLogger
-	storyCreator     *StoryCreator
+	storyCreator     *huggingface.StoryCreator
+	vertexAiStoryGenerator *vertex.VertexStoryGenerationHelper
+	geminiStoryGenerator *gemini.GeminiStoryGenerationHelper
 	imageCreator     *ImageCreator
 	audioGenerator   *AudioGenerator
 	dynamicPrompting *DynamicPrompting
@@ -84,7 +89,9 @@ func NewStoryGenerationHelper(
 	return &StoryGenerationHelper{
 		settings:         settings,
 		logger:           logger,
-		storyCreator:     NewStoryCreator(),
+		storyCreator:     huggingface.NewStoryCreator(),
+		vertexAiStoryGenerator: vertex.NewVertexStoryGenerationHelper(),
+		geminiStoryGenerator: gemini.NewGeminiStoryGenerationHelper(),
 		imageCreator:     NewImageCreator(),
 		audioGenerator:   NewAudioGenerator(),
 		dynamicPrompting: NewDynamicPrompting(),
@@ -112,14 +119,14 @@ func (sgh *StoryGenerationHelper) GenerateImage(prompt string) ([]byte, error){
 }
 
 // StoryHelper generates a complete story with image and audio
-func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic string, version int, kwargs map[string]interface{}) (error) {
+func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_id, topic string, version int, kwargs map[string]interface{}) (error) {
 	sgh.logger.Infof("Generating story for theme: %s, topic: %s, version: %d", theme, topic, version)
 
 	// Generate story using StoryCreator
 	var storyResponse *StoryGenerationResponse
 
 	if version == 1 {
-		response, err := sgh.storyCreator.CreateStory(theme, topic, version, kwargs)
+		response, err := sgh.geminiStoryGenerator.CreateStory(theme, topic, version, kwargs)
 		if err != nil {
 			return fmt.Errorf("failed to generate story: %v", err)
 		}
@@ -132,7 +139,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 		storyResponse = &StoryGenerationResponse{StoryText: response.Story}
 	} else {
 		// Version 2 with dynamic parameters
-		response, err := sgh.storyCreator.CreateStory(theme, topic, version, kwargs)
+		response, err := sgh.geminiStoryGenerator.CreateStory(theme, topic, version, kwargs)
 		if err != nil {
 			return fmt.Errorf("failed to generate story: %v", err)
 		}
@@ -318,7 +325,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, topic 
 		if version == 1 {
 			_, err = sgh.storyDatabase.CreateStory(ctx, dbData)
 		} else {
-			_, err = sgh.storyDatabase.CreateStoryV2(ctx, dbData)
+			_, err = sgh.storyDatabase.CreateStoryV2(ctx, theme_id, dbData)
 		}
 
 		if err != nil {
@@ -445,7 +452,6 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 // getDynamicPromptingTheme1 processes theme 1 with parallel story generation controlled by a semaphore
 func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context, country, city string, preferences []string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 1 processing for country %s and city %s", country, city)
-
 	// Check if topics already exist
 	existing, err := sgh.storyDatabase.ReadMDTopics1(ctx, country, city, preferences)
 	if err != nil {
@@ -456,7 +462,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 		sgh.logger.Infof("Topics already exist for theme 1")
 		return nil
 	}
-
+	theme1_id := uuid.New().String()
 	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
 	var allTopics []topicWithKey
 	var concatTopics = make(map[string][]string)
@@ -480,7 +486,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 		sgh.logger.Infof("Generated %d topics for theme 1", len(topics))
 
 		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics1(ctx, country, city, preference, topics)
+		_, err = sgh.storyDatabase.CreateMDTopics1(ctx, theme1_id, country, city, preference, topics)
 		if err != nil {
 			return fmt.Errorf("failed to save topics: %v", err)
 		}
@@ -515,7 +521,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 				"preferences": topic.Key,
 			}
 
-			err := sgh.StoryHelper(ctx, "1", topic.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "1", theme1_id, topic.Topic, 2, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 			}
@@ -543,7 +549,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 		sgh.logger.Infof("Topics already exist for theme 2")
 		return nil
 	}
-
+	theme2_id := uuid.New().String()
 	// CORRECT: Initialize the map using make()
 	concatTopics := make(map[string][]string)
 	storiesPerPreference := int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(religions))))
@@ -569,7 +575,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 		sgh.logger.Infof("Generated %d topics for theme 2", len(topics))
 
 		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics2(ctx, country, religion, preferences, topics)
+		_, err = sgh.storyDatabase.CreateMDTopics2(ctx, theme2_id, country, religion, preferences, topics)
 		if err != nil {
 			return fmt.Errorf("failed to save topics: %v", err)
 		}
@@ -604,7 +610,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 				"preferences": preferences,
 			}
 
-			err := sgh.StoryHelper(ctx, "2", item.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "2", theme2_id, item.Topic, 2, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", item.Topic, err)
 			}
@@ -633,6 +639,8 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 		return nil
 	}
 
+	theme3_id := uuid.New().String()
+
 	var allTopics []topicWithKey
 	var concatTopics = make(map[string][]string)
 	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
@@ -660,7 +668,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 
 		// log.Println("length of topics", len(topics))
 		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics3(ctx, preference, topics)
+		_, err = sgh.storyDatabase.CreateMDTopics3(ctx, theme3_id, preference, topics)
 		if err != nil {
 			return fmt.Errorf("failed to save topics: %v", err)
 		}
@@ -694,7 +702,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 			kwargs := map[string]interface{}{
 				"preferences": topic.Key,
 			}
-			err := sgh.StoryHelper(ctx, "3", topic.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "3", theme3_id, topic.Topic, 2, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 			}

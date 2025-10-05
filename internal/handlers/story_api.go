@@ -426,25 +426,23 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		// Exactly like Python: for theme_topic in theme_data
 		for _, themeTopic := range themeData {
 			if themeTopic != nil {
-				topicsInterface, ok := themeTopic["topics"]
+				id, ok := themeTopic["theme_id"]
 				if ok {
-					topics, ok := topicsInterface.([]interface{})
-					if ok {
-						logger.Printf("INFO: Found topics: %v", len(topics))
-						// Exactly like Python: temp = [self.db.list_stories_v2(limit, theme=theme, title=topic) for topic in topics]
-						for _, topicInterface := range topics {
-							if topic, ok := topicInterface.(string); ok {
-								topicStories, err := h.storyDB.ListStoriesV2(r.Context(), limit, theme, topic)
-								if err != nil {
-									logger.Printf("ERROR: Error fetching stories for topic %s: %v", topic, err)
-									continue
-								}
-								if topicStories != nil {
-									stories = append(stories, topicStories)
-								}
-							}
-						}
-						// logger.Printf("INFO: Stories from topics: %v", stories)
+					themeID, ok := id.(string)
+					if !ok {
+						logger.Printf("WARNING: theme_id is not a string: %v", id)
+						continue
+					}
+					
+					systemStories, err := h.storyDB.ListStoriesByThemeID(r.Context(), themeID, limit)
+					if err != nil {
+						logger.Printf("ERROR: Error fetching stories for theme_id %s: %v", themeID, err)
+						continue
+					}
+					
+					if len(systemStories) > 0 {
+						logger.Printf("INFO: Found %d stories for theme_id: %s", len(systemStories), themeID)
+						stories = append(stories, systemStories...)
 					}
 				}
 			}
