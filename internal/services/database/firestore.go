@@ -31,7 +31,7 @@ type StoryDatabase struct {
 	userProfiles      string
 	tcDocuments       string
 	storyFeedback     string
-	storyTrigger       string
+	apiTrigger       string
 	appHelper         *AppHelper
 	// configs           *configs.ServiceAccount
 }
@@ -52,7 +52,7 @@ func NewStoryDatabase() *StoryDatabase {
 		userProfiles:  "user_profiles",
 		tcDocuments:   "tc_documents",
 		storyFeedback: "story_feedback",
-		storyTrigger:   "story_trigger",
+		apiTrigger:   "api_trigger",
 		appHelper:     &AppHelper{},
 	}
 }
@@ -105,21 +105,29 @@ func (s *StoryDatabase) Close() error {
 	return nil
 }
 
-// Create Trigger Document on a user 	
-func (s *StoryDatabase) CreateStoryTrigger(ctx context.Context, data *model.StoryTrigger) (string, error) {
+// Create Trigger Document on a API 	
+func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string) (string, error) {
 	
 	userData := map[string]interface{}{
-		"status": data.Status,
+		"suspend": true,
 		"created_at": firestore.ServerTimestamp,
 		"updated_at": firestore.ServerTimestamp,
-		"email": data.Email,
 	}
-	_, err := s.client.Collection(s.storyTrigger).Doc(data.Email).Set(ctx, userData)
+	_, err := s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
 	if err != nil {
-		return "", fmt.Errorf("error creating user profile: %v", err)
+		return "", fmt.Errorf("error creating api model: %v", err)
 	}
 
 	return "Document written successfully", nil
+}
+
+// Create Trigger Document on a user 	
+func (s *StoryDatabase) ReadAPITrigger(ctx context.Context, api_model string) (bool, error) {
+	data, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
+	if err != nil {
+		return false, fmt.Errorf("error reading api model: %v", err)
+	}
+	return data.Data()["suspend"].(bool), nil
 }
 
 // Create TC Document on a user 

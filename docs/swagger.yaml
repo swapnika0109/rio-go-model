@@ -491,7 +491,37 @@ paths:
       summary: Create TC
       tags:
       - tc
-  /triggers/pubsub:
+  /triggers/audio/pubsub:
+    post:
+      consumes:
+      - application/json
+      description: Receives GCP Pub/Sub push messages and acknowledges with 200
+      parameters:
+      - description: PubSub Push Message
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_handlers.PubSubPushMessage'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            type: string
+      summary: PubSub Push Handler
+      tags:
+      - Triggers
+  /triggers/gemini/pubsub:
     post:
       consumes:
       - application/json

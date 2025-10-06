@@ -545,7 +545,53 @@ const docTemplate = `{
                 }
             }
         },
-        "/triggers/pubsub": {
+        "/triggers/audio/pubsub": {
+            "post": {
+                "description": "Receives GCP Pub/Sub push messages and acknowledges with 200",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Triggers"
+                ],
+                "summary": "PubSub Push Handler",
+                "parameters": [
+                    {
+                        "description": "PubSub Push Message",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_handlers.PubSubPushMessage"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/triggers/gemini/pubsub": {
             "post": {
                 "description": "Receives GCP Pub/Sub push messages and acknowledges with 200",
                 "consumes": [

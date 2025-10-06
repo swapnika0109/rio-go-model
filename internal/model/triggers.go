@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-type StoryTrigger struct {
+type GeminiTriggerRequest struct {
 	Email string `json:"email"`
 	Trigger string `json:"trigger"`
 	CreatedAt time.Time `json:"created_at"`

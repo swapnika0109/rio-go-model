@@ -45,6 +45,7 @@ var authHandler *handlers.AuthHandler
 var emailHandler *handlers.Email
 var tcHandler *handlers.TcHandler
 var storyFeedbackHandler *handlers.StoryFeedbackHandler
+var pubSubHandler *handlers.PubSubHandler
 // var servicesReady bool // No longer needed
 
 func init() {
@@ -73,6 +74,7 @@ func init() {
 	emailHandler = &handlers.Email{}
 	tcHandler = handlers.NewTcHandler(storyDB)
 	storyFeedbackHandler = handlers.NewStoryFeedbackHandler(storyDB)
+	pubSubHandler = handlers.NewPubSubHandler(storyDB)
 	log.Println("✅ All services initialized successfully!")
 }
 
@@ -215,7 +217,8 @@ func main() {
 	api.HandleFunc("/email", emailHandler.NewEmail).Methods("POST")
 	api.HandleFunc("/tc", tcHandler.HandleTc).Methods("POST")
 	api.HandleFunc("/story-feedback", storyFeedbackHandler.HandleStoryFeedback).Methods("POST")
-	api.HandleFunc("/triggers/pubsub", handlers.PubSubPushHandler).Methods("POST")
+	api.HandleFunc("/triggers/gemini/pubsub", pubSubHandler.PubSubPushGeminiHandler).Methods("POST")
+	api.HandleFunc("/triggers/audio/pubsub", pubSubHandler.PubSubPushAudioHandler).Methods("POST")
 
 	// Add the new authentication routes
 	authRouter := api.PathPrefix("/auth").Subrouter()
