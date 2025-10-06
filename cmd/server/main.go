@@ -215,6 +215,7 @@ func main() {
 	api.HandleFunc("/email", emailHandler.NewEmail).Methods("POST")
 	api.HandleFunc("/tc", tcHandler.HandleTc).Methods("POST")
 	api.HandleFunc("/story-feedback", storyFeedbackHandler.HandleStoryFeedback).Methods("POST")
+	api.HandleFunc("/triggers/pubsub", handlers.PubSubPushHandler).Methods("POST")
 
 	// Add the new authentication routes
 	authRouter := api.PathPrefix("/auth").Subrouter()
