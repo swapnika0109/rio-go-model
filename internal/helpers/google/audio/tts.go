@@ -56,6 +56,17 @@ func NewGoogleTTS() *GoogleTTS {
 	}
 }
 
+func (g *GoogleTTS) GenerateAudioAdapter(text string) ([]byte, error) {
+	request := GoogleTTSRequest{
+		Text: text,
+	}
+	response := g.GenerateAudio(request)
+	if response.Error != "" {
+		return nil, fmt.Errorf("%s", response.Error)
+	}
+	return response.AudioContent, nil
+}
+
 func (g *GoogleTTS) GenerateAudio(request GoogleTTSRequest) GoogleTTSResponse {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -82,7 +93,7 @@ func (g *GoogleTTS) GenerateAudio(request GoogleTTSRequest) GoogleTTSResponse {
 		request.LanguageCode = "en-US"
 	}
 	if request.LanguageName == "" {
-		request.LanguageName = "en-US-Standard-A"
+		request.LanguageName = "en-US-Chirp3-HD-Achernar"
 	}
 
 	req := &texttospeechpb.SynthesizeSpeechRequest{

@@ -25,15 +25,15 @@ func RandomFrom(list []string) (int, error) {
 
 type ThemesSettingsList struct {
 	PlanetProtectorTopicsList []string
-	MindfulStoriesList map[string][]string
-	ChillStoriesList []string
+	MindfulStoriesList        map[string][]string
+	ChillStoriesList          []string
 }
 
 func ThemesSettings() *ThemesSettingsList {
 	return &ThemesSettingsList{
 		PlanetProtectorTopicsList: GetPlanetProtectorList(),
-		MindfulStoriesList: MindfulStoriesList(),
-		ChillStoriesList: ChillStoriesList(),
+		MindfulStoriesList:        MindfulStoriesList(),
+		ChillStoriesList:          ChillStoriesList(),
 	}
 }
 
@@ -53,68 +53,67 @@ func GetPlanetProtectorList() []string {
 		"Oceans and Seas",
 		"Rivers and Lakes",
 		"Space",
-			"Conservation of water and aquatic species",
-			"Water Cycle",
-			"Pollution",
+		"Conservation of water and aquatic species",
+		"Water Cycle",
+		"Pollution",
 		"Adaptation",
-			"The web of life",
-			"Decomposition and Recycling",
-			"Teamwork",
-			"Soil Ecosystem",
+		"The web of life",
+		"Decomposition and Recycling",
+		"Teamwork",
+		"Soil Ecosystem",
 		"Erosion",
-			"Climate Change",
-			"Glacier Melting",
-			"Survival",
+		"Climate Change",
+		"Glacier Melting",
+		"Survival",
 		"Adaptation",
 		"Beauty Of Ice",
-			"Conservation of forests and wild animals",
-			"Forest Ecosystem",
-			"Deforestation",
-			"Invasive Species",
-			"Resourcefullness",
+		"Conservation of forests and wild animals",
+		"Forest Ecosystem",
+		"Deforestation",
+		"Invasive Species",
+		"Resourcefullness",
 		"The magic of rain",
-			"birds challenges",
+		"birds challenges",
 		"ecosystem",
-			"Overcoming challenges",
-			"Ecosystem",
-			"Power of nature",
+		"Overcoming challenges",
+		"Ecosystem",
+		"Power of nature",
 		"Solitude and discovery",
-			"Ancient civilizations",
-			"History",
-			"Mystery",
+		"Ancient civilizations",
+		"History",
+		"Mystery",
 		"Power of the past",
-			"Minerals",
-			"Geology",
-			"The earth cycle",
+		"Minerals",
+		"Geology",
+		"The earth cycle",
 		"Darkness and light",
-			"Power and controll",
-			"Force of vents",
+		"Power and controll",
+		"Force of vents",
 		"Life of extreme environment",
-			"The comets. Don't mention comets directly in the story. it should described in a very creative way. ",
-			"The universe. Don't mention universe directly in the story. it should described in a very creative way. ",
-			"The asteroids. Don't mention asteroids directly in the story. it should described in a very creative way. ",
+		"The comets. Don't mention comets directly in the story. it should described in a very creative way. ",
+		"The universe. Don't mention universe directly in the story. it should described in a very creative way. ",
+		"The asteroids. Don't mention asteroids directly in the story. it should described in a very creative way. ",
 		"The stars",
-			"The ocean.",
-			"The sea.",
-			"The coral reefs. Don't mention coral reefs directly in the story. it should described in a very creative way. ",
+		"The ocean.",
+		"The sea.",
+		"The coral reefs. Don't mention coral reefs directly in the story. it should described in a very creative way. ",
 	}
 }
 
-
 func MindfulStoriesList() map[string][]string {
 	return map[string][]string{
-		"Hindu":{
+		"Hindu": {
 			"Mahabharata",
 			"Ramayana",
 			"Bhagavad Gita",
 			"Vedas",
 			"Puranas",
 		},
-		"Muslim":{
+		"Muslim": {
 			"Quran",
 			"Hadith",
 		},
-		"Christian":{
+		"Christian": {
 			"Bible",
 			"Gospels",
 			"Acts",
@@ -146,12 +145,15 @@ func ChillStoriesList() []string {
 func PlanetProtectorPromptConfig(topic string, country string, city string) PromptEngineConfig {
 	return PromptEngineConfig{
 		System: "You are a creative entertainment-driven , fusion of science and moral and animated imaginative storyteller who weaves magical tales that inspire children to think innovatively about environmental themes. NEVER use complex terms like 'rainforest', 'ecosystem', 'warriors', or 'enchantment'. Write ONLY simple, engaging stories with natural dialogue.",
-		Prompt: `Create a VERY ELABORATE and enchanting story about ` + topic + ` that can be easily understandable by people staying in ` + country + ` and ` + city + `. but dont use country and city directly in the story.
+		Prompt: `Create a story about ` + topic + ` that can be easily understandable by people staying in ` + country + ` and ` + city + `. but dont use country and city directly in the story. Aim for approximately 300 words, but ensure the story is complete and engaging.
 		CRITICAL REQUIREMENTS - FOLLOW THESE EXACTLY: 
 		Always drive the story with a single agenda or story line.
 		With-in the that agenda:
 			- Start illustrating the story with a very creative way.
 			- Always drive the story by explaining each and every element (e.g: if the story has any element like water or animal or plant or any other species.
+			- Include clear emotional reactions for characters, showing if they are excited, worried, happy, or surprised through their words and actions.
+			- Use varied sentence lengths, exclamation marks, and ellipses to suggest excitement, pauses, or wonder.
+			- When characters speak, use descriptive dialogue tags that show their feelings, like 'whispered excitedly,' 'sighed sadly,' 'exclaimed with joy,' 'muttered thoughtfully.'
 			 Lets create a short story about it explain kids/toddlers about what, how and why it is ..? . AT the end even this short story should have important in the main story.)
 			- Its ok to have short or medium size story. But no unnecessary long story.
 			- Always drive the story by choosing a challenge based on the the real time situations at ` + country + ` and ` + city + `.
@@ -177,7 +179,6 @@ func PlanetProtectorPromptConfig(topic string, country string, city string) Prom
 			- Don't use country, city directly names in the story.
 			- Don't mix multiple stories in the same story.
 			- Don't add unnecessary characters in the story.
-			- Lets just generate the entire story with in 300 words.
 		IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Use only words a 3-year-old would understand. NO complex terms!`,
 	}
 }
@@ -185,7 +186,7 @@ func PlanetProtectorPromptConfig(topic string, country string, city string) Prom
 func MindfulStoriesPromptConfig(topic string, religion string) PromptEngineConfig {
 	return PromptEngineConfig{
 		System: "You are a wise grandparent who brings ancient wisdom and history in the form of stories to the children in a way they can understand and live by.",
-		Prompt: `Read the topic: ` + topic + ` and fill the real/existing story behind it as per ` + religion + ` scriptures.
+		Prompt: `Read the topic: ` + topic + ` and fill the real/existing story behind it as per ` + religion + ` scriptures.Aim for approximately 300 words, but ensure the story is complete and engaging.
 Always drive the story with a single agenda or story line.
 With-in the that agenda:  	
 	- The story has to illustrate the topic in a very creative way.
@@ -205,16 +206,15 @@ With-in the that agenda:
 	- Don't end the story abruptly.
 	- Don't mix multiple stories in the same story.
 	- Don't add unnecessary characters in the story.
-	- Lets just generate the entire story with in 300 words.
 IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Ensure children can understand and implement the teachings in their daily lives.`,
 	}
 }
 
 func ChillStoriesPromptConfig(topic string) PromptEngineConfig {
-	return PromptEngineConfig {
+	return PromptEngineConfig{
 		System: "You are a creative, entertainment-driven, fusion of science and moral and animated storyteller",
 		Prompt: `Illustrate a story like disney animated movie about ` + topic + `.
-Always drive the story with a single agenda or story line.
+Always drive the story with a single agenda or story line.Aim for approximately 300 words, but ensure the story is complete and engaging.
 With-in the that agenda:  
 		- The story has to illustrate the topic in a very creative way.
 		- Explain the science and moral behind the story by adding necessary details like multiple scenes with needed interactions having beautiful emotions
@@ -232,7 +232,6 @@ With-in the that agenda:
 		- Don't end the story abruptly.
 		- Don't mix multiple stories in the same story.
 		- Don't add unnecessary characters in the story.
-		- Lets just generate the entire story with in 300 words.
 IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Ensure children can understand and implement the teachings in their daily lives.`,
 	}
 }
