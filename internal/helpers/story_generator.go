@@ -4,35 +4,36 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"sync"
-	"time"
 	"math"
 	"strings"
+	"sync"
+	"time"
+
 	// "log"
 
 	"rio-go-model/configs"
-	"rio-go-model/internal/services/database"
-	"rio-go-model/internal/util"
 	"rio-go-model/internal/helpers/google/gemini"
 	"rio-go-model/internal/helpers/google/vertex"
 	"rio-go-model/internal/helpers/huggingface"
+	"rio-go-model/internal/services/database"
+	"rio-go-model/internal/util"
 
 	"github.com/google/uuid"
 )
 
 // StoryGenerationHelper orchestrates the complete story generation process
 type StoryGenerationHelper struct {
-	settings         *configs.Settings
-	logger           *util.CustomLogger
-	storyCreator     *huggingface.StoryCreator
+	settings               *configs.Settings
+	logger                 *util.CustomLogger
+	storyCreator           *huggingface.StoryCreator
 	vertexAiStoryGenerator *vertex.VertexStoryGenerationHelper
-	geminiStoryGenerator *gemini.GeminiStoryGenerationHelper
-	imageCreator     *ImageCreator
-	audioGenerator   *AudioGenerator
-	dynamicPrompting *DynamicPrompting
-	storyDatabase    *database.StoryDatabase
-	storageService   *database.StorageService
-	httpClient       *HTTPClient
+	geminiStoryGenerator   *gemini.GeminiStoryGenerationHelper
+	imageCreator           *ImageCreator
+	audioGenerator         *AudioGenerator
+	dynamicPrompting       *DynamicPrompting
+	storyDatabase          *database.StoryDatabase
+	storageService         *database.StorageService
+	httpClient             *HTTPClient
 }
 
 // HTTPClient represents an HTTP client with connection pooling
@@ -61,13 +62,13 @@ type topicWithKey struct {
 
 // UserProfile represents user profile data
 type UserProfile struct {
-	Username     string   `json:"username"`
-	Email        string   `json:"email"`
-	Country      string   `json:"country"`
-	City         string   `json:"city"`
-	Religions    []string `json:"religions"`
-	Preferences  []string `json:"preferences"`
-	ProcessingStatus string `json:"processing_status"`
+	Username         string   `json:"username"`
+	Email            string   `json:"email"`
+	Country          string   `json:"country"`
+	City             string   `json:"city"`
+	Religions        []string `json:"religions"`
+	Preferences      []string `json:"preferences"`
+	ProcessingStatus string   `json:"processing_status"`
 }
 
 // MetadataRequest represents metadata upload request
@@ -87,22 +88,22 @@ func NewStoryGenerationHelper(
 	logger := util.GetLogger("story.generator", settings)
 
 	return &StoryGenerationHelper{
-		settings:         settings,
-		logger:           logger,
-		storyCreator:     huggingface.NewStoryCreator(),
+		settings:               settings,
+		logger:                 logger,
+		storyCreator:           huggingface.NewStoryCreator(),
 		vertexAiStoryGenerator: vertex.NewVertexStoryGenerationHelper(),
-		geminiStoryGenerator: gemini.NewGeminiStoryGenerationHelper(),
-		imageCreator:     NewImageCreator(),
-		audioGenerator:   NewAudioGenerator(),
-		dynamicPrompting: NewDynamicPrompting(),
-		storyDatabase:    storyDB,
-		storageService:   storageService,
-		httpClient:       &HTTPClient{}, // Initialize with proper client
+		geminiStoryGenerator:   gemini.NewGeminiStoryGenerationHelper(),
+		imageCreator:           NewImageCreator(),
+		audioGenerator:         NewAudioGenerator(),
+		dynamicPrompting:       NewDynamicPrompting(),
+		storyDatabase:          storyDB,
+		storageService:         storageService,
+		httpClient:             &HTTPClient{}, // Initialize with proper client
 	}
 }
 
 // GenerateImage generates an image from a prompt using AI
-func (sgh *StoryGenerationHelper) GenerateImage(prompt string) ([]byte, error){
+func (sgh *StoryGenerationHelper) GenerateImage(prompt string) ([]byte, error) {
 	sgh.logger.Infof("Generating image for prompt: %s", prompt[:min(len(prompt), 50)])
 
 	// Add kid-friendly modifiers to the prompt
@@ -119,7 +120,7 @@ func (sgh *StoryGenerationHelper) GenerateImage(prompt string) ([]byte, error){
 }
 
 // StoryHelper generates a complete story with image and audio
-func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_id, topic string, version int, kwargs map[string]interface{}) (error) {
+func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_id, topic string, version int, kwargs map[string]interface{}) error {
 	sgh.logger.Infof("Generating story for theme: %s, topic: %s, version: %d", theme, topic, version)
 
 	// Generate story using StoryCreator
@@ -344,7 +345,6 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 func (sgh *StoryGenerationHelper) UploadMetadata(ctx context.Context, token, username, email string, metadata *MetadataRequest) error {
 	sgh.logger.Infof("Uploading metadata for user: %s", email)
 
-
 	//Check if user profile exists
 	userProfile, err := sgh.storyDatabase.GetUserProfile(ctx, username, email)
 	if err != nil || userProfile == nil {
@@ -389,9 +389,8 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	// Add panic recovery for the entire background task
 	defer util.RecoverPanic()
 
-
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(1)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
@@ -408,25 +407,25 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		wg.Done() // Ensure wg.Done() is called even on panic
 	})
 
-	// Process theme 2 in a goroutine
-	util.GoroutineWithRecoveryAndHandler(func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 2 processing error: %v", err)
-		}
-	}, func(r interface{}) {
-		wg.Done() // Ensure wg.Done() is called even on panic
-	})
+	// // Process theme 2 in a goroutine
+	// util.GoroutineWithRecoveryAndHandler(func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
+	// 	}
+	// }, func(r interface{}) {
+	// 	wg.Done() // Ensure wg.Done() is called even on panic
+	// })
 
-	// Process theme 3 in a goroutine
-	util.GoroutineWithRecoveryAndHandler(func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 3 processing error: %v", err)
-		}
-	}, func(r interface{}) {
-		wg.Done() // Ensure wg.Done() is called even on panic
-	})
+	// // Process theme 3 in a goroutine
+	// util.GoroutineWithRecoveryAndHandler(func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
+	// 	}
+	// }, func(r interface{}) {
+	// 	wg.Done() // Ensure wg.Done() is called even on panic
+	// })
 
 	// Wait for all theme processing to complete
 	wg.Wait()
@@ -683,7 +682,6 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	}
 	// log.Println("length of allTopics", len(allTopics))
 
-	
 	// Generate stories for first few topics in parallel
 	storiesPerTheme := sgh.settings.StoriesPerTheme
 	if len(allTopics) < storiesPerTheme {
@@ -716,5 +714,3 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	sgh.logger.Infof("Completed theme 3 processing")
 	return nil
 }
-
-

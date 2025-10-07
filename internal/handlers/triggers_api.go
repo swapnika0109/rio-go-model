@@ -23,23 +23,24 @@ type PubSubPushMessage struct {
 }
 
 type PubSubMessage struct {
-	Data        string            `json:"data"`        // base64-encoded
-	Attributes  map[string]string `json:"attributes"`  // optional
+	Data        string            `json:"data"`       // base64-encoded
+	Attributes  map[string]string `json:"attributes"` // optional
 	MessageID   string            `json:"messageId"`
 	PublishTime string            `json:"publishTime"`
 }
 
-//@Summary PubSub Push Handler
-//@Description Receives GCP Pub/Sub push messages and acknowledges with 200
-//@Tags Triggers
-//@Accept json
-//@Produce json
-//@Param request body PubSubPushMessage true "PubSub Push Message"
-//@Success 200 {string} string "OK"
-//@Failure 400 {string} string "Bad Request"
-//@Failure 500 {string} string "Internal Server Error"
-//@Router /triggers/gemini/pubsub [post]
+// @Summary PubSub Push Handler
+// @Description Receives GCP Pub/Sub push messages and acknowledges with 200
+// @Tags Triggers
+// @Accept json
+// @Produce json
+// @Param request body PubSubPushMessage true "PubSub Push Message"
+// @Success 200 {string} string "OK"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /triggers/gemini/pubsub [post]
 func (h *PubSubHandler) PubSubPushGeminiHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("PubSubPushGeminiHandler called..")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "failed to read body", http.StatusBadRequest)
@@ -61,7 +62,7 @@ func (h *PubSubHandler) PubSubPushGeminiHandler(w http.ResponseWriter, r *http.R
 	}
 
 	log.Printf("PubSub messageId=%s attrs=%v data=%s", push.Message.MessageID, push.Message.Attributes, string(decoded))
-    _, err = h.db.CreateAPITrigger(r.Context(), "gemini")
+	_, err = h.db.CreateAPITrigger(r.Context(), "gemini")
 	if err != nil {
 		http.Error(w, "failed to create api trigger", http.StatusInternalServerError)
 		return
@@ -70,17 +71,18 @@ func (h *PubSubHandler) PubSubPushGeminiHandler(w http.ResponseWriter, r *http.R
 	w.WriteHeader(http.StatusOK)
 }
 
-//@Summary PubSub Push Handler
-//@Description Receives GCP Pub/Sub push messages and acknowledges with 200
-//@Tags Triggers
-//@Accept json
-//@Produce json
-//@Param request body PubSubPushMessage true "PubSub Push Message"
-//@Success 200 {string} string "OK"
-//@Failure 400 {string} string "Bad Request"
-//@Failure 500 {string} string "Internal Server Error"
-//@Router /triggers/audio/pubsub [post]
+// @Summary PubSub Push Handler
+// @Description Receives GCP Pub/Sub push messages and acknowledges with 200
+// @Tags Triggers
+// @Accept json
+// @Produce json
+// @Param request body PubSubPushMessage true "PubSub Push Message"
+// @Success 200 {string} string "OK"
+// @Failure 400 {string} string "Bad Request"
+// @Failure 500 {string} string "Internal Server Error"
+// @Router /triggers/audio/pubsub [post]
 func (h *PubSubHandler) PubSubPushAudioHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("PubSubPushAudioHandler called..")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, "failed to read body", http.StatusBadRequest)

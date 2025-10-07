@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+
 	// "path/filepath"
 	"strings"
 	"time"
 
+	"rio-go-model/internal/model"
+	"rio-go-model/internal/util"
+
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
-	"rio-go-model/internal/util"
-	"rio-go-model/internal/model"
 	// "rio-go-model/configs"
 )
 
@@ -22,17 +24,17 @@ import (
 
 // StoryDatabase represents a Firestore database service for stories
 type StoryDatabase struct {
-	client            *firestore.Client
-	collection        string
-	collectionV2      string
-	mdCollection1     string
-	mdCollection2     string
-	mdCollection3     string
-	userProfiles      string
-	tcDocuments       string
-	storyFeedback     string
-	apiTrigger       string
-	appHelper         *AppHelper
+	client        *firestore.Client
+	collection    string
+	collectionV2  string
+	mdCollection1 string
+	mdCollection2 string
+	mdCollection3 string
+	userProfiles  string
+	tcDocuments   string
+	storyFeedback string
+	apiTrigger    string
+	appHelper     *AppHelper
 	// configs           *configs.ServiceAccount
 }
 
@@ -52,7 +54,7 @@ func NewStoryDatabase() *StoryDatabase {
 		userProfiles:  "user_profiles",
 		tcDocuments:   "tc_documents",
 		storyFeedback: "story_feedback",
-		apiTrigger:   "api_trigger",
+		apiTrigger:    "api_trigger",
 		appHelper:     &AppHelper{},
 	}
 }
@@ -105,11 +107,11 @@ func (s *StoryDatabase) Close() error {
 	return nil
 }
 
-// Create Trigger Document on a API 	
+// Create Trigger Document on a API
 func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string) (string, error) {
-	
+	log.Printf("Creating API Trigger for %s", api_model)
 	userData := map[string]interface{}{
-		"suspend": true,
+		"suspend":    true,
 		"created_at": firestore.ServerTimestamp,
 		"updated_at": firestore.ServerTimestamp,
 	}
@@ -121,8 +123,9 @@ func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string) 
 	return "Document written successfully", nil
 }
 
-// Create Trigger Document on a user 	
+// Create Trigger Document on a user
 func (s *StoryDatabase) ReadAPITrigger(ctx context.Context, api_model string) (bool, error) {
+	log.Printf("Reading API Trigger for %s", api_model)
 	data, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
 	if err != nil {
 		return false, fmt.Errorf("error reading api model: %v", err)
@@ -130,14 +133,14 @@ func (s *StoryDatabase) ReadAPITrigger(ctx context.Context, api_model string) (b
 	return data.Data()["suspend"].(bool), nil
 }
 
-// Create TC Document on a user 
+// Create TC Document on a user
 func (s *StoryDatabase) CreateTc(ctx context.Context, data *model.Tc) (string, error) {
-	
+
 	userData := map[string]interface{}{
-		"accepted": data.Accepted,
+		"accepted":   data.Accepted,
 		"created_at": firestore.ServerTimestamp,
 		"updated_at": firestore.ServerTimestamp,
-		"email": data.Email,
+		"email":      data.Email,
 	}
 	_, err := s.client.Collection(s.tcDocuments).Doc(data.Email).Set(ctx, userData)
 	if err != nil {
@@ -147,14 +150,14 @@ func (s *StoryDatabase) CreateTc(ctx context.Context, data *model.Tc) (string, e
 	return "Document written successfully", nil
 }
 
-// Create TC Document on a user 
+// Create TC Document on a user
 func (s *StoryDatabase) CreateStoryFeedback(ctx context.Context, data *model.StoryFeedback) (string, error) {
-	
+
 	userData := map[string]interface{}{
-		"like": data.Like,
+		"like":       data.Like,
 		"created_at": firestore.ServerTimestamp,
-		"storyId":data.StoryId,
-		"email": data.Email,
+		"storyId":    data.StoryId,
+		"email":      data.Email,
 	}
 	_, err := s.client.Collection(s.storyFeedback).Doc(data.StoryId).Set(ctx, userData)
 	if err != nil {
@@ -164,17 +167,16 @@ func (s *StoryDatabase) CreateStoryFeedback(ctx context.Context, data *model.Sto
 	return "Document written successfully", nil
 }
 
-
 // CreateMDTopics1 creates metadata topics collection 1
 func (s *StoryDatabase) CreateMDTopics1(ctx context.Context, theme_id, country, city string, preference string, topics []string) (string, error) {
 	data := map[string]interface{}{
-		"theme_id":    theme_id,
-		"country":     country,
-		"city":        city,
+		"theme_id":   theme_id,
+		"country":    country,
+		"city":       city,
 		"preference": preference,
-		"topics":      topics,
-		"created_at":  firestore.ServerTimestamp,
-		"updated_at":  firestore.ServerTimestamp,
+		"topics":     topics,
+		"created_at": firestore.ServerTimestamp,
+		"updated_at": firestore.ServerTimestamp,
 	}
 
 	docRef, _, err := s.client.Collection(s.mdCollection1).Add(ctx, data)
@@ -188,7 +190,6 @@ func (s *StoryDatabase) CreateMDTopics1(ctx context.Context, theme_id, country, 
 // GetUserProfile retrieves a user profile by email
 func (s *StoryDatabase) GetUserProfile(ctx context.Context, username, emailID string) (map[string]interface{}, error) {
 
-	
 	if s.client == nil {
 		log.Printf("❌ DEBUG: Firestore client is nil!")
 		return nil, fmt.Errorf("Firestore client not initialized")
@@ -283,7 +284,7 @@ func (db *StoryDatabase) GetTokenVersion(ctx context.Context, email string) (int
 // CreateUserProfile creates a new user profile
 func (s *StoryDatabase) CreateUserProfile(ctx context.Context, userData map[string]interface{}) (string, error) {
 	email := userData["email"].(string)
-	
+
 	// Add timestamps
 	userData["created_at"] = firestore.ServerTimestamp
 	userData["updated_at"] = firestore.ServerTimestamp
@@ -295,7 +296,6 @@ func (s *StoryDatabase) CreateUserProfile(ctx context.Context, userData map[stri
 
 	return email, nil
 }
-
 
 func (s *StoryDatabase) DeleteUserProfile(ctx context.Context, email string) error {
 	_, err := s.client.Collection(s.userProfiles).Doc(email).Delete(ctx)
@@ -331,7 +331,7 @@ func (s *StoryDatabase) UpdateUserProfile(ctx context.Context, email string, dat
 	for key, value := range data {
 		updates = append(updates, firestore.Update{Path: key, Value: value})
 	}
-	
+
 	_, err := s.client.Collection(s.userProfiles).Doc(email).Update(ctx, updates)
 	if err != nil {
 		return fmt.Errorf("error updating user profile: %v", err)
@@ -348,7 +348,7 @@ func (s *StoryDatabase) InitialReadMDTopics1(ctx context.Context) ([]map[string]
 	log.Printf("User profile: %v", userProfile)
 	country := userProfile["country"].(string)
 	city := userProfile["city"].(string)
-    preferences := util.SafeStringSlice(userProfile["preferences"])
+	preferences := util.SafeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
@@ -361,7 +361,7 @@ func (s *StoryDatabase) InitialReadMDTopics1(ctx context.Context) ([]map[string]
 		if err != nil {
 			return nil, fmt.Errorf("error executing query: %v", err)
 		}
-		
+
 		if len(iterationDocs) == 0 {
 			log.Printf("No metadata topics found for preference: %s", preference)
 			continue
@@ -385,9 +385,6 @@ func (s *StoryDatabase) InitialReadMDTopics1(ctx context.Context) ([]map[string]
 	return results, nil
 }
 
-
-
-
 // ReadMDTopics1 reads metadata topics collection 1
 func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string, preferences []string) ([]map[string]interface{}, error) {
 	log.Printf("Reading metadata topics 1 for country: %s, city: %s, preferences: %v", country, city, preferences)
@@ -403,7 +400,7 @@ func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string,
 		if err != nil {
 			return nil, fmt.Errorf("error executing query: %v", err)
 		}
-		
+
 		if len(iterationDocs) == 0 {
 			log.Printf("No metadata topics found for preference: %s", preference)
 			continue
@@ -432,7 +429,7 @@ func (s *StoryDatabase) CreateMDTopics2(ctx context.Context, theme_id, country s
 	data := map[string]interface{}{
 		"theme_id":    theme_id,
 		"country":     country,
-		"religion":   religion,
+		"religion":    religion,
 		"preferences": preferences,
 		"topics":      topics,
 		"created_at":  firestore.ServerTimestamp,
@@ -455,8 +452,8 @@ func (s *StoryDatabase) InitialReadMDTopics2(ctx context.Context) ([]map[string]
 	}
 	log.Printf("User profile: %v", userProfile)
 	country := userProfile["country"].(string)
-    religions := util.SafeStringSlice(userProfile["religions"])
-    preferences := util.SafeStringSlice(userProfile["preferences"])
+	religions := util.SafeStringSlice(userProfile["religions"])
+	preferences := util.SafeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, religion := range religions {
@@ -469,7 +466,7 @@ func (s *StoryDatabase) InitialReadMDTopics2(ctx context.Context) ([]map[string]
 		if err != nil {
 			return nil, fmt.Errorf("error executing query: %v", err)
 		}
-		
+
 		if len(iterationDocs) == 0 {
 			log.Printf("No metadata topics found for religion: %s", religion)
 			continue
@@ -530,16 +527,14 @@ func (s *StoryDatabase) ReadMDTopics2(ctx context.Context, country string, relig
 	return results, nil
 }
 
-
-
 // CreateMDTopics3 creates metadata topics collection 3
 func (s *StoryDatabase) CreateMDTopics3(ctx context.Context, theme_id, preference string, topics []string) (string, error) {
 	data := map[string]interface{}{
-		"theme_id":    theme_id,
+		"theme_id":   theme_id,
 		"preference": preference,
-		"topics":      topics,
-		"created_at":  firestore.ServerTimestamp,
-		"updated_at":  firestore.ServerTimestamp,
+		"topics":     topics,
+		"created_at": firestore.ServerTimestamp,
+		"updated_at": firestore.ServerTimestamp,
 	}
 
 	docRef, _, err := s.client.Collection(s.mdCollection3).Add(ctx, data)
@@ -557,7 +552,7 @@ func (s *StoryDatabase) InitialReadMDTopics3(ctx context.Context) ([]map[string]
 		return nil, fmt.Errorf("error getting user profile: %v", err)
 	}
 	log.Printf("User profile: %v", userProfile)
-    preferences := util.SafeStringSlice(userProfile["preferences"])
+	preferences := util.SafeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
@@ -568,7 +563,7 @@ func (s *StoryDatabase) InitialReadMDTopics3(ctx context.Context) ([]map[string]
 		if err != nil {
 			return nil, fmt.Errorf("error executing query: %v", err)
 		}
-		
+
 		if len(iterationDocs) == 0 {
 			log.Printf("No metadata topics found for preference: %s", preference)
 			continue
@@ -626,7 +621,6 @@ func (s *StoryDatabase) ReadMDTopics3(ctx context.Context, preferences []string)
 	return results, nil
 }
 
-
 // CreateStory creates a new story
 func (s *StoryDatabase) CreateStory(ctx context.Context, storyData map[string]interface{}) (string, error) {
 	// Add timestamps
@@ -645,9 +639,9 @@ func (s *StoryDatabase) CreateStory(ctx context.Context, storyData map[string]in
 func (s *StoryDatabase) CreateStoryV2(ctx context.Context, theme_id string, storyData map[string]interface{}) (string, error) {
 	title := storyData["title"].(string)
 	theme := storyData["theme"].(string)
-	
+
 	docID := s.appHelper.GetDocID(title, theme)
-	
+
 	// Add timestamps
 	storyData["created_at"] = firestore.ServerTimestamp
 	storyData["updated_at"] = firestore.ServerTimestamp
@@ -689,11 +683,10 @@ func (s *StoryDatabase) GetStoryV2(ctx context.Context, storyID string) (map[str
 	return doc.Data(), nil
 }
 
-
 // ListStoriesV2 lists stories v2 with filtering
 func (s *StoryDatabase) ListStoriesV2(ctx context.Context, limit int, theme, title string) (map[string]interface{}, error) {
 	log.Printf("Listing stories v2 with limit: %d, theme: %s, title: %s", limit, theme, title)
-	
+
 	docID := s.appHelper.GetDocID(title, theme)
 	log.Printf("Generated doc_id: %s", docID)
 
@@ -715,16 +708,16 @@ func (s *StoryDatabase) ListStoriesV2(ctx context.Context, limit int, theme, tit
 // ListStories lists stories with filtering
 func (s *StoryDatabase) ListStories(ctx context.Context, limit int, theme string) ([]map[string]interface{}, error) {
 	log.Printf("Listing stories with limit: %d, theme: %s", limit, theme)
-	
+
 	var docs []*firestore.DocumentSnapshot
 	var err error
-	
+
 	if theme != "" {
 		docs, err = s.client.Collection(s.collection).Where("theme", "==", theme).Limit(limit).Documents(ctx).GetAll()
 	} else {
 		docs, err = s.client.Collection(s.collection).Limit(limit).Documents(ctx).GetAll()
 	}
-	
+
 	if err != nil {
 		log.Printf("Error listing stories: %v", err)
 		return nil, fmt.Errorf("error listing stories: %v", err)
@@ -744,13 +737,13 @@ func (s *StoryDatabase) ListStories(ctx context.Context, limit int, theme string
 // ListStoriesByThemeID lists stories v2 by theme_id
 func (s *StoryDatabase) ListStoriesByThemeID(ctx context.Context, themeID string, limit int) ([]map[string]interface{}, error) {
 	log.Printf("Listing stories v2 by theme_id: %s with limit: %d", themeID, limit)
-	
+
 	query := s.client.Collection(s.collectionV2).Where("theme_id", "==", themeID)
-	
+
 	if limit > 0 {
 		query = query.Limit(limit)
 	}
-	
+
 	docs, err := query.Documents(ctx).GetAll()
 	if err != nil {
 		log.Printf("Error listing stories by theme_id: %v", err)
@@ -776,12 +769,12 @@ func (s *StoryDatabase) UpdateStory(ctx context.Context, storyID string, storyDa
 		updates = append(updates, firestore.Update{Path: key, Value: value})
 	}
 	updates = append(updates, firestore.Update{Path: "updated_at", Value: firestore.ServerTimestamp})
-	
+
 	_, err := s.client.Collection(s.collection).Doc(storyID).Update(ctx, updates)
 	if err != nil {
 		return fmt.Errorf("error updating story: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -791,7 +784,7 @@ func (s *StoryDatabase) DeleteStory(ctx context.Context, storyID string) error {
 	if err != nil {
 		return fmt.Errorf("error deleting story: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -809,7 +802,7 @@ func (s *StoryDatabase) HealthCheck(ctx context.Context) error {
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return fmt.Errorf("Firestore health check failed: %v", err)
 	}
-                                                       
+
 	return nil
 }
 
