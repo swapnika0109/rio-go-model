@@ -16,20 +16,20 @@ import (
 
 // StoryCreator represents a service for creating stories using AI models
 type StoryCreator struct {
-	logger    *log.Logger
-	apiKey    string
-	baseURL   string
-	client    *http.Client
+	logger  *log.Logger
+	apiKey  string
+	baseURL string
+	client  *http.Client
 }
 
 // AIRequest represents the request structure for AI model API calls
 type AIRequest struct {
-	Model       string        `json:"model"`
-	Messages    []AIMessage   `json:"messages"`
-	Temperature float64       `json:"temperature,omitempty"`
-	MaxTokens   int           `json:"max_tokens,omitempty"`
-	TopP        float64       `json:"top_p,omitempty"`
-	Stream      bool          `json:"stream,omitempty"`
+	Model       string      `json:"model"`
+	Messages    []AIMessage `json:"messages"`
+	Temperature float64     `json:"temperature,omitempty"`
+	MaxTokens   int         `json:"max_tokens,omitempty"`
+	TopP        float64     `json:"top_p,omitempty"`
+	Stream      bool        `json:"stream,omitempty"`
 }
 
 // AIMessage represents a message in the AI conversation
@@ -68,8 +68,8 @@ func NewStoryCreator() *StoryCreator {
 	}
 
 	return &StoryCreator{
-		logger:  log.New(log.Writer(), "[story.views] ", log.LstdFlags),
-		apiKey:  apiKey,
+		logger: log.New(log.Writer(), "[story.views] ", log.LstdFlags),
+		apiKey: apiKey,
 		// baseURL: "https://api.together.xyz/v1", // Together AI endpoint
 		baseURL: "https://router.huggingface.co/v1", // Fal AI endpoint
 		client: &http.Client{
@@ -120,8 +120,8 @@ func (s *StoryCreator) CreateTopics(prompt string) (*TopicResponse, error) {
 	// Parse topics from response
 	topics := s.parseTopics(topicsData)
 	s.logger.Printf("Successfully generated %d topics", len(topics))
-	settings := configs.LoadSettings()
-	
+	settings := configs.GetSettings()
+
 	if len(topics) != settings.DefaultStoryToGenerate {
 		s.logger.Printf("Warning: Generated %d topics, expected %d", len(topics), settings.DefaultStoryToGenerate)
 	}
@@ -172,9 +172,9 @@ func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[
 			},
 		},
 		Temperature: 0.9,
-		MaxTokens:  1000,
-		TopP:       0.9,
-		Stream:     false,
+		MaxTokens:   1000,
+		TopP:        0.9,
+		Stream:      false,
 	}
 
 	// Make API call
@@ -225,7 +225,7 @@ func (s *StoryCreator) makeAIRequest(endpoint string, request AIRequest) (*AIRes
 	if err != nil {
 		return nil, fmt.Errorf("failed to make request: %v", err)
 	}
-	
+
 	defer resp.Body.Close()
 
 	// Check status code
@@ -270,11 +270,9 @@ func (s *StoryCreator) parseTopics(topicsData string) []string {
 					topics = append(topics, topic)
 				}
 			}
-			
+
 		}
 	}
 
 	return topics
 }
-
-

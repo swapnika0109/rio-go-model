@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// Global settings instance
+var GlobalSettings *Settings
+
 // Settings represents the application settings
 type Settings struct {
 	// API Keys and Authentication
@@ -379,4 +382,19 @@ func (s *Settings) Validate() error {
 	}
 
 	return nil
+}
+
+// InitializeSettings loads settings once at startup
+func InitializeSettings() {
+	GlobalSettings = LoadSettings()
+	log.Println("✅ Global settings loaded successfully")
+}
+
+// GetSettings returns the global settings instance
+func GetSettings() *Settings {
+	if GlobalSettings == nil {
+		log.Println("⚠️  Settings not initialized, loading now...")
+		GlobalSettings = LoadSettings()
+	}
+	return GlobalSettings
 }

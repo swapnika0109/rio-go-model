@@ -27,14 +27,16 @@ import (
 	"os"
 	"time"
 
+	"rio-go-model/configs"
 	"rio-go-model/docs"
 	"rio-go-model/internal/handlers"
 	"rio-go-model/internal/services/database"
-	"github.com/joho/godotenv"
-	"github.com/gorilla/mux"
-	httpSwagger "github.com/swaggo/http-swagger"
-	"github.com/rs/cors"
 	"rio-go-model/internal/util"
+
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
+	"github.com/rs/cors"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 // Global variables for services and handler, initialized in background
@@ -46,6 +48,7 @@ var emailHandler *handlers.Email
 var tcHandler *handlers.TcHandler
 var storyFeedbackHandler *handlers.StoryFeedbackHandler
 var pubSubHandler *handlers.PubSubHandler
+
 // var servicesReady bool // No longer needed
 
 func init() {
@@ -53,6 +56,9 @@ func init() {
 	defer cancel()
 
 	log.Println("🔧 Initializing services at startup...")
+
+	// Initialize global settings first
+	configs.InitializeSettings()
 
 	// Database
 	storyDB = database.NewStoryDatabase()
@@ -78,14 +84,13 @@ func init() {
 	log.Println("✅ All services initialized successfully!")
 }
 
-
 func main() {
 	defer util.RecoverPanic()
 	// Load environment variables
 	if err := godotenv.Load(); err != nil {
-        log.Println("ℹ️  No .env file found, using system environment variables")
-    }
-    
+		log.Println("ℹ️  No .env file found, using system environment variables")
+	}
+
 	// Get port from environment variable, default to 8080 for local development
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -93,25 +98,25 @@ func main() {
 	}
 
 	// Get host from environment variable or use default
-    host := os.Getenv("HOST")
-    if host == "" {
-        host = "localhost"
-    }
+	host := os.Getenv("HOST")
+	if host == "" {
+		host = "localhost"
+	}
 
-    // Read allowed origins from env (supports dev default)
-    frontendOrigins := os.Getenv("FRONTEND_ORIGINS")
-    var allowedOrigins []string
-    if frontendOrigins != "" {
-        // Split by comma for multiple origins
-        allowedOrigins = []string{frontendOrigins}
-    } else {
-        // Default origins for development and production
-        allowedOrigins = []string{
-            "http://localhost:8081",           // Local development
-            "https://riokutty.web.app",        // Firebase production
-            "https://riokutty.firebaseapp.com", // Firebase alternative domain
-        }
-    }
+	// Read allowed origins from env (supports dev default)
+	frontendOrigins := os.Getenv("FRONTEND_ORIGINS")
+	var allowedOrigins []string
+	if frontendOrigins != "" {
+		// Split by comma for multiple origins
+		allowedOrigins = []string{frontendOrigins}
+	} else {
+		// Default origins for development and production
+		allowedOrigins = []string{
+			"http://localhost:8081",            // Local development
+			"https://riokutty.web.app",         // Firebase production
+			"https://riokutty.firebaseapp.com", // Firebase alternative domain
+		}
+	}
 
 	// Initialize Swagger docs
 	docs.SwaggerInfo.Title = "Story API"
@@ -124,10 +129,9 @@ func main() {
 		docs.SwaggerInfo.Host = host
 		docs.SwaggerInfo.Schemes = []string{"https"}
 	}
-	 // This will be overridden in production
+	// This will be overridden in production
 	docs.SwaggerInfo.BasePath = "/api/v1"
 	// docs.SwaggerInfo.Schemes = []string{"https", "http"}
-
 
 	log.Printf("🚀 Server will start on port: %s", port)
 
@@ -137,7 +141,6 @@ func main() {
 	// Directly initialize the handler with nil services.
 	// The services will be created on the first request.
 	// storyTopicsHandler = handlers.NewStory(nil, nil)
-
 
 	// Create router
 	r := mux.NewRouter()
@@ -191,7 +194,7 @@ func main() {
 		</body>
 		</html>
 		`
-		
+
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(html))
@@ -230,18 +233,18 @@ func main() {
 	authRouter.HandleFunc("/logout/", authHandler.Logout).Methods("POST")
 	authRouter.HandleFunc("/w/logout/", authHandler.LogoutWeb).Methods("POST")
 	authRouter.HandleFunc("/w/token/refresh/", authHandler.RefreshTokenWeb).Methods("POST")
-	
-    // Configure CORS (use rs/cors only)
-    c := cors.New(cors.Options{
-        AllowedOrigins:   allowedOrigins,
-        AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-        AllowedHeaders:   []string{"Content-Type", "Authorization"},
-        AllowCredentials: true,
-    })
-    
-    // Log CORS configuration for debugging
-    log.Printf("🌐 CORS configured with allowed origins: %v", allowedOrigins)
-    // Do not also use the custom CorsMiddleware when using rs/cors
+
+	// Configure CORS (use rs/cors only)
+	c := cors.New(cors.Options{
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+
+	// Log CORS configuration for debugging
+	log.Printf("🌐 CORS configured with allowed origins: %v", allowedOrigins)
+	// Do not also use the custom CorsMiddleware when using rs/cors
 	// r.Use(CorsMiddleware)
 	// Create server with graceful shutdown
 	srv := &http.Server{

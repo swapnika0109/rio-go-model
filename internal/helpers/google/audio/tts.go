@@ -62,7 +62,7 @@ func NewGoogleTTS() *GoogleTTS {
 
 func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, error) {
 	g.Logger.Printf("Generating audio for language: %s", language)
-	settings := configs.LoadSettings()
+	settings := configs.GetSettings()
 	languageCode := util.LanguageMapper(language)
 	request := GoogleTTSRequest{
 		Text:         text,

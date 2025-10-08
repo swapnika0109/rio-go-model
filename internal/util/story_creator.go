@@ -13,13 +13,11 @@ type AIMessage struct {
 	Content string `json:"content"`
 }
 
-
 // StoryResponse represents the response for story generation
 type StoryResponse struct {
 	Story string `json:"story,omitempty"`
 	Error string `json:"error,omitempty"`
 }
-
 
 // generateFormattedPrompt generates the formatted prompt based on version and parameters
 func GenerateFormattedPrompt(theme, topic string, version int, kwargs map[string]interface{}) (string, string, error) {
@@ -45,10 +43,10 @@ func GenerateFormattedPrompt(theme, topic string, version int, kwargs map[string
 				Prompt: cfg.Prompt,
 				System: cfg.System,
 			}
-			
+
 			formattedPrompt = promptTemplate.Prompt
 			systemMessage = promptTemplate.System
-		}else if theme == "2" {
+		} else if theme == "2" {
 			cfg := configs.MindfulStoriesPromptConfig(topic, religionsStr)
 			promptTemplate = &PromptTemplate{
 				Prompt: cfg.Prompt,
@@ -56,7 +54,7 @@ func GenerateFormattedPrompt(theme, topic string, version int, kwargs map[string
 			}
 			formattedPrompt = promptTemplate.Prompt
 			systemMessage = promptTemplate.System
-		}else if theme == "3" {
+		} else if theme == "3" {
 			cfg := configs.ChillStoriesPromptConfig(topic)
 			promptTemplate = &PromptTemplate{
 				Prompt: cfg.Prompt,
@@ -64,8 +62,8 @@ func GenerateFormattedPrompt(theme, topic string, version int, kwargs map[string
 			}
 			formattedPrompt = promptTemplate.Prompt
 			systemMessage = promptTemplate.System
-		}else{
-		// Format the prompt
+		} else {
+			// Format the prompt
 			formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religionsStr, strings.Join(preferences, ", "))
 			systemMessage = promptTemplate.System
 		}
@@ -77,7 +75,7 @@ func GenerateFormattedPrompt(theme, topic string, version int, kwargs map[string
 			}
 		}
 		// s.logger.Printf("Generated prompt 3: %s", formattedPrompt)
-		
+
 	} else {
 		// Standard prompt for version 1
 		promptTemplate, err := getPromptConfig(theme)
@@ -103,15 +101,15 @@ type PromptTemplate struct {
 // getDynamicPromptConfig gets the dynamic prompt configuration for a theme
 func getDynamicPromptConfig(theme string) (*PromptTemplate, error) {
 	// Load settings to get the actual prompt configuration
-	settings := configs.LoadSettings()
-	
+	settings := configs.GetSettings()
+
 	if config, exists := settings.GetDynamicPromptConfig(theme); exists {
 		return &PromptTemplate{
 			Prompt: config.Prompt,
 			System: config.System,
 		}, nil
 	}
-	
+
 	// Fallback to default if theme not found
 	return &PromptTemplate{
 		Prompt: "Create a story about %s set in %s, %s. Include elements related to %s and incorporate these preferences: %s.",
@@ -122,15 +120,15 @@ func getDynamicPromptConfig(theme string) (*PromptTemplate, error) {
 // getPromptConfig gets the standard prompt configuration for a theme
 func getPromptConfig(theme string) (*PromptTemplate, error) {
 	// Load settings to get the actual prompt configuration
-	settings := configs.LoadSettings()
-	
+	settings := configs.GetSettings()
+
 	if config, exists := settings.GetPromptConfig(theme); exists {
 		return &PromptTemplate{
 			Prompt: config.Prompt,
 			System: config.System,
 		}, nil
 	}
-	
+
 	// Fallback to default if theme not found
 	return &PromptTemplate{
 		Prompt: "Create a story about %s.",
@@ -141,8 +139,8 @@ func getPromptConfig(theme string) (*PromptTemplate, error) {
 // getPreferenceContent gets the content for a specific preference
 func getPreferenceContent(preference string) string {
 	// Load settings to get the actual preference configuration
-	settings := configs.LoadSettings()
-	
+	settings := configs.GetSettings()
+
 	if content, exists := settings.GetPreference(preference); exists {
 		return content
 	}

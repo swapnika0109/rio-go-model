@@ -86,7 +86,7 @@ func NewStoryGenerationHelper(
 	storyDB *database.StoryDatabase,
 	storageService *database.StorageService,
 ) *StoryGenerationHelper {
-	settings := configs.LoadSettings()
+	settings := configs.GetSettings()
 	logger := util.GetLogger("story.generator", settings)
 
 	return &StoryGenerationHelper{
