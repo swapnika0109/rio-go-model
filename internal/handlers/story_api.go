@@ -7,26 +7,29 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+
 	// "strings"
 	"sync"
 	"time"
+
 	// "runtime/debug"
 
 	"rio-go-model/internal/helpers"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
+
 	// "rio-go-model/configs"
 	"rio-go-model/internal/model"
 )
 
 // StoryTopics represents the story topics handler
 type Story struct {
-	storyGenerator   *helpers.StoryGenerationHelper
-	storyDB          *database.StoryDatabase
-	storageService   *database.StorageService
-	initMutex        sync.Mutex // Protects initialization
-	isInitialized    bool       // Flag to check if services are initialized
-	logger           *log.Logger
+	storyGenerator *helpers.StoryGenerationHelper
+	storyDB        *database.StoryDatabase
+	storageService *database.StorageService
+	initMutex      sync.Mutex // Protects initialization
+	isInitialized  bool       // Flag to check if services are initialized
+	logger         *log.Logger
 }
 
 // NewStory creates a new story topics handler
@@ -34,19 +37,19 @@ func NewStory(storyDB *database.StoryDatabase,
 	storageService *database.StorageService) *Story {
 	return &Story{
 		storyGenerator: nil,
-		storyDB: storyDB,
+		storyDB:        storyDB,
 		storageService: storageService,
-		logger: log.New(log.Writer(), "[Story] ", log.LstdFlags|log.Lshortfile),
+		logger:         log.New(log.Writer(), "[Story] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 
 // CreateStoryRequest represents the request body for creating stories
 type CreateStoryRequest struct {
-	Country     string                 `json:"country"`
-	City        string                 `json:"city"`
-	Religions   []string               `json:"religions"`
-	Preferences []string               `json:"preferences"`
-	
+	Country     string   `json:"country"`
+	City        string   `json:"city"`
+	Religions   []string `json:"religions"`
+	Preferences []string `json:"preferences"`
+	Language    string   `json:"language"`
 }
 
 // MetadataUploadRequest represents metadata upload request
@@ -59,8 +62,6 @@ type MetadataUploadRequest struct {
 	Settings    map[string]interface{} `json:"settings,omitempty"`
 }
 
-
-
 // StoryResponse represents the API response structure
 type StoryResponse struct {
 	Message string      `json:"message"`
@@ -70,19 +71,19 @@ type StoryResponse struct {
 
 // ListStoriesRequest represents the expected query parameters for listing stories
 type ListStoriesRequest struct {
-	Theme  string `json:"theme"`
-	Limit  int    `json:"limit"`
+	Theme string `json:"theme"`
+	Limit int    `json:"limit"`
 }
 
 // StoryData represents a single story in the response
 type StoryData struct {
-	StoryID    string `json:"story_id"`
-	Title      string `json:"title"`
-	StoryText  string `json:"story_text"`
-	Image      string `json:"image"`
-	Audio      string `json:"audio"`
-	AudioType  string `json:"audio_type"`
-	Theme      string `json:"theme"`
+	StoryID   string `json:"story_id"`
+	Title     string `json:"title"`
+	StoryText string `json:"story_text"`
+	Image     string `json:"image"`
+	Audio     string `json:"audio"`
+	AudioType string `json:"audio_type"`
+	Theme     string `json:"theme"`
 }
 
 // GetStoryTopics handles GET request for story topics
@@ -129,7 +130,6 @@ type StoryData struct {
 // 	h.sendJSONResponse(w, http.StatusOK, response)
 // }
 
-
 // @Summary      Create a new story
 // @Description  Creates a new story based on the user's profile and preferences.
 // @Tags         Story
@@ -164,7 +164,7 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 
 		token = authHeader
 
-	}else{
+	} else {
 		cookie, err := r.Cookie("session_token")
 		if err != nil {
 			h.sendErrorResponse(w, http.StatusUnauthorized, "Session token not found")
@@ -172,7 +172,7 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 		}
 		token = cookie.Value
 	}
-	
+
 	// log.Println("token ", token)
 	// secretKey := configs.LoadSettings().SecretKey
 	// log.Println("token secretKey ", strings.TrimSpace(secretKey))
@@ -241,6 +241,7 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 		City:        req.City,
 		Religions:   req.Religions,
 		Preferences: req.Preferences,
+		Language:    req.Language,
 	})
 
 	if err != nil {
@@ -433,13 +434,13 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 						logger.Printf("WARNING: theme_id is not a string: %v", id)
 						continue
 					}
-					
+
 					systemStories, err := h.storyDB.ListStoriesByThemeID(r.Context(), themeID, limit)
 					if err != nil {
 						logger.Printf("ERROR: Error fetching stories for theme_id %s: %v", themeID, err)
 						continue
 					}
-					
+
 					if len(systemStories) > 0 {
 						logger.Printf("INFO: Found %d stories for theme_id: %s", len(systemStories), themeID)
 						stories = append(stories, systemStories...)
@@ -476,7 +477,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		// Exactly like Python: image_blob_path = story.get('image_url', '').split('kutty_bucket/')[-1] if story.get('image_url') else None
 		imageURL := ""
 		audioURL := ""
-		
+
 		if imgVal, ok := story["image_url"].(string); ok {
 			imageURL = imgVal
 		}
@@ -514,7 +515,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 			if signedURL, err := h.storageService.GenerateSignedURL(imageBlobPath, 3600); err == nil {
 				imageSignedURL = signedURL
 			}
-		}else {
+		} else {
 			imageSignedURL = imageURL
 		}
 
@@ -522,7 +523,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 			if signedURL, err := h.storageService.GenerateSignedURL(audioBlobPath, 3600); err == nil {
 				audioSignedURL = signedURL
 			}
-		}else {
+		} else {
 			audioSignedURL = audioURL
 		}
 
@@ -580,7 +581,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 // @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
 // @Failure      500 {object} util.HttpError "Internal server error"
 // @Router       /user-profile [get]
-func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request){
+func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request) {
 	logger := h.logger
 	logger.Println("Starting user_profile request")
 
@@ -599,26 +600,26 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request){
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	
-    if user == nil {
-        logger.Println("WARNING: User profile not found")
-        response := map[string]interface{}{"exists": false, "user": nil}
-        json.NewEncoder(w).Encode(response)
-        return
-    }
-	
+
+	if user == nil {
+		logger.Println("WARNING: User profile not found")
+		response := map[string]interface{}{"exists": false, "user": nil}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	// Check if username matches
-    if userUsername, ok := user["username"].(string); !ok || userUsername != username {
-        logger.Println("WARNING: User profile not found")
-        response := map[string]interface{}{"exists": false, "user" : (&model.UserProfile{}).FromMap(user)}
-        json.NewEncoder(w).Encode(response)
-        return
-    }
-    logger.Printf("INFO: User profile data: %v", user)
-    w.Header().Set("Content-Type", "application/json")
-    response := map[string]interface{}{"exists": true, "user": (&model.UserProfile{}).FromMap(user)}
-    json.NewEncoder(w).Encode(response)
-	
+	if userUsername, ok := user["username"].(string); !ok || userUsername != username {
+		logger.Println("WARNING: User profile not found")
+		response := map[string]interface{}{"exists": false, "user": (&model.UserProfile{}).FromMap(user)}
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+	logger.Printf("INFO: User profile data: %v", user)
+	w.Header().Set("Content-Type", "application/json")
+	response := map[string]interface{}{"exists": true, "user": (&model.UserProfile{}).FromMap(user)}
+	json.NewEncoder(w).Encode(response)
+
 }
 
 // UpdateUserProfile updates the user profile for the authenticated user.
@@ -632,8 +633,8 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request){
 // @Success      200 {object} map[string]bool "User profile updated successfully"
 // @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
 // @Failure      500 {object} util.HttpError "Internal server error"
-// @Router       /user-profile [put]	
-func (h *Story) UpdateUserProfile(w http.ResponseWriter, r *http.Request){
+// @Router       /user-profile [put]
+func (h *Story) UpdateUserProfile(w http.ResponseWriter, r *http.Request) {
 	logger := h.logger
 	logger.Println("Starting update_user_profile request")
 
@@ -645,11 +646,11 @@ func (h *Story) UpdateUserProfile(w http.ResponseWriter, r *http.Request){
 	}
 
 	var userProfileRequest model.UserProfile
-    if err := json.NewDecoder(r.Body).Decode(&userProfileRequest); err != nil {
-        http.Error(w, "Invalid JSON body", http.StatusBadRequest)
-        return
-    }
-	if err:= h.storyDB.UpdateUserProfileByEmail(r.Context(), email, userProfileRequest); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&userProfileRequest); err != nil {
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if err := h.storyDB.UpdateUserProfileByEmail(r.Context(), email, userProfileRequest); err != nil {
 		logger.Printf("ERROR: Error updating user profile: %v", err)
 		http.Error(w, "Internal server error during user profile update", http.StatusInternalServerError)
 		return
@@ -670,7 +671,7 @@ func (h *Story) UpdateUserProfile(w http.ResponseWriter, r *http.Request){
 // @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
 // @Failure      500 {object} util.HttpError "Internal server error"
 // @Router       /user-profile [delete]
-func (h *Story) DeleteUserProfile(w http.ResponseWriter, r *http.Request){
+func (h *Story) DeleteUserProfile(w http.ResponseWriter, r *http.Request) {
 	logger := h.logger
 	logger.Println("Starting delete_user_profile request")
 
@@ -681,7 +682,7 @@ func (h *Story) DeleteUserProfile(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	if err:= h.storyDB.DeleteUserProfile(r.Context(), email); err != nil {
+	if err := h.storyDB.DeleteUserProfile(r.Context(), email); err != nil {
 		logger.Printf("ERROR: Error deleting user profile: %v", err)
 		http.Error(w, "Internal server error during user profile deletion", http.StatusInternalServerError)
 		return

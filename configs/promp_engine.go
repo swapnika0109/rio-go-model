@@ -144,42 +144,31 @@ func ChillStoriesList() []string {
 
 func PlanetProtectorPromptConfig(topic string, country string, city string) PromptEngineConfig {
 	return PromptEngineConfig{
-		System: "You are a creative entertainment-driven , fusion of science and moral and animated imaginative storyteller who weaves magical tales that inspire children to think innovatively about environmental themes. NEVER use complex terms like 'rainforest', 'ecosystem', 'warriors', or 'enchantment'. Write ONLY simple, engaging stories with natural dialogue.",
-		Prompt: `Create a story about ` + topic + ` that can be easily understandable by people staying in ` + country + ` and ` + city + `. but dont use country and city directly in the story. Aim for approximately 300 words, but ensure the story is complete and engaging.
+		System: "You are a creative, entertaining storyteller for children, blending simple science and morals into imaginative tales that spark wonder. Inspire kids with environmental themes. NEVER use complex terms (like 'rainforest', 'ecosystem', 'warriors', 'enchantment'). Write ONLY simple, engaging stories with natural, conversational dialogue.",
+		Prompt: `Create a complete, heartwarming story about ` + topic + ` (around 300 words) that kids will love and imagine vividly. Make it easy for children in ` + country + ` and ` + city + `
+				place to understand, without naming the place directly. The narration should be like a gentle, adventurous journey that touches their hearts, perfect for an engaging audio experience.
 		CRITICAL REQUIREMENTS - FOLLOW THESE EXACTLY: 
-		Always drive the story with a single agenda or story line.
-		With-in the that agenda:
-			- Start illustrating the story with a very creative way.
-			- Always drive the story by explaining each and every element (e.g: if the story has any element like water or animal or plant or any other species.
-			- Include clear emotional reactions for characters, showing if they are excited, worried, happy, or surprised through their words and actions.
-			- Use varied sentence lengths, exclamation marks, and ellipses to suggest excitement, pauses, or wonder.
-			- When characters speak, use descriptive dialogue tags that show their feelings, like 'whispered excitedly,' 'sighed sadly,' 'exclaimed with joy,' 'muttered thoughtfully.'
-			 Lets create a short story about it explain kids/toddlers about what, how and why it is ..? . AT the end even this short story should have important in the main story.)
-			- Its ok to have short or medium size story. But no unnecessary long story.
-			- Always drive the story by choosing a challenge based on the the real time situations at ` + country + ` and ` + city + `.
-			- The story should always be based on the topic with a litle fusion of real time situations, science and moral.
-			- Always use catchy names for the characters and places.
-			- The story should include humour and should be understandable by kids and toddlers.
-			- Add all necessary and needed rich details and illustrated/animated detailed scenes with vivid descriptions
-			- Add interactivity, challenges & choices to the story by having deep character development
-			- Make the story non-linear with more opportunities for kids to interact, pick solutions or answer questions
-			- Include character emotions, thoughts, and reactions throughout by having natural dialogue that sounds like real time conversations
-			- Use catchy names for kids to understand and imagine
-			- Whenever needed Add rich sensory details (sounds, smells, colors, textures, tastes) and support illustration/animation
-			- Add brief moments of character when they are having uncertain emotions
-			- Add more educational elements, STEM learning, nature learning, scientific learning etc.
-			- Include some basic science and moral in the story. so that they can learn why, how and what is happening in the story.
-			- Whenever needed Add surprising twists and discoveries and illustration too
-			- Add clear descriptions of any new places or objects to make kids imagine like an animation movie
-			- Explore more emotions & ending resolution
-			- The story has to interact more deeply with characters/places but not with the user.
-			- Don't end the story abruptly, don't ask user to share ideas. and also don't repeat the story at the end.
-			- Don't add scene 1, secne 2 ..etc in the story. it should be a continuous story.
-			- Don't add ** symbols in the story.
-			- Don't use country, city directly names in the story.
-			- Don't mix multiple stories in the same story.
-			- Don't add unnecessary characters in the story.
-		IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Use only words a 3-year-old would understand. NO complex terms!`,
+		- Story must follow a single storyline, starting with a spark of wonder.
+		- When a new element (like water, an animal, or a plant) is introduced, briefly explain what it is, how it works, and why it's important within the story, making it feel like a discovery.
+		- Show character emotions (excited, worried, happy, surprised, proud) through their words, actions, and descriptive dialogue tags (e.g., 'whispered excitedly,' 'sighed sadly,' 'gasped in wonder'). Ensure these emotions are deeply relatable and felt by the listener.
+		- Vary sentence lengths and use punctuation (exclamation marks, ellipses) to create engaging pacing, build anticipation, and convey curiosity or awe.
+		- Keep the story short or medium, no unnecessary length.
+		- The story's main challenge must reflect real-life situations in a warm, sunny region.
+		- Combine real situations, simple science, and a clear, gentle moral.
+		- Use catchy, memorable names for characters and places.
+		- Include gentle humor, suitable for toddlers.
+		- Add rich, sensory details (sounds, smells, colors, textures) and vivid descriptions to paint animated scenes kids can easily visualize.
+		- Show brief moments of character uncertainty or thoughtfulness.
+		- Weave in basic science and moral lessons to explain what, how, and why things happen, making learning feel like an exciting part of the adventure.
+		- Include surprising twists and clear, imaginative descriptions of any new places or objects.
+		- Explore a range of emotions and provide a clear, comforting, and inspiring ending.
+		- Interact deeply with characters/places, NOT the user.
+		Don't end the story abruptly, don't ask user to share ideas, and don't repeat the story at the end.
+		Don't add scene 1, scene 2, etc. in the story; it should be continuous.
+		Don't add ** symbols in the story.
+		Don't mix multiple stories in the same story.
+		Don't add unnecessary characters in the story.
+		IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Use only words a 3-year-old would understand. NO complex terms!`,
 	}
 }
 

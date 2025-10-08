@@ -20,7 +20,6 @@ type Settings struct {
 	EmailSender      string
 	EmailTo          string
 
-
 	// Story Generation Settings
 	DefaultStoryToGenerate int
 	StoriesPerTheme        int
@@ -38,15 +37,15 @@ type Settings struct {
 	LogEncoding    string
 
 	// Performance and Concurrency Settings
-	MaxWorkers        int
-	MaxStoryWorkers   int
-	MaxUploadWorkers  int
+	MaxWorkers       int
+	MaxStoryWorkers  int
+	MaxUploadWorkers int
 
 	// Connection Pooling Settings
-	MaxKeepaliveConnections   int
-	MaxTotalConnections       int
-	MaxRequestsPerConnection  int
-	ConnectionTimeout         time.Duration
+	MaxKeepaliveConnections  int
+	MaxTotalConnections      int
+	MaxRequestsPerConnection int
+	ConnectionTimeout        time.Duration
 	ReadTimeout              time.Duration
 	KeepaliveTimeout         time.Duration
 
@@ -69,6 +68,8 @@ type Settings struct {
 
 	// Dynamic Prompts Configuration
 	DynamicPromptsConfig map[string]PromptConfig
+	DefaultChirpVoice    string
+	DefaultStandardVoice string
 }
 
 // StoryConfig represents story-specific configuration
@@ -88,19 +89,19 @@ type PromptConfig struct {
 // NewSettings creates a new Settings instance with default values
 func NewSettings() *Settings {
 
-
 	return &Settings{
 		// Default values
-		HuggingFaceToken:       getEnvString("HUGGINGFACE_TOKEN", ""),
-		SecretKey:             getEnvString("SECRET_KEY", "********"),
-		EmailHost:             getEnvString("EMAIL_HOST", "smtp.gmail.com"),
-		EmailPort:             getEnvInt("EMAIL_PORT", 587),
-		EmailAppPassword:      getEnvString("EMAIL_APP_PASSWORD", ""),
-		EmailSender:           getEnvString("EMAIL_SENDER", "rio.oly.pluto@gmail.com"),
-		EmailTo:               getEnvString("EMAIL_TO", "rio.oly.pluto@gmail.com"),
-
-		DefaultStoryToGenerate: getEnvInt("DEFAULT_STORY_TO_GENERATE", 5),
-		StoriesPerTheme:       getEnvInt("STORIES_PER_THEME", 5),
+		HuggingFaceToken:        getEnvString("HUGGINGFACE_TOKEN", ""),
+		SecretKey:               getEnvString("SECRET_KEY", "********"),
+		EmailHost:               getEnvString("EMAIL_HOST", "smtp.gmail.com"),
+		EmailPort:               getEnvInt("EMAIL_PORT", 587),
+		EmailAppPassword:        getEnvString("EMAIL_APP_PASSWORD", ""),
+		EmailSender:             getEnvString("EMAIL_SENDER", "rio.oly.pluto@gmail.com"),
+		EmailTo:                 getEnvString("EMAIL_TO", "rio.oly.pluto@gmail.com"),
+		DefaultChirpVoice:       getEnvString("DEFAULT_CHIRP_VOICE", "-Chirp3-HD-Achernar"),
+		DefaultStandardVoice:    getEnvString("DEFAULT_STANDARD_VOICE", "-Standard-A"),
+		DefaultStoryToGenerate:  getEnvInt("DEFAULT_STORY_TO_GENERATE", 2),
+		StoriesPerTheme:         getEnvInt("STORIES_PER_THEME", 2),
 		DataUploadMaxMemorySize: getEnvInt("DATA_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
 		FileUploadMaxMemorySize: getEnvInt("FILE_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
 
@@ -122,8 +123,8 @@ func NewSettings() *Settings {
 		MaxTotalConnections:      getEnvInt("MAX_TOTAL_CONNECTIONS", 100),
 		MaxRequestsPerConnection: getEnvInt("MAX_REQUESTS_PER_CONNECTION", 1000),
 		ConnectionTimeout:        time.Duration(getEnvInt("CONNECTION_TIMEOUT", 10)) * time.Second,
-		ReadTimeout:             time.Duration(getEnvInt("READ_TIMEOUT", 60)) * time.Second,
-		KeepaliveTimeout:        time.Duration(getEnvInt("KEEPALIVE_TIMEOUT", 30)) * time.Second,
+		ReadTimeout:              time.Duration(getEnvInt("READ_TIMEOUT", 60)) * time.Second,
+		KeepaliveTimeout:         time.Duration(getEnvInt("KEEPALIVE_TIMEOUT", 30)) * time.Second,
 
 		// API Timeouts
 		HuggingFaceTimeout: time.Duration(getEnvInt("HUGGINGFACE_TIMEOUT", 120)) * time.Second,
@@ -142,12 +143,12 @@ func NewSettings() *Settings {
 // LoadSettings loads settings from environment variables
 func LoadSettings() *Settings {
 	settings := NewSettings()
-	
+
 	// Log initialization
 	log.Println("Settings loaded")
-	// log.Printf("Settings loaded - HuggingFace Token: %s, Log Level: %s", 
+	// log.Printf("Settings loaded - HuggingFace Token: %s, Log Level: %s",
 	// 	maskToken(settings.HuggingFaceToken), settings.LogLevel)
-	
+
 	return settings
 }
 
@@ -368,14 +369,14 @@ func (s *Settings) Validate() error {
 	if s.HuggingFaceToken == "" {
 		return fmt.Errorf("HUGGINGFACE_TOKEN is required")
 	}
-	
+
 	if s.DefaultStoryToGenerate <= 0 {
 		return fmt.Errorf("DEFAULT_STORY_TO_GENERATE must be positive")
 	}
-	
+
 	if s.MaxWorkers <= 0 {
 		return fmt.Errorf("MAX_WORKERS must be positive")
 	}
-	
+
 	return nil
 }

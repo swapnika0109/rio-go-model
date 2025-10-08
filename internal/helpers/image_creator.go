@@ -5,38 +5,34 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
-	"io"
 	"time"
-
 	// "rio-go-model/configs"
 )
 
 // StoryCreator represents a service for creating stories using AI models
 type ImageCreator struct {
-	logger    *log.Logger
-	apiKey    string
-	baseURL   string
-	client    *http.Client
+	logger  *log.Logger
+	apiKey  string
+	baseURL string
+	client  *http.Client
 }
 
 // AIRequest represents the request structure for AI model API calls
 type AIImageRequest struct {
-	Prompt    string `json:"prompt"`
+	Prompt         string `json:"prompt"`
 	ResponseFormat string `json:"response_format"`
-	Model string `json:"model"`
+	Model          string `json:"model"`
 }
-
-
 
 // TopicResponse represents the response for topic generation
 type ImageResponse struct {
-	Data []byte `json:"data,omitempty"`
-	Error string   `json:"error,omitempty"`
+	Data  []byte `json:"data,omitempty"`
+	Error string `json:"error,omitempty"`
 }
-
 
 // NewStoryCreator creates a new StoryCreator instance
 func NewImageCreator() *ImageCreator {
@@ -46,8 +42,8 @@ func NewImageCreator() *ImageCreator {
 	}
 
 	return &ImageCreator{
-		logger:  log.New(log.Writer(), "[story.views] ", log.LstdFlags),
-		apiKey:  apiKey,
+		logger: log.New(log.Writer(), "[story.views] ", log.LstdFlags),
+		apiKey: apiKey,
 		// baseURL: "https://api.together.xyz/v1", // Together AI endpoint
 		baseURL: "https://router.huggingface.co/together/v1", // Fal AI endpoint
 		client: &http.Client{
@@ -58,12 +54,12 @@ func NewImageCreator() *ImageCreator {
 
 // CreateTopics generates topics from a prompt using AI model
 func (s *ImageCreator) CreateImage(prompt string) (*ImageResponse, error) {
-	s.logger.Printf("Creating topics from prompt")
+	s.logger.Printf("Creating Images from prompt " + prompt)
 
 	// Prepare the request
 	request := AIImageRequest{
-		Model: "black-forest-labs/FLUX.1-dev",
-		Prompt: prompt,
+		Model:          "black-forest-labs/FLUX.1-dev",
+		Prompt:         prompt,
 		ResponseFormat: "base64",
 	}
 
@@ -73,6 +69,7 @@ func (s *ImageCreator) CreateImage(prompt string) (*ImageResponse, error) {
 		s.logger.Printf("Error generating topics: %v", err)
 		return nil, fmt.Errorf("failed to generate topics: %v", err)
 	}
+	// s.logger.Printf("Check the image response: %v", response)
 
 	// Parse response
 	if response == nil {
@@ -81,10 +78,9 @@ func (s *ImageCreator) CreateImage(prompt string) (*ImageResponse, error) {
 			Error: "No response from model",
 		}, nil
 	}
-
-
+	s.logger.Printf("Image generated successfully")
 	return response, nil
-	
+
 }
 
 // makeAIRequest makes a request to the AI model API
@@ -121,12 +117,12 @@ func (s *ImageCreator) makeAIRequest(endpoint string, request AIImageRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
-	
+
 	// Try to parse as JSON first
 	var jsonResponse struct {
 		Data []struct {
 			Base64 string `json:"b64_json"`
-			URL    string `json:"url"`      // optional, some APIs return url
+			URL    string `json:"url"` // optional, some APIs return url
 		} `json:"data"`
 		Error *struct {
 			Message string `json:"message"`
@@ -170,4 +166,3 @@ func (s *ImageCreator) makeAIRequest(endpoint string, request AIImageRequest) (*
 	return &ImageResponse{Data: img, Error: ""}, nil
 
 }
-

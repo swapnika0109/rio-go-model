@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"math"
 	"strings"
@@ -12,6 +11,7 @@ import (
 	// "log"
 
 	"rio-go-model/configs"
+	"rio-go-model/internal/helpers/google/audio"
 	"rio-go-model/internal/helpers/google/gemini"
 	"rio-go-model/internal/helpers/google/vertex"
 	"rio-go-model/internal/helpers/huggingface"
@@ -28,6 +28,7 @@ type StoryGenerationHelper struct {
 	storyCreator           *huggingface.StoryCreator
 	vertexAiStoryGenerator *vertex.VertexStoryGenerationHelper
 	geminiStoryGenerator   *gemini.GeminiStoryGenerationHelper
+	audioStoryGenerator    *audio.GoogleTTS
 	imageCreator           *ImageCreator
 	audioGenerator         *AudioGenerator
 	dynamicPrompting       *DynamicPrompting
@@ -77,6 +78,7 @@ type MetadataRequest struct {
 	City        string   `json:"city"`
 	Religions   []string `json:"religions"`
 	Preferences []string `json:"preferences"`
+	Language    string   `json:"language"`
 }
 
 // NewStoryGenerationHelper creates a new story generation helper
@@ -93,6 +95,7 @@ func NewStoryGenerationHelper(
 		storyCreator:           huggingface.NewStoryCreator(),
 		vertexAiStoryGenerator: vertex.NewVertexStoryGenerationHelper(),
 		geminiStoryGenerator:   gemini.NewGeminiStoryGenerationHelper(),
+		audioStoryGenerator:    audio.NewGoogleTTS(),
 		imageCreator:           NewImageCreator(),
 		audioGenerator:         NewAudioGenerator(),
 		dynamicPrompting:       NewDynamicPrompting(),
@@ -125,6 +128,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 
 	// Generate story using StoryCreator
 	var storyResponse *StoryGenerationResponse
+	storyResponse = &StoryGenerationResponse{StoryText: "Bubble‑Bunny’s Clean‑Air Quest: A fluffy bunny flies through a sky of bubbles to clear smoky clouds._1"}
 
 	if version == 1 {
 		response, err := sgh.geminiStoryGenerator.CreateStory(theme, topic, version, kwargs)
@@ -159,7 +163,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		err  error
 	}, 1)
 	audioResultChan := make(chan struct {
-		data string
+		data []byte
 		err  error
 	}, 1)
 
@@ -174,9 +178,9 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 
 	// Start audio generation worker
 	util.GoroutineWithRecovery(func() {
-		audioData, err := sgh.audioGenerator.GenerateAudio(storyResponse.StoryText)
+		audioData, err := sgh.audioStoryGenerator.GenerateAudioAdapter(storyResponse.StoryText, kwargs["language"].(string))
 		audioResultChan <- struct {
-			data string
+			data []byte
 			err  error
 		}{audioData, err}
 	})
@@ -186,7 +190,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 	defer cancel()
 
 	var imageData []byte
-	var audioData string
+	var audioData []byte
 	var imageErr, audioErr error
 
 	// Collect results
@@ -238,16 +242,16 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 	// Start audio upload worker
 	util.GoroutineWithRecovery(func() {
 		// Decode base64 audio data
-		audioBytes, err := base64.StdEncoding.DecodeString(audioData)
-		if err != nil {
-			audioUploadChan <- struct {
-				url string
-				err error
-			}{"", fmt.Errorf("failed to decode audio: %v", err)}
-			return
-		}
+		// audioBytes, err := base64.StdEncoding.DecodeString(audioData)
+		// if err != nil {
+		// 	audioUploadChan <- struct {
+		// 		url string
+		// 		err error
+		// 	}{"", fmt.Errorf("failed to decode audio: %v", err)}
+		// 	return
+		// }
 
-		url, err := sgh.storageService.UploadFile(audioBytes, "audio", "wav")
+		url, err := sgh.storageService.UploadFile(audioData, "audio", "wav")
 		audioUploadChan <- struct {
 			url string
 			err error
@@ -317,6 +321,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 			"audio_url":  audioURL,
 			"audio_type": "wav",
 			"theme":      theme,
+			"language":   kwargs["language"].(string),
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -356,6 +361,7 @@ func (sgh *StoryGenerationHelper) UploadMetadata(ctx context.Context, token, use
 			"city":              metadata.City,
 			"religions":         metadata.Religions,
 			"preferences":       metadata.Preferences,
+			"language":          metadata.Language,
 			"processing_status": "in_progress",
 		}
 
@@ -400,7 +406,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	// Process theme 1 in a goroutine
 	util.GoroutineWithRecoveryAndHandler(func() {
 		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences, semaphore); err != nil {
+		if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences, metadata.Language, semaphore); err != nil {
 			sgh.logger.Errorf("Theme 1 processing error: %v", err)
 		}
 	}, func(r interface{}) {
@@ -449,7 +455,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 }
 
 // getDynamicPromptingTheme1 processes theme 1 with parallel story generation controlled by a semaphore
-func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context, country, city string, preferences []string, semaphore chan struct{}) error {
+func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context, country, city string, preferences []string, language string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 1 processing for country %s and city %s", country, city)
 	// Check if topics already exist
 	existing, err := sgh.storyDatabase.ReadMDTopics1(ctx, country, city, preferences)
@@ -518,6 +524,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 				"country":     country,
 				"city":        city,
 				"preferences": topic.Key,
+				"language":    language,
 			}
 
 			err := sgh.StoryHelper(ctx, "1", theme1_id, topic.Topic, 2, kwargs)

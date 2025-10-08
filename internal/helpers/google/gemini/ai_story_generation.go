@@ -48,7 +48,7 @@ func NewGeminiStoryGenerationHelper() *GeminiStoryGenerationHelper {
 	helper := &GeminiStoryGenerationHelper{
 		logger:    log.New(os.Stdout, "GeminiStoryGenerationHelper: ", log.LstdFlags),
 		apiKey:    apiKey,
-		modelName: "gemini-2.5-flash",
+		modelName: "gemini-2.5-flash-lite",
 	}
 	log.Printf("✅ Gemini HTTP helper ready (publishers/google), model=%s", helper.modelName)
 	return helper
@@ -89,11 +89,15 @@ func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version i
 		Role  string `json:"role"`
 		Parts []part `json:"parts"`
 	}
+	type ThinkingConfig struct {
+		ThinkingBudget int32 `json:"thinkingBudget,omitempty"`
+	}
 	type generationConfig struct {
-		Temperature     float32 `json:"temperature,omitempty"`
-		MaxOutputTokens int32   `json:"maxOutputTokens,omitempty"`
-		TopP            float32 `json:"topP,omitempty"`
-		TopK            float32 `json:"topK,omitempty"`
+		Temperature     float32        `json:"temperature,omitempty"`
+		MaxOutputTokens int32          `json:"maxOutputTokens,omitempty"`
+		TopP            float32        `json:"topP,omitempty"`
+		TopK            float32        `json:"topK,omitempty"`
+		ThinkingConfig  ThinkingConfig `json:"thinkingConfig,omitempty"`
 	}
 	type safetySetting struct {
 		Category  string `json:"category"`
@@ -113,7 +117,7 @@ func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version i
 			Parts: []part{{Text: fullPrompt}},
 		},
 	}
-	payload.GenerationConfig = generationConfig{Temperature: 1.0, MaxOutputTokens: 65535, TopP: 0.9, TopK: 40.0}
+	payload.GenerationConfig = generationConfig{Temperature: 0.7, MaxOutputTokens: 3024, TopP: 0.9, TopK: 40.0, ThinkingConfig: ThinkingConfig{ThinkingBudget: -1}}
 	payload.SafetySettings = []safetySetting{
 		{Category: "HARM_CATEGORY_HATE_SPEECH", Threshold: "OFF"},
 		{Category: "HARM_CATEGORY_DANGEROUS_CONTENT", Threshold: "OFF"},
@@ -132,6 +136,8 @@ func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version i
 		"https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s",
 		s.modelName, s.apiKey,
 	)
+	// s.logger.Printf("Check the url: %v", url)
+	// s.logger.Printf("Making request to Gemini API")
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to build request: %v", err)

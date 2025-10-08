@@ -7,6 +7,10 @@ import (
 	"os"
 	"time"
 
+	"rio-go-model/internal/util"
+
+	"rio-go-model/configs"
+
 	texttospeech "cloud.google.com/go/texttospeech/apiv1"
 	texttospeechpb "cloud.google.com/go/texttospeech/apiv1/texttospeechpb"
 	"google.golang.org/api/option"
@@ -56,9 +60,14 @@ func NewGoogleTTS() *GoogleTTS {
 	}
 }
 
-func (g *GoogleTTS) GenerateAudioAdapter(text string) ([]byte, error) {
+func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, error) {
+	g.Logger.Printf("Generating audio for language: %s", language)
+	settings := configs.LoadSettings()
+	languageCode := util.LanguageMapper(language)
 	request := GoogleTTSRequest{
-		Text: text,
+		Text:         text,
+		LanguageCode: languageCode,
+		LanguageName: languageCode + settings.DefaultChirpVoice,
 	}
 	response := g.GenerateAudio(request)
 	if response.Error != "" {
