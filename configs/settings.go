@@ -6,11 +6,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
 // Global settings instance
 var GlobalSettings *Settings
+var activeVoiceSuffix atomic.Value // stores string: current default voice suffix (e.g., "-Chirp3-HD-Achernar")
 
 // Settings represents the application settings
 type Settings struct {
@@ -387,6 +389,8 @@ func (s *Settings) Validate() error {
 // InitializeSettings loads settings once at startup
 func InitializeSettings() {
 	GlobalSettings = LoadSettings()
+	// Initialize active voice to Chirp by default
+	activeVoiceSuffix.Store(GlobalSettings.DefaultChirpVoice)
 	log.Println("✅ Global settings loaded successfully")
 }
 
@@ -395,6 +399,41 @@ func GetSettings() *Settings {
 	if GlobalSettings == nil {
 		log.Println("⚠️  Settings not initialized, loading now...")
 		GlobalSettings = LoadSettings()
+		// Ensure active voice initialized if not set
+		if activeVoiceSuffix.Load() == nil {
+			activeVoiceSuffix.Store(GlobalSettings.DefaultChirpVoice)
+		}
 	}
 	return GlobalSettings
+}
+
+// GetActiveVoiceSuffix returns the current default voice suffix in a thread-safe way
+func GetActiveVoiceSuffix() string {
+	if v := activeVoiceSuffix.Load(); v != nil {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	// Fallback
+	return GetSettings().DefaultChirpVoice
+}
+
+// UseChirpVoice switches the active voice to the Chirp tier globally
+func UseChirpVoice() {
+	activeVoiceSuffix.Store(GetSettings().DefaultChirpVoice)
+}
+
+// UseStandardVoice switches the active voice to the Standard tier globally
+func UseStandardVoice() {
+	activeVoiceSuffix.Store(GetSettings().DefaultStandardVoice)
+}
+
+func GetDefaultChirpVoice() string {
+	return GlobalSettings.DefaultChirpVoice
+}
+
+// BuildVoiceName composes the full Google TTS voice name using the active suffix
+// Example: languageCode "en-US" + suffix "-Chirp3-HD-Achernar" => "en-US-Chirp3-HD-Achernar"
+func BuildVoiceName(languageCode string) string {
+	return languageCode + GetActiveVoiceSuffix()
 }

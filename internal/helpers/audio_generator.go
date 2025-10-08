@@ -55,12 +55,12 @@ func NewAudioGenerator() *AudioGenerator {
 }
 
 // GenerateAudio generates audio from text using fal.ai (Kokoro model)
-func (a *AudioGenerator) GenerateAudio(prompt string) (string, error) {
+func (a *AudioGenerator) GenerateAudio(prompt string) ([]byte, error) {
 	a.logger.Printf("Generating audio from prompt: %s", prompt[:min(len(prompt), 100)])
 
 	// Clean the prompt
 	tempPrompt := strings.ReplaceAll(prompt, "\n", "")
-	
+
 	// Check cache first (you can implement caching later)
 	// cached := cacheHelper.GetCache(prompt)
 	// if cached != nil {
@@ -70,17 +70,17 @@ func (a *AudioGenerator) GenerateAudio(prompt string) (string, error) {
 	// Generate audio using fal.ai API
 	audio, err := a.generateAudioFalAI(tempPrompt)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate audio: %v", err)
+		return nil, fmt.Errorf("failed to generate audio: %v", err)
 	}
 
 	// Cache the audio (you can implement caching later)
 	// cacheHelper.SetCache(prompt, audio)
 
 	// Convert to base64
-	audioBase64 := base64.StdEncoding.EncodeToString(audio)
-	a.logger.Printf("Successfully generated audio, base64 length: %d", len(audioBase64))
-	
-	return audioBase64, nil
+	// audioBase64 := base64.StdEncoding.EncodeToString(audio)
+	a.logger.Printf("Successfully generated audio, base64 length: %d", len(audio))
+
+	return audio, nil
 }
 
 // GenerateAudioOpenVoice generates audio using local OpenVoice TTS service
@@ -89,7 +89,7 @@ func (a *AudioGenerator) GenerateAudioOpenVoice(prompt string) (string, error) {
 
 	// Clean the prompt
 	tempPrompt := strings.ReplaceAll(prompt, "\n", "")
-	
+
 	// Check cache first (you can implement caching later)
 	// cached := cacheHelper.GetCache(prompt)
 	// if cached != nil {
@@ -157,7 +157,7 @@ func (a *AudioGenerator) generateAudioFalAI(text string) ([]byte, error) {
 	// Prepare the request for fal.ai
 	request := map[string]interface{}{
 		"version": "latest",
-		"text": text,
+		"text":    text,
 		// "input": map[string]interface{}{
 		// 	"text": text,
 		// },
@@ -195,7 +195,7 @@ func (a *AudioGenerator) generateAudioFalAI(text string) ([]byte, error) {
 
 	// Read the audio data
 	audioData, err := io.ReadAll(resp.Body)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to read audio response: %v", err)
 	}
@@ -203,30 +203,29 @@ func (a *AudioGenerator) generateAudioFalAI(text string) ([]byte, error) {
 	return audioData, nil
 }
 
+//
 // GenerateAudioWithModel generates audio using a specific model
-func (a *AudioGenerator) GenerateAudioWithModel(prompt, model string) (string, error) {
-	a.logger.Printf("Generating audio with model %s for prompt: %s", model, prompt[:min(len(prompt), 100)])
+// func (a *AudioGenerator) GenerateAudioWithModel(prompt, model string) (string, error) {
+// 	a.logger.Printf("Generating audio with model %s for prompt: %s", model, prompt[:min(len(prompt), 100)])
 
-	// Clean the prompt
-	tempPrompt := strings.ReplaceAll(prompt, "\n", "")
-	
-	// Choose generation method based on model
-	switch model {
-	case "kokoro", "hexgrad/Kokoro-82M":
-		return a.GenerateAudio(tempPrompt)
-	case "openvoice", "local-openvoice":
-		return a.GenerateAudioOpenVoice(tempPrompt)
-	default:
-		return "", fmt.Errorf("unsupported model: %s", model)
-	}
-}
+// 	// Clean the prompt
+// 	tempPrompt := strings.ReplaceAll(prompt, "\n", "")
 
-
+// 	// Choose generation method based on model
+// 	switch model {
+// 	case "kokoro", "hexgrad/Kokoro-82M":
+// 		return a.GenerateAudio(tempPrompt)
+// 	case "openvoice", "local-openvoice":
+// 		return a.GenerateAudioOpenVoice(tempPrompt)
+// 	default:
+// 		return "", fmt.Errorf("unsupported model: %s", model)
+// 	}
+// }
 
 // checkOpenVoiceHealth checks if the local OpenVoice service is running
 func (a *AudioGenerator) checkOpenVoiceHealth() string {
 	url := "http://localhost:8001/health"
-	
+
 	// Create a client with shorter timeout for health check
 	client := &http.Client{
 		Timeout: 5 * time.Second,
@@ -278,10 +277,10 @@ func (a *AudioGenerator) GetAudioInfo(audioBase64 string) map[string]interface{}
 	}
 
 	return map[string]interface{}{
-		"size_bytes":        len(audioData),
-		"size_kb":           len(audioData) / 1024,
-		"base64_length":     len(audioBase64),
-		"format":            "unknown", // You can add format detection logic
+		"size_bytes":         len(audioData),
+		"size_kb":            len(audioData) / 1024,
+		"base64_length":      len(audioBase64),
+		"format":             "unknown", // You can add format detection logic
 		"estimated_duration": "unknown", // You can add duration calculation logic
 	}
 }

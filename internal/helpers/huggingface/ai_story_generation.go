@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"rio-go-model/configs"
+	"rio-go-model/internal/model"
 	"rio-go-model/internal/util"
 )
 
@@ -52,12 +53,6 @@ type AIChoice struct {
 type TopicResponse struct {
 	Title []string `json:"title,omitempty"`
 	Error string   `json:"error,omitempty"`
-}
-
-// StoryResponse represents the response for story generation
-type StoryResponse struct {
-	Story string `json:"story,omitempty"`
-	Error string `json:"error,omitempty"`
 }
 
 // NewStoryCreator creates a new StoryCreator instance
@@ -132,20 +127,20 @@ func (s *StoryCreator) CreateTopics(prompt string) (*TopicResponse, error) {
 }
 
 // CreateStory generates a story based on theme, topic, and version
-func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*StoryResponse, error) {
+func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*model.StoryResponse, error) {
 	s.logger.Printf("Creating story for theme: %s, topic: %s, version: %d", theme, topic, version)
 
 	// Validate inputs
 	if theme == "" {
 		s.logger.Println("Warning: Theme is required but not provided")
-		return &StoryResponse{
+		return &model.StoryResponse{
 			Error: "Theme is required",
 		}, nil
 	}
 
 	if topic == "" {
 		s.logger.Println("Warning: No topic was selected")
-		return &StoryResponse{
+		return &model.StoryResponse{
 			Error: "No topic was selected",
 		}, nil
 	}
@@ -187,7 +182,7 @@ func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[
 	// Parse response
 	if response == nil || len(response.Choices) == 0 {
 		s.logger.Println("Warning: No completions or choices in response")
-		return &StoryResponse{
+		return &model.StoryResponse{
 			Error: "No response from model",
 		}, nil
 	}
@@ -195,7 +190,7 @@ func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[
 	story := strings.TrimSpace(response.Choices[0].Message.Content)
 	s.logger.Println("Successfully generated story")
 
-	return &StoryResponse{
+	return &model.StoryResponse{
 		Story: story,
 	}, nil
 }

@@ -18,6 +18,8 @@ import (
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
 
+	"rio-go-model/internal/model"
+
 	"github.com/google/uuid"
 )
 
@@ -143,8 +145,14 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		}
 		storyResponse = &StoryGenerationResponse{StoryText: response.Story}
 	} else {
+		isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
+		var response *model.StoryResponse
+		if err != nil || isSuspended {
+			response, err = sgh.storyCreator.CreateStory(theme, topic, version, kwargs)
+		} else {
+			response, err = sgh.geminiStoryGenerator.CreateStory(theme, topic, version, kwargs)
+		}
 		// Version 2 with dynamic parameters
-		response, err := sgh.geminiStoryGenerator.CreateStory(theme, topic, version, kwargs)
 		if err != nil {
 			return fmt.Errorf("failed to generate story: %v", err)
 		}
@@ -178,7 +186,19 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 
 	// Start audio generation worker
 	util.GoroutineWithRecovery(func() {
-		audioData, err := sgh.audioStoryGenerator.GenerateAudioAdapter(storyResponse.StoryText, kwargs["language"].(string))
+		var audioData []byte
+		suspended, err := sgh.storyDatabase.SuspendAudioAPI(ctx, "audio")
+		if suspended || err != nil {
+			if err != nil {
+				sgh.logger.Errorf("Failed to read audio api trigger: %v", err)
+			} else {
+				sgh.logger.Errorf("Google Audio API trigger is suspended; using fallback audio generator")
+			}
+			audioData, err = sgh.audioGenerator.GenerateAudio(storyResponse.StoryText)
+		} else {
+			sgh.logger.Infof("Using Google Audio API to generate story audio...")
+			audioData, err = sgh.audioStoryGenerator.GenerateAudioAdapter(storyResponse.StoryText, kwargs["language"].(string))
+		}
 		audioResultChan <- struct {
 			data []byte
 			err  error

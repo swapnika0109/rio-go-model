@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"rio-go-model/configs"
 	"rio-go-model/internal/model"
 	"rio-go-model/internal/util"
 
@@ -18,6 +19,32 @@ import (
 	"google.golang.org/api/option"
 	// "rio-go-model/configs"
 )
+
+// getUTCTimestamp returns the current time in UTC
+func getUTCTimestamp() time.Time {
+	return time.Now().UTC()
+}
+
+// getNextMonthResetTime returns the 2nd day of the next month at 00:00:00 UTC
+func getNextMonthResetTime() time.Time {
+	now := time.Now().UTC()
+
+	// Get the first day of next month
+	nextMonth := now.AddDate(0, 1, 0) // Add 1 month
+	firstDayOfNextMonth := time.Date(nextMonth.Year(), nextMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
+
+	// Add 1 day to get the 2nd day of next month
+	secondDayOfNextMonth := firstDayOfNextMonth.AddDate(0, 0, 1)
+
+	return secondDayOfNextMonth
+}
+
+// APITriggerOptions represents optional parameters for creating API triggers
+type APITriggerOptions struct {
+	BudgetAmount *float64 // Pointer to allow nil (optional)
+	CostAmount   *float64 // Pointer to allow nil (optional)
+	Tag          *string  // Pointer to allow nil (optional)
+}
 
 // safeStringSlice converts interface{} to []string safely
 // moved to util.SafeStringSlice
@@ -108,13 +135,86 @@ func (s *StoryDatabase) Close() error {
 }
 
 // Create Trigger Document on a API
-func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string) (string, error) {
+// CreateAPITrigger creates an API trigger with optional parameters
+// Usage examples:
+//
+//	CreateAPITrigger(ctx, "gemini")  // Basic usage
+//	CreateAPITrigger(ctx, "gemini", 100.0, 50.0)  // With budget and cost
+//	CreateAPITrigger(ctx, "gemini", 100.0, 50.0, "production")  // With all parameters
+func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string, optionalParams ...interface{}) (string, error) {
 	log.Printf("Creating API Trigger for %s", api_model)
+
+	// Initialize userData with required fields
 	userData := map[string]interface{}{
 		"suspend":    true,
-		"created_at": firestore.ServerTimestamp,
-		"updated_at": firestore.ServerTimestamp,
+		"created_at": getUTCTimestamp(),
+		"updated_at": getUTCTimestamp(),
+		"reset_at":   getNextMonthResetTime(),
+		"api_model":  api_model,
 	}
+
+	// Process optional parameters
+	// Parameter order: budgetAmount, costAmount, tag
+	for i, param := range optionalParams {
+		switch i {
+		case 0: // budgetAmount
+			if budgetAmount, ok := param.(float64); ok {
+				userData["budgetAmount"] = budgetAmount
+			}
+		case 1: // costAmount
+			if costAmount, ok := param.(float64); ok {
+				userData["costAmount"] = costAmount
+			}
+		case 2: // tag
+			if api_model == "audio" {
+				if tag, ok := param.(string); ok {
+					userData["tag"] = tag
+				}
+			}
+
+		}
+	}
+
+	_, err := s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
+	if err != nil {
+		return "", fmt.Errorf("error creating api model: %v", err)
+	}
+
+	return "Document written successfully", nil
+}
+
+// CreateAPITriggerWithOptions creates an API trigger using a struct for optional parameters
+// This is a more type-safe alternative to the variadic approach
+// Usage examples:
+//
+//	CreateAPITriggerWithOptions(ctx, "gemini", nil)  // Basic usage
+//	CreateAPITriggerWithOptions(ctx, "gemini", &APITriggerOptions{BudgetAmount: &budget, CostAmount: &cost})  // With budget and cost
+//	CreateAPITriggerWithOptions(ctx, "gemini", &APITriggerOptions{BudgetAmount: &budget, CostAmount: &cost, Tag: &tag})  // With all parameters
+func (s *StoryDatabase) CreateAPITriggerWithOptions(ctx context.Context, api_model string, options *APITriggerOptions) (string, error) {
+	log.Printf("Creating API Trigger for %s with options", api_model)
+
+	// Initialize userData with required fields
+	userData := map[string]interface{}{
+		"suspend":    true,
+		"created_at": getUTCTimestamp(),
+		"updated_at": getUTCTimestamp(),
+		"reset_at":   getNextMonthResetTime(),
+		"api_model":  api_model,
+	}
+
+	// Add optional fields if provided
+	if options != nil {
+		if options.BudgetAmount != nil {
+			userData["budgetAmount"] = *options.BudgetAmount
+		}
+		if options.CostAmount != nil {
+			userData["costAmount"] = *options.CostAmount
+		}
+		if options.Tag != nil {
+			userData["tag"] = *options.Tag
+		}
+	}
+
 	_, err := s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
 	if err != nil {
 		return "", fmt.Errorf("error creating api model: %v", err)
@@ -124,13 +224,52 @@ func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string) 
 }
 
 // Create Trigger Document on a user
-func (s *StoryDatabase) ReadAPITrigger(ctx context.Context, api_model string) (bool, error) {
+func (s *StoryDatabase) SuspendAudioAPI(ctx context.Context, api_model string) (bool, error) {
 	log.Printf("Reading API Trigger for %s", api_model)
 	data, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
 	if err != nil {
 		return false, fmt.Errorf("error reading api model: %v", err)
 	}
-	return data.Data()["suspend"].(bool), nil
+	curr_time := getUTCTimestamp()
+	reset_at := data.Data()["reset_at"].(time.Time)
+	costAmount := data.Data()["costAmount"].(float64)
+	budgetAmount := data.Data()["budgetAmount"].(float64)
+	thresholdPercCal := (costAmount / budgetAmount) * 100
+	tag := data.Data()["tag"].(string)
+	if api_model == "audio" && thresholdPercCal >= 25 && tag == configs.GetDefaultChirpVoice() && curr_time.Before(reset_at) {
+		// Switch to Standard voice globally once threshold is hit
+		configs.UseStandardVoice()
+		return false, nil
+	}
+	//If the threshold percentage is greater than 90% and the current time is before the reset time, return true
+	if thresholdPercCal >= 80 && curr_time.Before(reset_at) {
+		return true, nil
+	} else if !reset_at.IsZero() && curr_time.After(reset_at) {
+		log.Printf("Resetting audio api trigger to")
+		configs.UseChirpVoice()
+		s.CreateAPITrigger(ctx, "audio", 0, 0, configs.GetActiveVoiceSuffix())
+		return false, nil
+	} else {
+		return false, nil
+	}
+}
+
+func (s *StoryDatabase) SuspendGeminiAPI(ctx context.Context, api_model string) (bool, error) {
+	log.Printf("Reading API Trigger for %s", api_model)
+	data, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
+	if err != nil {
+		return false, fmt.Errorf("error reading api model: %v", err)
+	}
+	curr_time := getUTCTimestamp()
+	reset_at := data.Data()["reset_at"].(time.Time)
+	costAmount := data.Data()["costAmount"].(float64)
+	budgetAmount := data.Data()["budgetAmount"].(float64)
+	thresholdPercCal := (costAmount / budgetAmount) * 100
+	//If the threshold percentage is greater than 90% and the current time is before the reset time, return true
+	if thresholdPercCal >= 60 && curr_time.Before(reset_at) {
+		return true, nil
+	}
+	return false, nil
 }
 
 // Create TC Document on a user
@@ -138,8 +277,8 @@ func (s *StoryDatabase) CreateTc(ctx context.Context, data *model.Tc) (string, e
 
 	userData := map[string]interface{}{
 		"accepted":   data.Accepted,
-		"created_at": firestore.ServerTimestamp,
-		"updated_at": firestore.ServerTimestamp,
+		"created_at": getUTCTimestamp(),
+		"updated_at": getUTCTimestamp(),
 		"email":      data.Email,
 	}
 	_, err := s.client.Collection(s.tcDocuments).Doc(data.Email).Set(ctx, userData)
@@ -155,7 +294,7 @@ func (s *StoryDatabase) CreateStoryFeedback(ctx context.Context, data *model.Sto
 
 	userData := map[string]interface{}{
 		"like":       data.Like,
-		"created_at": firestore.ServerTimestamp,
+		"created_at": getUTCTimestamp(),
 		"storyId":    data.StoryId,
 		"email":      data.Email,
 	}
@@ -175,8 +314,8 @@ func (s *StoryDatabase) CreateMDTopics1(ctx context.Context, theme_id, country, 
 		"city":       city,
 		"preference": preference,
 		"topics":     topics,
-		"created_at": firestore.ServerTimestamp,
-		"updated_at": firestore.ServerTimestamp,
+		"created_at": getUTCTimestamp(),
+		"updated_at": getUTCTimestamp(),
 	}
 
 	docRef, _, err := s.client.Collection(s.mdCollection1).Add(ctx, data)
@@ -286,8 +425,8 @@ func (s *StoryDatabase) CreateUserProfile(ctx context.Context, userData map[stri
 	email := userData["email"].(string)
 
 	// Add timestamps
-	userData["created_at"] = firestore.ServerTimestamp
-	userData["updated_at"] = firestore.ServerTimestamp
+	userData["created_at"] = getUTCTimestamp()
+	userData["updated_at"] = getUTCTimestamp()
 
 	_, err := s.client.Collection(s.userProfiles).Doc(email).Set(ctx, userData)
 	if err != nil {
@@ -315,7 +454,7 @@ func (s *StoryDatabase) UpdateUserProfileByEmail(ctx context.Context, email stri
 	userProfile["city"] = data.City
 	userProfile["religions"] = data.Religions
 	userProfile["preferences"] = data.Preferences
-	userProfile["updated_at"] = firestore.ServerTimestamp
+	userProfile["updated_at"] = getUTCTimestamp()
 
 	_, err = s.client.Collection(s.userProfiles).Doc(email).Set(ctx, userProfile)
 	if err != nil {
@@ -432,8 +571,8 @@ func (s *StoryDatabase) CreateMDTopics2(ctx context.Context, theme_id, country s
 		"religion":    religion,
 		"preferences": preferences,
 		"topics":      topics,
-		"created_at":  firestore.ServerTimestamp,
-		"updated_at":  firestore.ServerTimestamp,
+		"created_at":  getUTCTimestamp(),
+		"updated_at":  getUTCTimestamp(),
 	}
 
 	docRef, _, err := s.client.Collection(s.mdCollection2).Add(ctx, data)
@@ -533,8 +672,8 @@ func (s *StoryDatabase) CreateMDTopics3(ctx context.Context, theme_id, preferenc
 		"theme_id":   theme_id,
 		"preference": preference,
 		"topics":     topics,
-		"created_at": firestore.ServerTimestamp,
-		"updated_at": firestore.ServerTimestamp,
+		"created_at": getUTCTimestamp(),
+		"updated_at": getUTCTimestamp(),
 	}
 
 	docRef, _, err := s.client.Collection(s.mdCollection3).Add(ctx, data)
@@ -624,8 +763,8 @@ func (s *StoryDatabase) ReadMDTopics3(ctx context.Context, preferences []string)
 // CreateStory creates a new story
 func (s *StoryDatabase) CreateStory(ctx context.Context, storyData map[string]interface{}) (string, error) {
 	// Add timestamps
-	storyData["created_at"] = firestore.ServerTimestamp
-	storyData["updated_at"] = firestore.ServerTimestamp
+	storyData["created_at"] = getUTCTimestamp()
+	storyData["updated_at"] = getUTCTimestamp()
 
 	docRef, _, err := s.client.Collection(s.collection).Add(ctx, storyData)
 	if err != nil {
@@ -643,8 +782,8 @@ func (s *StoryDatabase) CreateStoryV2(ctx context.Context, theme_id string, stor
 	docID := s.appHelper.GetDocID(title, theme)
 
 	// Add timestamps
-	storyData["created_at"] = firestore.ServerTimestamp
-	storyData["updated_at"] = firestore.ServerTimestamp
+	storyData["created_at"] = getUTCTimestamp()
+	storyData["updated_at"] = getUTCTimestamp()
 	storyData["theme_id"] = theme_id
 
 	_, err := s.client.Collection(s.collectionV2).Doc(docID).Set(ctx, storyData)
@@ -768,7 +907,7 @@ func (s *StoryDatabase) UpdateStory(ctx context.Context, storyID string, storyDa
 	for key, value := range storyData {
 		updates = append(updates, firestore.Update{Path: key, Value: value})
 	}
-	updates = append(updates, firestore.Update{Path: "updated_at", Value: firestore.ServerTimestamp})
+	updates = append(updates, firestore.Update{Path: "updated_at", Value: getUTCTimestamp()})
 
 	_, err := s.client.Collection(s.collection).Doc(storyID).Update(ctx, updates)
 	if err != nil {

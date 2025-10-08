@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"rio-go-model/internal/model"
 	"rio-go-model/internal/util"
 	"strings"
 	"time"
@@ -34,11 +35,6 @@ type GeminiStoryGenerationRequest struct {
 	TopK        float32     `json:"top_k,omitempty"`
 }
 
-type StoryResponse struct {
-	Story string `json:"story,omitempty"`
-	Error string `json:"error,omitempty"`
-}
-
 func NewGeminiStoryGenerationHelper() *GeminiStoryGenerationHelper {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
@@ -54,26 +50,26 @@ func NewGeminiStoryGenerationHelper() *GeminiStoryGenerationHelper {
 	return helper
 }
 
-func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*StoryResponse, error) {
+func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*model.StoryResponse, error) {
 	s.logger.Printf("Creating story for theme: %s, topic: %s, version: %d", theme, topic, version)
 
 	// Validate inputs
 	if theme == "" {
 		s.logger.Println("Warning: Theme is required but not provided")
-		return &StoryResponse{
+		return &model.StoryResponse{
 			Error: "Theme is required",
 		}, nil
 	}
 
 	if topic == "" {
 		s.logger.Println("Warning: No topic was selected")
-		return &StoryResponse{
+		return &model.StoryResponse{
 			Error: "No topic was selected",
 		}, nil
 	}
 
 	if s.apiKey == "" {
-		return &StoryResponse{Error: "GEMINI_API_KEY not set"}, nil
+		return &model.StoryResponse{Error: "GEMINI_API_KEY not set"}, nil
 	}
 
 	// Generate formatted prompt
@@ -169,7 +165,7 @@ func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version i
 	}
 
 	if len(parsed.Candidates) == 0 || len(parsed.Candidates[0].Content.Parts) == 0 {
-		return &StoryResponse{Error: "No content generated"}, nil
+		return &model.StoryResponse{Error: "No content generated"}, nil
 	}
 
 	storyText := ""
@@ -179,14 +175,14 @@ func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version i
 
 	storyText = strings.TrimSpace(storyText)
 	if storyText == "" {
-		return &StoryResponse{
+		return &model.StoryResponse{
 			Error: "Empty story generated",
 		}, nil
 	}
 
 	s.logger.Printf("Successfully generated story with %d characters", len(storyText))
 
-	return &StoryResponse{
+	return &model.StoryResponse{
 		Story: storyText,
 	}, nil
 }

@@ -64,13 +64,18 @@ func (h *PubSubHandler) PubSubPushGeminiHandler(w http.ResponseWriter, r *http.R
 	}
 
 	log.Printf("PubSub messageId=%s attrs=%v data=%s", push.Message.MessageID, push.Message.Attributes, string(decoded))
-
-	// If this is a Cloud Billing budget message, ignore until 90% threshold
-	if shouldIgnoreByBudget(string(decoded)) {
+	cost, budget, ok := extractBudgetNumbers(string(decoded))
+	if !ok {
+		log.Printf("warning: failed to extract budget numbers")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	_, err = h.db.CreateAPITrigger(r.Context(), "gemini")
+	// If this is a Cloud Billing budget message, ignore until 90% threshold
+	if shouldIgnoreByBudget(cost, budget) {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	_, err = h.db.CreateAPITrigger(r.Context(), "gemini", budget, cost)
 	if err != nil {
 		http.Error(w, "failed to create api trigger", http.StatusInternalServerError)
 		return
@@ -112,13 +117,18 @@ func (h *PubSubHandler) PubSubPushAudioHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	log.Printf("PubSub messageId=%s attrs=%v data=%s", push.Message.MessageID, push.Message.Attributes, string(decoded))
-
-	// If this is a Cloud Billing budget message, ignore until 90% threshold
-	if shouldIgnoreByBudget(string(decoded)) {
+	cost, budget, ok := extractBudgetNumbers(string(decoded))
+	if !ok {
+		log.Printf("warning: failed to extract budget numbers")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
-	_, err = h.db.CreateAPITrigger(r.Context(), "audio")
+	// If this is a Cloud Billing budget message, ignore until 90% threshold
+	if shouldIgnoreByBudget(cost, budget) {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	_, err = h.db.CreateAPITrigger(r.Context(), "audio", budget, cost)
 	if err != nil {
 		http.Error(w, "failed to create api trigger", http.StatusInternalServerError)
 		return
@@ -129,11 +139,7 @@ func (h *PubSubHandler) PubSubPushAudioHandler(w http.ResponseWriter, r *http.Re
 
 // shouldIgnoreByBudget inspects a (possibly noisy) billing JSON text and returns true
 // if costAmount < 0.9 * budgetAmount. It tolerates extra timestamps by using regex.
-func shouldIgnoreByBudget(s string) bool {
-	cost, budget, ok := extractBudgetNumbers(s)
-	if !ok {
-		return false
-	}
+func shouldIgnoreByBudget(cost float64, budget float64) bool {
 	// Guard against negative or zero budget
 	if budget <= 0 {
 		return false

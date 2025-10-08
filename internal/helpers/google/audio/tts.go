@@ -62,12 +62,11 @@ func NewGoogleTTS() *GoogleTTS {
 
 func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, error) {
 	g.Logger.Printf("Generating audio for language: %s", language)
-	settings := configs.GetSettings()
 	languageCode := util.LanguageMapper(language)
 	request := GoogleTTSRequest{
 		Text:         text,
 		LanguageCode: languageCode,
-		LanguageName: languageCode + settings.DefaultChirpVoice,
+		LanguageName: configs.BuildVoiceName(languageCode),
 	}
 	response := g.GenerateAudio(request)
 	if response.Error != "" {
