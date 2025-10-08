@@ -247,7 +247,7 @@ func (s *StoryDatabase) SuspendAudioAPI(ctx context.Context, api_model string) (
 	} else if !reset_at.IsZero() && curr_time.After(reset_at) {
 		log.Printf("Resetting audio api trigger to")
 		configs.UseChirpVoice()
-		s.CreateAPITrigger(ctx, "audio", 0, 0, configs.GetActiveVoiceSuffix())
+		s.CreateAPITrigger(ctx, "audio", costAmount, budgetAmount, configs.GetActiveVoiceSuffix())
 		return false, nil
 	} else {
 		return false, nil
