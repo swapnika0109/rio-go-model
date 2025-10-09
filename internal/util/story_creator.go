@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"rio-go-model/configs"
+	"rio-go-model/configs/english"
+	"rio-go-model/configs/telugu"
 )
 
 // AIMessage represents a message in the AI conversation
@@ -24,11 +26,12 @@ func GenerateFormattedPrompt(theme, topic string, version int, kwargs map[string
 	var formattedPrompt, systemMessage string
 
 	if version == 2 {
-		// Dynamic prompt for version 2
-		promptTemplate, err := getDynamicPromptConfig(theme)
-		if err != nil {
-			return "", "", err
-		}
+		// // Dynamic prompt for version 2
+		// promptTemplate, err := getDynamicPromptConfig(theme)
+		// if err != nil {
+		// 	return "", "", err
+		// }
+		var promptTemplate *PromptTemplate
 		// Extract parameters
 		country := getStringFromMap(kwargs, "country", "")
 		city := getStringFromMap(kwargs, "city", "")
@@ -37,41 +40,84 @@ func GenerateFormattedPrompt(theme, topic string, version int, kwargs map[string
 
 		religionsStr := strings.Join(religions, ", ")
 
-		if theme == "1" {
-			cfg := configs.PlanetProtectorPromptConfig(topic, country, city)
-			promptTemplate = &PromptTemplate{
-				Prompt: cfg.Prompt,
-				System: cfg.System,
+		switch theme {
+		case "1":
+			if kwargs["language"] == "Telugu" {
+				cfg := telugu.PlanetProtectorPromptConfig(topic, country, city)
+				promptTemplate = &PromptTemplate{
+					Prompt: cfg.Prompt,
+					System: cfg.System,
+				}
+				formattedPrompt = promptTemplate.Prompt
+				systemMessage = promptTemplate.System
+			} else {
+				cfg := english.PlanetProtectorPromptConfig(topic, country, city)
+				promptTemplate = &PromptTemplate{
+					Prompt: cfg.Prompt,
+					System: cfg.System,
+				}
+				formattedPrompt = promptTemplate.Prompt
+				systemMessage = promptTemplate.System
 			}
 
-			formattedPrompt = promptTemplate.Prompt
-			systemMessage = promptTemplate.System
-		} else if theme == "2" {
-			cfg := configs.MindfulStoriesPromptConfig(topic, religionsStr)
-			promptTemplate = &PromptTemplate{
-				Prompt: cfg.Prompt,
-				System: cfg.System,
+		case "2":
+			if kwargs["language"] == "Telugu" {
+				cfg := telugu.MindfulStoriesPromptConfig(topic, religionsStr)
+				promptTemplate = &PromptTemplate{
+					Prompt: cfg.Prompt,
+					System: cfg.System,
+				}
+			} else {
+				cfg := english.MindfulStoriesPromptConfig(topic, religionsStr)
+				promptTemplate = &PromptTemplate{
+					Prompt: cfg.Prompt,
+					System: cfg.System,
+				}
 			}
 			formattedPrompt = promptTemplate.Prompt
 			systemMessage = promptTemplate.System
-		} else if theme == "3" {
-			cfg := configs.ChillStoriesPromptConfig(topic)
-			promptTemplate = &PromptTemplate{
-				Prompt: cfg.Prompt,
-				System: cfg.System,
+
+		case "3":
+			if kwargs["language"] == "Telugu" {
+				cfg := telugu.ChillStoriesPromptConfig(topic)
+				promptTemplate = &PromptTemplate{
+					Prompt: cfg.Prompt,
+					System: cfg.System,
+				}
+			} else {
+				cfg := english.ChillStoriesPromptConfig(topic)
+				promptTemplate = &PromptTemplate{
+					Prompt: cfg.Prompt,
+					System: cfg.System,
+				}
 			}
 			formattedPrompt = promptTemplate.Prompt
 			systemMessage = promptTemplate.System
-		} else {
-			// Format the prompt
+
+		default:
+			// Load a dynamic prompt template for unknown themes to avoid nil dereference
+			tmpl, err := getDynamicPromptConfig(theme)
+			if err != nil {
+				return "", "", err
+			}
+			promptTemplate = tmpl
 			formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religionsStr, strings.Join(preferences, ", "))
 			systemMessage = promptTemplate.System
 		}
 
 		// Add preference-specific content
 		for _, preference := range preferences {
-			if prefContent := getPreferenceContent(strings.ToUpper(preference)); prefContent != "" {
-				formattedPrompt += prefContent
+			preference = strings.ToUpper(preference)
+			if kwargs["language"] == "Telugu" {
+				prefContent := telugu.Preferences()[preference]
+				if prefContent != "" {
+					formattedPrompt += prefContent
+				}
+			} else {
+				prefContent := english.Preferences()[preference]
+				if prefContent != "" {
+					formattedPrompt += prefContent
+				}
 			}
 		}
 		// s.logger.Printf("Generated prompt 3: %s", formattedPrompt)

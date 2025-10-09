@@ -1,26 +1,10 @@
-package configs
+package english
 
-import (
-	"errors"
-	"math/rand"
-	"time"
-)
+import "fmt"
 
 type PromptEngineConfig struct {
 	System string `json:"system"`
 	Prompt string `json:"prompt"`
-}
-
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-// RandomFrom returns a random index from the provided list length.
-func RandomFrom(list []string) (int, error) {
-	if len(list) == 0 {
-		return 0, errors.New("list is empty")
-	}
-	return rand.Intn(len(list)), nil
 }
 
 type ThemesSettingsList struct {
@@ -242,4 +226,64 @@ Always drive the story with a single agenda or story line.Aim for approximately 
 	Don't add unnecessary characters in the story.
 	IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Just write the story as a flowing narrative that takes kids on a journey. Ensure children can understand and implement the teachings in their daily lives.`,
 	}
+}
+func Preferences() map[string]string {
+	return map[string]string{
+		"FUN":       "The ENTIRE story must be funny. Characters MUST say funny things, do silly things, and create humorous situations throughout. Include jokes, wordplay, silly mistakes, and funny dialogue. Make kids laugh out loud! ",
+		"EXCITED":   "The ENTIRE story must be exciting. Include high-energy moments, surprises, and thrilling discoveries that get kids excited. Include unexpected twists, exciting finds, and moments that make kids gasp with wonder.",
+		"ADVENTURE": "The ENTIRE story must be adventurous. Take kids on a real journey with exciting discoveries, new places, challenges to overcome, and thrilling moments. Include obstacles, new locations, and exciting discoveries along the way. ",
+		"KINDNESS":  "The ENTIRE story must focus on kindness. Show characters helping each other, sharing resources, and being kind in specific situations throughout the story.",
+		"HAPPY":     "The ENTIRE story must be joyful. Include celebrations, achievements, and moments of pure joy throughout. Make kids feel good!",
+		"CHILL":     "The ENTIRE story must be calm and peaceful. Include quiet moments, gentle activities, and peaceful scenes throughout. ",
+	}
+}
+
+func SuperPlanetProtectorPrompt(promptText string, preference string, storiesPerPreference int) string {
+	return fmt.Sprintf(
+		"Generate one topic for each item in the following list: "+promptText+". generate topics for other imaginative elements related to the themes of ‘eco-friendly’, ‘sustainability’, ‘nature’, and ‘environment’ "+
+			"Each topic must be:"+
+			"The topics should be very easy, catchy and interesting in a way that toddlers can understand."+
+			"The topics should be illustrate a story that kids can understand."+
+			"The topics should also take them to different world and to illustrate the topic in a very creative way."+
+			"Each topic should be creative, entertainment-driven, engaging, fantasy-based, and align with the provided preferences: %s. "+
+			"Each topic should be have exactly two parts title and description."+
+			"title should be a short and catchy title that kids can understand."+
+			"description should also be short and concise."+
+			"seperate title and description with a colon. and maintain only one colon in the whole string."+
+			"Return the topics as a list of strings and it should be in title:description format."+
+			"Always validate the length of the topics should be alwys %d.",
+		preference,
+		storiesPerPreference,
+	)
+}
+
+func SuperMindfulStoriesPrompt(promptText string, religion string, storiesPerPreference int) string {
+	return fmt.Sprintf(
+		"Generate one topic for each item in the following list: "+promptText+". that TEACH %s VALUES through SIMPLE STORIES. "+
+			"The topic should be based on a real/existing topic that kids can understand. "+
+			"Each topic should be have exactly two parts title and description."+
+			"title should be a short and catchy title that kids can understand."+
+			"description should also be short and concise."+
+			"seperate title and description with a colon. and maintain only one colon in the whole string."+
+			"Return the topics as a list of strings and it should be in title:description format.",
+		"Always validate the length of the topics should be alwys %d.",
+		"Dont add any direct book or scripture name in the title or description.",
+		religion,
+		storiesPerPreference,
+	)
+}
+
+func SuperChillStoriesPrompt(promptText string, preference string, storiesPerPreference int) string {
+	return fmt.Sprintf(
+		"Generate one topic for each item in the following list: "+promptText+". that TEACH VALUES and Courage "+
+			"The topics should illustrate a journey of %s. "+
+			"Each topic should be have exactly two parts title and description."+
+			"title should be a short and catchy title that kids can understand."+
+			"description should also be short and concise."+
+			"seperate title and description with a colon. and maintain only one colon in the whole string."+
+			"Return the topics as a list of strings and it should be in title:description format."+
+			"Always validate the length of the topics should be alwys %d.",
+		preference,
+		storiesPerPreference,
+	)
 }

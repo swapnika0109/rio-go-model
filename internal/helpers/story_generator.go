@@ -436,7 +436,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	// // Process theme 2 in a goroutine
 	// util.GoroutineWithRecoveryAndHandler(func() {
 	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, semaphore); err != nil {
+	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
 	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
 	// 	}
 	// }, func(r interface{}) {
@@ -446,7 +446,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	// // Process theme 3 in a goroutine
 	// util.GoroutineWithRecoveryAndHandler(func() {
 	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, semaphore); err != nil {
+	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, metadata.Language, semaphore); err != nil {
 	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
 	// 	}
 	// }, func(r interface{}) {
@@ -493,7 +493,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 	var concatTopics = make(map[string][]string)
 	for _, preference := range preferences {
 		// Generate prompt
-		prompt, err := sgh.dynamicPrompting.GetPlanetProtectorsStories(country, city, preference, storiesPerPreference)
+		prompt, err := sgh.dynamicPrompting.GetPlanetProtectorsStories(country, city, preference, language, storiesPerPreference)
 		if err != nil {
 			return fmt.Errorf("failed to generate prompt: %v", err)
 		}
@@ -563,7 +563,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 }
 
 // getDynamicPromptingTheme2 processes theme 2 with parallel story generation controlled by a semaphore
-func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context, country string, religions, preferences []string, semaphore chan struct{}) error {
+func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context, country string, religions, preferences []string, language string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 2 processing for country %s and religions %v", country, religions)
 
 	// Check if topics already exist
@@ -584,7 +584,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 		if strings.EqualFold(religion, "any") {
 			continue
 		}
-		prompt, err := sgh.dynamicPrompting.GetMindfulStories(country, religion, preferences, storiesPerPreference)
+		prompt, err := sgh.dynamicPrompting.GetMindfulStories(country, religion, preferences, language, storiesPerPreference)
 		if err != nil {
 			return fmt.Errorf("failed to generate prompt: %v", err)
 		}
@@ -652,7 +652,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 }
 
 // getDynamicPromptingTheme3 processes theme 3 with parallel story generation controlled by a semaphore
-func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context, preferences []string, semaphore chan struct{}) error {
+func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context, preferences []string, language string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 3 processing for preferences %v", preferences)
 
 	// Check if topics already exist
@@ -673,7 +673,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	// log.Println("storiesPerPreference", storiesPerPreference)
 	for _, preference := range preferences {
 		// Generate prompt
-		prompt, err := sgh.dynamicPrompting.GetChillStories(preference, storiesPerPreference)
+		prompt, err := sgh.dynamicPrompting.GetChillStories(preference, language, storiesPerPreference)
 		if err != nil {
 			return fmt.Errorf("failed to generate prompt: %v", err)
 		}

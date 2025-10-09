@@ -239,6 +239,7 @@ func (s *StoryDatabase) SuspendAudioAPI(ctx context.Context, api_model string) (
 	if api_model == "audio" && thresholdPercCal >= 25 && tag == configs.GetDefaultChirpVoice() && curr_time.Before(reset_at) {
 		// Switch to Standard voice globally once threshold is hit
 		configs.UseStandardVoice()
+		s.CreateAPITrigger(ctx, "audio", costAmount, budgetAmount, configs.GetActiveVoiceSuffix())
 		return false, nil
 	}
 	//If the threshold percentage is greater than 90% and the current time is before the reset time, return true
