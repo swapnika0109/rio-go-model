@@ -45,13 +45,13 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 
 	var superPrompt string
 	switch language {
-	case "english":
+	case "English":
 		superPrompt = english.SuperPlanetProtectorPrompt(promptText, preference, storiesPerPreference)
-	case "telugu":
+	case "Telugu":
 		superPrompt = telugu.SuperPlanetProtectorPrompt(promptText, preference, storiesPerPreference)
 	}
 
-	// d.logger.Printf("Generated prompt: %s", superPrompt)
+	d.logger.Printf("Generated prompt: %s", superPrompt)
 	return superPrompt, nil
 }
 
@@ -78,9 +78,9 @@ func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferenc
 	var superPrompt string
 
 	switch language {
-	case "english":
+	case "English":
 		superPrompt = english.SuperMindfulStoriesPrompt(promptText, religion, storiesPerPreference)
-	case "telugu":
+	case "Telugu":
 		superPrompt = telugu.SuperMindfulStoriesPrompt(promptText, religion, storiesPerPreference)
 	}
 	return superPrompt, nil
@@ -108,9 +108,9 @@ func (d *DynamicPrompting) GetChillStories(preference string, language string, s
 	}
 	var superPrompt string
 	switch language {
-	case "english":
+	case "English":
 		superPrompt = english.SuperChillStoriesPrompt(promptText, preference, storiesPerPreference)
-	case "telugu":
+	case "Telugu":
 		superPrompt = telugu.SuperChillStoriesPrompt(promptText, preference, storiesPerPreference)
 	}
 	return superPrompt, nil

@@ -10,3 +10,8 @@ type PromptEngineConfig struct {
 	System string `json:"system"`
 	Prompt string `json:"prompt"`
 }
+
+type TopicResponse struct {
+	Title []string `json:"title,omitempty"`
+	Error string   `json:"error,omitempty"`
+}

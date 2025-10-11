@@ -49,12 +49,6 @@ type AIChoice struct {
 	Message AIMessage `json:"message"`
 }
 
-// TopicResponse represents the response for topic generation
-type TopicResponse struct {
-	Title []string `json:"title,omitempty"`
-	Error string   `json:"error,omitempty"`
-}
-
 // NewStoryCreator creates a new StoryCreator instance
 func NewStoryCreator() *StoryCreator {
 	apiKey := os.Getenv("HUGGINGFACE_TOKEN")
@@ -74,8 +68,8 @@ func NewStoryCreator() *StoryCreator {
 }
 
 // CreateTopics generates topics from a prompt using AI model
-func (s *StoryCreator) CreateTopics(prompt string) (*TopicResponse, error) {
-	s.logger.Printf("Creating topics from prompt")
+func (s *StoryCreator) CreateTopics(prompt string) (*model.TopicResponse, error) {
+	s.logger.Printf("Creating topics from prompt ... " + prompt)
 
 	// Prepare the request
 	request := AIRequest{
@@ -99,7 +93,7 @@ func (s *StoryCreator) CreateTopics(prompt string) (*TopicResponse, error) {
 	// Parse response
 	if response == nil || len(response.Choices) == 0 {
 		s.logger.Println("Warning: No completions or choices in response")
-		return &TopicResponse{
+		return &model.TopicResponse{
 			Error: "No response from model",
 		}, nil
 	}
@@ -107,13 +101,13 @@ func (s *StoryCreator) CreateTopics(prompt string) (*TopicResponse, error) {
 	topicsData := response.Choices[0].Message.Content
 	if topicsData == "" {
 		s.logger.Println("Warning: No topics data in response")
-		return &TopicResponse{
+		return &model.TopicResponse{
 			Error: "No response from model",
 		}, nil
 	}
 
 	// Parse topics from response
-	topics := s.parseTopics(topicsData)
+	topics := util.ParseTopics(topicsData)
 	s.logger.Printf("Successfully generated %d topics", len(topics))
 	settings := configs.GetSettings()
 
@@ -121,7 +115,7 @@ func (s *StoryCreator) CreateTopics(prompt string) (*TopicResponse, error) {
 		s.logger.Printf("Warning: Generated %d topics, expected %d", len(topics), settings.DefaultStoryToGenerate)
 	}
 
-	return &TopicResponse{
+	return &model.TopicResponse{
 		Title: topics,
 	}, nil
 }
@@ -235,39 +229,4 @@ func (s *StoryCreator) makeAIRequest(endpoint string, request AIRequest) (*AIRes
 	}
 
 	return &aiResponse, nil
-}
-
-// parseTopics parses topics from the AI response
-func (s *StoryCreator) parseTopics(topicsData string) []string {
-	topicsList := strings.Split(topicsData, "\n")
-	topics := make([]string, 0)
-
-	for _, topic := range topicsList {
-		topic = strings.TrimSpace(topic)
-		if topic == "" || topic == "[" || topic == "]" {
-			continue
-		}
-
-		// Handle quoted topics
-		if strings.Contains(topic, `"`) {
-			parts := strings.Split(topic, `"`)
-			if len(parts) > 1 {
-				finalTopic := strings.TrimSpace(parts[1])
-				formatingValidation := strings.Split(finalTopic, ":")
-				if len(formatingValidation) == 2 {
-					topics = append(topics, finalTopic)
-				}
-			}
-		} else {
-			if len(topic) > 10 {
-				formatingValidation := strings.Split(topic, ":")
-				if len(formatingValidation) == 2 {
-					topics = append(topics, topic)
-				}
-			}
-
-		}
-	}
-
-	return topics
 }

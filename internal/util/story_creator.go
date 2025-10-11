@@ -237,3 +237,38 @@ func getStringSliceFromMap(m map[string]interface{}, key string) []string {
 	}
 	return []string{}
 }
+
+// parseTopics parses topics from the AI response
+func ParseTopics(topicsData string) []string {
+	topicsList := strings.Split(topicsData, "\n")
+	topics := make([]string, 0)
+
+	for _, topic := range topicsList {
+		topic = strings.TrimSpace(topic)
+		if topic == "" || topic == "[" || topic == "]" {
+			continue
+		}
+
+		// Handle quoted topics
+		if strings.Contains(topic, `"`) {
+			parts := strings.Split(topic, `"`)
+			if len(parts) > 1 {
+				finalTopic := strings.TrimSpace(parts[1])
+				formatingValidation := strings.Split(finalTopic, ":")
+				if len(formatingValidation) == 2 {
+					topics = append(topics, finalTopic)
+				}
+			}
+		} else {
+			if len(topic) > 10 {
+				formatingValidation := strings.Split(topic, ":")
+				if len(formatingValidation) == 2 {
+					topics = append(topics, topic)
+				}
+			}
+
+		}
+	}
+
+	return topics
+}

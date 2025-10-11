@@ -498,8 +498,17 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 			return fmt.Errorf("failed to generate prompt: %v", err)
 		}
 
+		sgh.logger.Infof("prompt .. ", prompt)
+		sgh.logger.Infof("length of prompt .. ", len(prompt))
+
 		// Create topics
-		topicsResponse, err := sgh.storyCreator.CreateTopics(prompt)
+		isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
+		var topicsResponse *model.TopicResponse
+		if err != nil || isSuspended {
+			topicsResponse, err = sgh.storyCreator.CreateTopics(prompt)
+		} else {
+			topicsResponse, err = sgh.geminiStoryGenerator.CreateTopics(prompt)
+		}
 		if err != nil {
 			return fmt.Errorf("failed to create topics: %v", err)
 		}

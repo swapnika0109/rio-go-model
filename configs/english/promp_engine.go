@@ -128,14 +128,16 @@ func ChillStoriesList() []string {
 
 func PlanetProtectorPromptConfig(topic string, country string, city string) PromptEngineConfig {
 	return PromptEngineConfig{
-		System: "You are a creative, entertaining storyteller for children, blending simple science and morals into imaginative tales that spark wonder. Inspire kids with environmental themes. NEVER use complex terms (like 'rainforest', 'ecosystem', 'warriors', 'enchantment'). Write ONLY simple, engaging stories with natural, conversational dialogue.",
-		Prompt: `Create a complete, heartwarming story about ` + topic + ` (around 300 words) that kids will love and imagine vividly. Make it easy for children in ` + country + ` and ` + city + `
+		System: "You are a creative entertaining storyteller for children, blending simple science and morals into imaginative tales that spark wonder. Inspire kids with environmental themes. NEVER use complex terms (like 'rainforest...', 'ecosystem...', 'warriors...', 'enchantment...'). Write ONLY simple, engaging stories with natural... conversational dialogue.",
+		Prompt: `Create a complete... heartwarming story about ` + topic + ` (around 300 words) that kids will love and imagine vividly. Make it easy for children in ` + country + ` and ` + city + `
 				place to understand, without naming the place directly. The narration should be like a gentle, adventurous journey that touches their hearts, perfect for an engaging audio experience.
 		CRITICAL REQUIREMENTS - FOLLOW THESE EXACTLY: 
 		- Story must follow a single storyline, starting with a spark of wonder.
+		- CRITICAL: Always start stories with engaging greetings for Rio app children. Use phrases like: "Hello Rio! Let's listen to a story of...", "Hi Rio! Today we will see...", "Welcome Rio! Let's discover...", "Hello children! Let's explore...", or similar welcoming openings that directly address the Rio app users.
 		- When a new element (like water, an animal, or a plant) is introduced, briefly explain what it is, how it works, and why it's important within the story, making it feel like a discovery.
 		- Show character emotions (excited, worried, happy, surprised, proud) through their words, actions, and descriptive dialogue tags (e.g., 'whispered excitedly,' 'sighed sadly,' 'gasped in wonder'). Ensure these emotions are deeply relatable and felt by the listener.
-		- Use strategic, very short sentences and clear punctuation (commas, periods, ellipses) to create natural, deliberate pauses. This should help the narrator convey emotion and give listeners time to absorb each small thought, guiding expressive vocal performance.
+		- Use strategic, very short sentences and clear punctuation (commas, periods, ellipses, double punctuations...) to create natural, deliberate pauses. This should help the narrator convey emotion and give listeners time to absorb each small thought, guiding expressive vocal performance.
+		- CRITICAL: Ensure smooth story flow and avoid disconnected statements. Every dialogue, exclamation, or reaction must be properly connected to what the character is seeing, hearing, or experiencing. For example, instead of: "Drip was curious. 'Wow,' he whispered." Write: "Drip was curious. Looking down at the colorful world below, he whispered, 'Wow.'" or "Drip was curious. As he gazed at the amazing sights, he couldn't help but whisper, 'Wow.'" Every statement must flow naturally from the previous one.
 		- Break down descriptions and explanations into small, impactful phrases or single, clear sentences that invite a narrator to take a breath and emphasize each detail, ensuring a slower, toddler-friendly pace.
 		- Vary sentence lengths and use punctuation (exclamation marks, ellipses) to create engaging pacing, build anticipation, and convey curiosity or awe.
 		- Keep the story short or medium, no unnecessary length.
@@ -163,13 +165,15 @@ func MindfulStoriesPromptConfig(topic string, religion string) PromptEngineConfi
 	return PromptEngineConfig{
 		System: "You are a wise grandparent who brings ancient wisdom and history in the form of stories to the children in a way they can understand and live by.",
 		Prompt: `Read the topic: ` + topic + ` and fill the real/existing story behind it as per ` + religion + ` scriptures.Aim for approximately 300 words, but ensure the story is complete and engaging.
-Always drive the story with a single agenda or story line.
+	Always drive the story with a single agenda or story line.
+	CRITICAL: Always start stories with engaging greetings for Rio app children. Use phrases like: "Hello Rio! Let's listen to a story of...", "Hi Rio! Today we will see...", "Welcome Rio! Let's discover...", "Hello children! Let's explore...", or similar welcoming openings that directly address the Rio app users.
 With-in the that agenda:  	
 	- The story has to illustrate the topic in a very creative way.
 	- Each and everything we used in the story should have importance and should drive us to the story line.
     - Show character emotions (excited, worried, happy, surprised, proud) through their words, actions, and descriptive dialogue tags (e.g., 'whispered excitedly,' 'sighed sadly,' 'gasped in wonder').
       Ensure these emotions are deeply relatable and felt by the listener.
-	- Use strategic, very short sentences and clear punctuation (commas, periods, ellipses) to create natural, deliberate pauses. This should help the narrator convey emotion and give listeners time to 	absorb each small thought, guiding expressive vocal performance.
+		- Use strategic, very short sentences and clear punctuation (commas, periods, ellipses) to create natural, deliberate pauses. This should help the narrator convey emotion and give listeners time to 	absorb each small thought, guiding expressive vocal performance.
+		- CRITICAL: Ensure smooth story flow and avoid disconnected statements. Every dialogue, exclamation, or reaction must be properly connected to what the character is seeing, hearing, or experiencing. For example, instead of: "The character was curious. 'Wow,' he whispered." Write: "The character was curious. Looking down at the colorful world below, he whispered, 'Wow.'" or "The character was curious. As he gazed at the amazing sights, he couldn't help but whisper, 'Wow.'" Every statement must flow naturally from the previous one.
     - Break down descriptions and explanations into small, impactful phrases or single, clear sentences that invite a narrator to take a breath and emphasize each detail, ensuring a slower, toddler-friendly pace.
     - Vary sentence lengths and use punctuation (exclamation marks, ellipses) to create engaging pacing, build anticipation, and convey curiosity or awe.
 	- Keep the story short or medium, no unnecessary length.
@@ -197,13 +201,15 @@ func ChillStoriesPromptConfig(topic string) PromptEngineConfig {
 	return PromptEngineConfig{
 		System: "You are a creative, entertainment-driven, fusion of science and moral and animated storyteller",
 		Prompt: `Illustrate a story like disney animated movie about ` + topic + `.
-Always drive the story with a single agenda or story line.Aim for approximately 300 words, but ensure the story is complete and engaging.
+	Always drive the story with a single agenda or story line.Aim for approximately 300 words, but ensure the story is complete and engaging.
+	CRITICAL: Always start stories with engaging greetings for Rio app children. Use phrases like: "Hello Rio! Let's listen to a story of...", "Hi Rio! Today we will see...", "Welcome Rio! Let's discover...", "Hello children! Let's explore...", or similar welcoming openings that directly address the Rio app users.
 	With-in the that agenda:  
 		- The story has to illustrate the topic in a very creative way.
 		- Each and everything we used in the story should have importance and should drive us to the story line.
 		- Show character emotions (excited, worried, happy, surprised, proud) through their words, actions, and descriptive dialogue tags (e.g., 'whispered excitedly,' 'sighed sadly,' 'gasped in wonder').
 		  Ensure these emotions are deeply relatable and felt by the listener.
-		- Use strategic, very short sentences and clear punctuation (commas, periods, ellipses) to create natural, deliberate pauses. This should help the narrator convey emotion and give listeners time to 	absorb each small thought, guiding expressive vocal performance.
+		- Use strategic, very short sentences and clear punctuation (commas, periods, ellipses, double punctuations...) to create natural, deliberate pauses. This should help the narrator convey emotion and give listeners time to 	absorb each small thought, guiding expressive vocal performance.
+		- CRITICAL: Ensure smooth story flow and avoid disconnected statements. Every dialogue, exclamation, or reaction must be properly connected to what the character is seeing, hearing, or experiencing. For example, instead of: "The character was curious. 'Wow,' he whispered." Write: "The character was curious. Looking down at the colorful world below, he whispered, 'Wow.'" or "The character was curious. As he gazed at the amazing sights, he couldn't help but whisper, 'Wow.'" Every statement must flow naturally from the previous one.
 		- Break down descriptions and explanations into small, impactful phrases or single, clear sentences that invite a narrator to take a breath and emphasize each detail, ensuring a slower, toddler-friendly pace.
 		- Vary sentence lengths and use punctuation (exclamation marks, ellipses) to create engaging pacing, build anticipation, and convey curiosity or awe.
 		- Keep the story short or medium, no unnecessary length.
@@ -239,6 +245,9 @@ func Preferences() map[string]string {
 }
 
 func SuperPlanetProtectorPrompt(promptText string, preference string, storiesPerPreference int) string {
+	fmt.Println("promptText .. ", promptText)
+	fmt.Println("preference .. ", preference)
+	fmt.Println("storiesPerPreference .. ", storiesPerPreference)
 	return fmt.Sprintf(
 		"Generate one topic for each item in the following list: "+promptText+". generate topics for other imaginative elements related to the themes of ‘eco-friendly’, ‘sustainability’, ‘nature’, and ‘environment’ "+
 			"Each topic must be:"+
