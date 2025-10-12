@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"rio-go-model/configs"
@@ -249,6 +250,28 @@ func ParseTopics(topicsData string) []string {
 			continue
 		}
 
+		// Skip introductory text
+		if strings.Contains(topic, "ఖచ్చితంగా") || strings.Contains(topic, "టాపిక్స్") ||
+			strings.Contains(topic, "ఇక్కడ ఉన్నాయి") || strings.Contains(topic, "అందించండి") {
+			continue
+		}
+
+		// Handle markdown formatted topics (e.g., "**1. Title: Description**")
+		if strings.Contains(topic, "**") {
+			// Remove markdown formatting
+			cleanTopic := strings.ReplaceAll(topic, "**", "")
+
+			// Remove numbering (e.g., "1. ", "2. ", etc.)
+			re := regexp.MustCompile(`^\d+\.\s*`)
+			cleanTopic = re.ReplaceAllString(cleanTopic, "")
+
+			// Check if it has title:description format
+			if strings.Contains(cleanTopic, ":") {
+				topics = append(topics, cleanTopic)
+			}
+			continue
+		}
+
 		// Handle quoted topics
 		if strings.Contains(topic, `"`) {
 			parts := strings.Split(topic, `"`)
@@ -260,13 +283,13 @@ func ParseTopics(topicsData string) []string {
 				}
 			}
 		} else {
-			if len(topic) > 10 {
-				formatingValidation := strings.Split(topic, ":")
-				if len(formatingValidation) == 2 {
-					topics = append(topics, topic)
-				}
-			}
+			// Handle numbered topics without markdown (e.g., "1. Title: Description")
+			re := regexp.MustCompile(`^\d+\.\s*`)
+			cleanTopic := re.ReplaceAllString(topic, "")
 
+			if len(cleanTopic) > 10 && strings.Contains(cleanTopic, ":") {
+				topics = append(topics, cleanTopic)
+			}
 		}
 	}
 

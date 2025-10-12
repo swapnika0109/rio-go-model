@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
 	"rio-go-model/internal/util"
@@ -38,6 +40,7 @@ func NewGoogleTTS() *GoogleTTS {
 	ctx := context.Background()
 	var client *texttospeech.Client
 	var err error
+	log.Println("Initializing Google TTS client...")
 	// Try to use service account file first
 	credPath := "serviceAccount.json"
 	if _, statErr := os.Stat(credPath); statErr == nil {
@@ -54,6 +57,7 @@ func NewGoogleTTS() *GoogleTTS {
 			log.Fatalf("Failed to create texttospeech client: %v", err)
 		}
 	}
+	log.Println("Google TTS client initialized successfully")
 	return &GoogleTTS{
 		Client: client,
 		Logger: log.New(os.Stdout, "GoogleTTS: ", log.LstdFlags),
@@ -61,34 +65,164 @@ func NewGoogleTTS() *GoogleTTS {
 }
 
 func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, error) {
-	g.Logger.Printf("Generating audio for language: %s", language)
+	g.Logger.Printf("GenerateAudioAdapter called - Language: %s, Text length: %d", language, len(text))
+	var ssml string
 	languageCode := util.LanguageMapper(language)
+	languageName := configs.BuildVoiceName(languageCode)
+	g.Logger.Printf("Mapped language code: %s, Voice name: %s", languageCode, languageName)
+
+	if language == "Telugu" {
+		g.Logger.Printf("Processing Telugu text with SSML...")
+		teluguSSMLBuilder := util.NewTeluguSSMLBuilder()
+		ssml = teluguSSMLBuilder.BuildTeluguSSML(text)
+		g.Logger.Printf("Generated Telugu SSML length: %d bytes", len(ssml))
+		languageName = configs.BuildTeluguVoiceName(languageCode)
+		g.Logger.Printf("Updated voice name for Telugu: %s", languageName)
+
+		// Check if SSML exceeds 5000 byte limit
+		if len(ssml) > 5000 {
+			g.Logger.Printf("SSML exceeds 5000 byte limit (%d bytes), splitting into chunks...", len(ssml))
+			return g.generateAudioInChunks(text, language, languageCode, languageName)
+		}
+	}
+
 	request := GoogleTTSRequest{
 		Text:         text,
+		SSML:         ssml,
 		LanguageCode: languageCode,
-		LanguageName: configs.BuildVoiceName(languageCode),
+		LanguageName: languageName,
+	}
+	g.Logger.Printf("Calling GenerateAudio with request...")
+	response := g.GenerateAudio(request)
+	if response.Error != "" {
+		g.Logger.Printf("GenerateAudio returned error: %s", response.Error)
+		return nil, fmt.Errorf("%s", response.Error)
+	}
+	g.Logger.Printf("GenerateAudio succeeded, audio content length: %d", len(response.AudioContent))
+	return response.AudioContent, nil
+}
+
+// generateAudioInChunks splits long text into smaller chunks and combines the audio
+func (g *GoogleTTS) generateAudioInChunks(text, language, languageCode, languageName string) ([]byte, error) {
+	g.Logger.Printf("Splitting text into chunks for processing...")
+
+	// Split text into sentences for better chunking
+	sentences := g.splitIntoSentences(text)
+	var audioChunks [][]byte
+
+	// Process each sentence as a separate chunk
+	for i, sentence := range sentences {
+		if len(sentence) == 0 {
+			continue
+		}
+
+		g.Logger.Printf("Processing chunk %d/%d: %d characters", i+1, len(sentences), len(sentence))
+
+		// Generate SSML for this chunk
+		teluguSSMLBuilder := util.NewTeluguSSMLBuilder()
+		chunkSSML := teluguSSMLBuilder.BuildTeluguSSML(sentence)
+
+		// If chunk SSML is still too long, split further
+		if len(chunkSSML) > 5000 {
+			g.Logger.Printf("Chunk %d SSML still too long (%d bytes), splitting further...", i+1, len(chunkSSML))
+			subChunks := g.splitTextIntoSmallerChunks(sentence, 4000) // Leave room for SSML markup
+			for j, subChunk := range subChunks {
+				subSSML := teluguSSMLBuilder.BuildTeluguSSML(subChunk)
+				audioData, err := g.generateSingleChunk(subSSML, languageCode, languageName)
+				if err != nil {
+					g.Logger.Printf("Failed to generate audio for sub-chunk %d: %v", j+1, err)
+					continue
+				}
+				audioChunks = append(audioChunks, audioData)
+			}
+		} else {
+			audioData, err := g.generateSingleChunk(chunkSSML, languageCode, languageName)
+			if err != nil {
+				g.Logger.Printf("Failed to generate audio for chunk %d: %v", i+1, err)
+				continue
+			}
+			audioChunks = append(audioChunks, audioData)
+		}
+	}
+
+	if len(audioChunks) == 0 {
+		return nil, fmt.Errorf("no audio chunks were generated successfully")
+	}
+
+	g.Logger.Printf("Successfully generated %d audio chunks, combining...", len(audioChunks))
+	return g.combineAudioChunks(audioChunks), nil
+}
+
+// generateSingleChunk generates audio for a single SSML chunk
+func (g *GoogleTTS) generateSingleChunk(ssml, languageCode, languageName string) ([]byte, error) {
+	request := GoogleTTSRequest{
+		SSML:         ssml,
+		LanguageCode: languageCode,
+		LanguageName: languageName,
 	}
 	response := g.GenerateAudio(request)
 	if response.Error != "" {
-		return nil, fmt.Errorf("%s", response.Error)
+		return nil, fmt.Errorf("failed to generate audio: %s", response.Error)
 	}
 	return response.AudioContent, nil
 }
 
+// splitIntoSentences splits text into sentences
+func (g *GoogleTTS) splitIntoSentences(text string) []string {
+	// Simple sentence splitting by periods, exclamation marks, and question marks
+	// This is a basic implementation - you might want to use a more sophisticated NLP library
+	re := regexp.MustCompile(`[.!?]+`)
+	sentences := re.Split(text, -1)
+	var result []string
+	for _, sentence := range sentences {
+		sentence = strings.TrimSpace(sentence)
+		if len(sentence) > 0 {
+			result = append(result, sentence)
+		}
+	}
+	return result
+}
+
+// splitTextIntoSmallerChunks splits text into smaller chunks by character count
+func (g *GoogleTTS) splitTextIntoSmallerChunks(text string, maxChars int) []string {
+	var chunks []string
+	for i := 0; i < len(text); i += maxChars {
+		end := i + maxChars
+		if end > len(text) {
+			end = len(text)
+		}
+		chunk := text[i:end]
+		chunks = append(chunks, chunk)
+	}
+	return chunks
+}
+
+// combineAudioChunks combines multiple audio chunks into one
+func (g *GoogleTTS) combineAudioChunks(chunks [][]byte) []byte {
+	// For MP3 files, we need to concatenate the raw audio data
+	// This is a simple concatenation - for production, you might want to use a proper audio library
+	var combined []byte
+	for _, chunk := range chunks {
+		combined = append(combined, chunk...)
+	}
+	return combined
+}
+
 func (g *GoogleTTS) GenerateAudio(request GoogleTTSRequest) GoogleTTSResponse {
+	g.Logger.Printf("GenerateAudio called with SSML: %s, Text: %s, LanguageCode: %s", request.SSML, request.Text, request.LanguageCode)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	var input *texttospeechpb.SynthesisInput
-	if request.Text != "" {
-		input = &texttospeechpb.SynthesisInput{
-			InputSource: &texttospeechpb.SynthesisInput_Text{
-				Text: request.Text,
-			},
-		}
-	} else if request.SSML != "" {
+	if request.SSML != "" {
 		input = &texttospeechpb.SynthesisInput{
 			InputSource: &texttospeechpb.SynthesisInput_Ssml{
 				Ssml: request.SSML,
+			},
+		}
+	} else if request.Text != "" {
+		input = &texttospeechpb.SynthesisInput{
+			InputSource: &texttospeechpb.SynthesisInput_Text{
+				Text: request.Text,
 			},
 		}
 	} else {
@@ -116,6 +250,7 @@ func (g *GoogleTTS) GenerateAudio(request GoogleTTSRequest) GoogleTTSResponse {
 		},
 	}
 
+	g.Logger.Printf("Calling Google TTS API...")
 	response, err := g.Client.SynthesizeSpeech(ctx, req)
 	if err != nil {
 		g.Logger.Printf("failed to synthesize speech: %v", err)
@@ -123,6 +258,7 @@ func (g *GoogleTTS) GenerateAudio(request GoogleTTSRequest) GoogleTTSResponse {
 			Error: "failed to synthesize speech",
 		}
 	}
+	g.Logger.Printf("Google TTS API call successful, audio content length: %d", len(response.AudioContent))
 
 	return GoogleTTSResponse{
 		AudioContent: response.AudioContent,

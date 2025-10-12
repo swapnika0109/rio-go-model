@@ -44,7 +44,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.GoogleLoginRequest"
+                            "$ref": "#/definitions/handlers.GoogleLoginRequest"
                         }
                     }
                 ],
@@ -52,25 +52,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.TokenPair"
+                            "$ref": "#/definitions/util.TokenPair"
                         }
                     },
                     "400": {
                         "description": "Invalid request body or missing access_token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "401": {
                         "description": "Invalid Google token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -96,7 +96,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.LogoutRequest"
+                            "$ref": "#/definitions/handlers.LogoutRequest"
                         }
                     }
                 ],
@@ -113,13 +113,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request body or missing refresh token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -145,7 +145,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.RefreshTokenRequest"
+                            "$ref": "#/definitions/handlers.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -153,25 +153,25 @@ const docTemplate = `{
                     "200": {
                         "description": "{\\\"access\\\":\\\"new_access_token\\\", \\\"refresh\\\":\\\"original_refresh_token\\\"}",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.TokenPair"
+                            "$ref": "#/definitions/util.TokenPair"
                         }
                     },
                     "400": {
                         "description": "Invalid request body or missing refresh token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "401": {
                         "description": "Invalid refresh token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Failed to generate new access token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -197,7 +197,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.LogoutRequest"
+                            "$ref": "#/definitions/handlers.LogoutRequest"
                         }
                     }
                 ],
@@ -214,13 +214,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request body or missing refresh token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -246,7 +246,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.RefreshTokenRequest"
+                            "$ref": "#/definitions/handlers.RefreshTokenRequest"
                         }
                     }
                 ],
@@ -254,25 +254,25 @@ const docTemplate = `{
                     "200": {
                         "description": "{\\\"access\\\":\\\"new_access_token\\\", \\\"refresh\\\":\\\"original_refresh_token\\\"}",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.TokenPair"
+                            "$ref": "#/definitions/util.TokenPair"
                         }
                     },
                     "400": {
                         "description": "Invalid request body or missing refresh token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "401": {
                         "description": "Invalid refresh token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Failed to generate new access token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -295,7 +295,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_model.EmailRequest"
+                            "$ref": "#/definitions/model.EmailRequest"
                         }
                     }
                 ],
@@ -316,6 +316,58 @@ const docTemplate = `{
                         "description": "Failed to send email",
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/reset-audio-by-theme-id": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Resets the audio by theme id",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audio"
+                ],
+                "summary": "Reset Audio By Theme ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Theme ID",
+                        "name": "theme_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Audio reset successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid or missing authorization token",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -361,20 +413,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/internal_handlers.StoryData"
+                                "$ref": "#/definitions/handlers.StoryData"
                             }
                         }
                     },
                     "401": {
                         "description": "Invalid or missing authorization token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -405,7 +457,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.CreateStoryRequest"
+                            "$ref": "#/definitions/handlers.CreateStoryRequest"
                         }
                     }
                 ],
@@ -413,25 +465,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Story created successfully",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.StoryResponse"
+                            "$ref": "#/definitions/handlers.StoryResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request body",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "401": {
                         "description": "Invalid or missing authorization token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -462,7 +514,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_model.StoryFeedback"
+                            "$ref": "#/definitions/model.StoryFeedback"
                         }
                     }
                 ],
@@ -479,13 +531,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -516,7 +568,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_model.Tc"
+                            "$ref": "#/definitions/model.Tc"
                         }
                     }
                 ],
@@ -533,13 +585,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -565,7 +617,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.PubSubPushMessage"
+                            "$ref": "#/definitions/handlers.PubSubPushMessage"
                         }
                     }
                 ],
@@ -611,7 +663,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.PubSubPushMessage"
+                            "$ref": "#/definitions/handlers.PubSubPushMessage"
                         }
                     }
                 ],
@@ -668,13 +720,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Invalid or missing authorization token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -703,7 +755,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_model.UserProfile"
+                            "$ref": "#/definitions/model.UserProfile"
                         }
                     }
                 ],
@@ -720,13 +772,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Invalid or missing authorization token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -761,13 +813,13 @@ const docTemplate = `{
                     "401": {
                         "description": "Invalid or missing authorization token",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/rio-go-model_internal_util.HttpError"
+                            "$ref": "#/definitions/util.HttpError"
                         }
                     }
                 }
@@ -775,13 +827,16 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "internal_handlers.CreateStoryRequest": {
+        "handlers.CreateStoryRequest": {
             "type": "object",
             "properties": {
                 "city": {
                     "type": "string"
                 },
                 "country": {
+                    "type": "string"
+                },
+                "language": {
                     "type": "string"
                 },
                 "preferences": {
@@ -798,7 +853,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handlers.GoogleLoginRequest": {
+        "handlers.GoogleLoginRequest": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -806,7 +861,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handlers.LogoutRequest": {
+        "handlers.LogoutRequest": {
             "type": "object",
             "properties": {
                 "refresh": {
@@ -814,7 +869,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handlers.PubSubMessage": {
+        "handlers.PubSubMessage": {
             "type": "object",
             "properties": {
                 "attributes": {
@@ -836,18 +891,18 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handlers.PubSubPushMessage": {
+        "handlers.PubSubPushMessage": {
             "type": "object",
             "properties": {
                 "message": {
-                    "$ref": "#/definitions/internal_handlers.PubSubMessage"
+                    "$ref": "#/definitions/handlers.PubSubMessage"
                 },
                 "subscription": {
                     "type": "string"
                 }
             }
         },
-        "internal_handlers.RefreshTokenRequest": {
+        "handlers.RefreshTokenRequest": {
             "type": "object",
             "properties": {
                 "refresh": {
@@ -855,7 +910,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handlers.StoryData": {
+        "handlers.StoryData": {
             "type": "object",
             "properties": {
                 "audio": {
@@ -881,7 +936,7 @@ const docTemplate = `{
                 }
             }
         },
-        "internal_handlers.StoryResponse": {
+        "handlers.StoryResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -893,7 +948,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rio-go-model_internal_model.EmailRequest": {
+        "model.EmailRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -907,7 +962,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rio-go-model_internal_model.StoryFeedback": {
+        "model.StoryFeedback": {
             "type": "object",
             "properties": {
                 "email": {
@@ -921,7 +976,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rio-go-model_internal_model.Tc": {
+        "model.Tc": {
             "type": "object",
             "properties": {
                 "accepted": {
@@ -932,7 +987,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rio-go-model_internal_model.UserProfile": {
+        "model.UserProfile": {
             "type": "object",
             "properties": {
                 "city": {
@@ -961,7 +1016,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rio-go-model_internal_util.HttpError": {
+        "util.HttpError": {
             "type": "object",
             "properties": {
                 "message": {
@@ -972,7 +1027,7 @@ const docTemplate = `{
                 }
             }
         },
-        "rio-go-model_internal_util.TokenPair": {
+        "util.TokenPair": {
             "type": "object",
             "properties": {
                 "access": {

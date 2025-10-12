@@ -122,7 +122,7 @@ func (s *StoryCreator) CreateTopics(prompt string) (*model.TopicResponse, error)
 
 // CreateStory generates a story based on theme, topic, and version
 func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*model.StoryResponse, error) {
-	s.logger.Printf("Creating story for theme: %s, topic: %s, version: %d", theme, topic, version)
+	s.logger.Printf("Creating story with huggingface for theme: %s, topic: %s, version: %d", theme, topic, version)
 
 	// Validate inputs
 	if theme == "" {

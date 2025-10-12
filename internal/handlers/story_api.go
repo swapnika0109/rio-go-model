@@ -137,7 +137,7 @@ type StoryData struct {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        story body CreateStoryRequest true "Story creation request"
-// @Success      201 {object} StoryResponse "Story created successfully"
+// @Success      201 {object} model.StoryResponse "Story created successfully with both text and SSML"
 // @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
 // @Failure      400 {object} util.HttpError "Invalid request body"
 // @Failure      500 {object} util.HttpError "Internal server error"
@@ -690,4 +690,29 @@ func (h *Story) DeleteUserProfile(w http.ResponseWriter, r *http.Request) {
 	logger.Println("INFO: User profile deleted successfully")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"message": "User profile deleted successfully"})
+}
+
+// ResetAudioByThemeID resets the audio by theme id
+// @Summary      Reset Audio By Theme ID
+// @Description  Resets the audio by theme id
+// @Tags         Audio
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        theme_id query string true "Theme ID"
+// @Success      200 {object} map[string]bool "Audio reset successfully"
+// @Failure      401 {object} util.HttpError "Invalid or missing authorization token"
+// @Failure      500 {object} util.HttpError "Internal server error"
+// @Router       /reset-audio-by-theme-id [get]
+func (h *Story) ResetAudioByThemeID(w http.ResponseWriter, r *http.Request) {
+	storyGenerator := helpers.NewStoryGenerationHelper(h.storyDB, h.storageService)
+	storyAudioCrud := helpers.NewStoryAudioCrud(h.storyDB, h.storageService, storyGenerator)
+	themeID := r.URL.Query().Get("theme_id")
+	if themeID == "" {
+		http.Error(w, "Theme ID is required", http.StatusBadRequest)
+		return
+	}
+	storyAudioCrud.ResetAudioByThemeID(r.Context(), themeID)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"message": "Audio reset successfully"})
 }

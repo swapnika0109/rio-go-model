@@ -147,7 +147,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 	} else {
 		isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
 		var response *model.StoryResponse
-		if err != nil || isSuspended {
+		if (err != nil || isSuspended) && kwargs["language"].(string) != "Telugu" {
 			response, err = sgh.storyCreator.CreateStory(theme, topic, version, kwargs)
 		} else {
 			response, err = sgh.geminiStoryGenerator.CreateStory(theme, topic, version, kwargs)
@@ -187,8 +187,9 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 	// Start audio generation worker
 	util.GoroutineWithRecovery(func() {
 		var audioData []byte
+		language := kwargs["language"].(string)
 		suspended, err := sgh.storyDatabase.SuspendAudioAPI(ctx, "audio")
-		if suspended || err != nil {
+		if language != "Telugu" && (suspended || err != nil) {
 			if err != nil {
 				sgh.logger.Errorf("Failed to read audio api trigger: %v", err)
 			} else {
@@ -197,7 +198,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 			audioData, err = sgh.audioGenerator.GenerateAudio(storyResponse.StoryText)
 		} else {
 			sgh.logger.Infof("Using Google Audio API to generate story audio...")
-			audioData, err = sgh.audioStoryGenerator.GenerateAudioAdapter(storyResponse.StoryText, kwargs["language"].(string))
+			audioData, err = sgh.audioStoryGenerator.GenerateAudioAdapter(storyResponse.StoryText, language)
 		}
 		audioResultChan <- struct {
 			data []byte
@@ -498,13 +499,10 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 			return fmt.Errorf("failed to generate prompt: %v", err)
 		}
 
-		sgh.logger.Infof("prompt .. ", prompt)
-		sgh.logger.Infof("length of prompt .. ", len(prompt))
-
 		// Create topics
 		isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
 		var topicsResponse *model.TopicResponse
-		if err != nil || isSuspended {
+		if (err != nil || isSuspended) && language != "Telugu" {
 			topicsResponse, err = sgh.storyCreator.CreateTopics(prompt)
 		} else {
 			topicsResponse, err = sgh.geminiStoryGenerator.CreateTopics(prompt)

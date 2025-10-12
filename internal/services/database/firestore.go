@@ -809,6 +809,25 @@ func (s *StoryDatabase) GetStory(ctx context.Context, storyID string) (map[strin
 	return doc.Data(), nil
 }
 
+// GetStory retrieves a story by Theme ID
+func (s *StoryDatabase) GetStoryByThemeID(ctx context.Context, themeID string) ([]map[string]interface{}, error) {
+	query := s.client.Collection(s.collectionV2).Where("theme_id", "==", themeID)
+	log.Printf("Getting story by theme id: %s", themeID)
+	docs, err := query.Documents(ctx).GetAll()
+	if err != nil {
+		return nil, fmt.Errorf("error getting story: %v", err)
+	}
+
+	result := make([]map[string]interface{}, 0)
+	for _, doc := range docs {
+		data := doc.Data()
+		data["id"] = doc.Ref.ID
+		result = append(result, data)
+	}
+	log.Printf("Found %d stories by theme id: %s", len(result), themeID)
+	return result, nil
+}
+
 // GetStoryV2 retrieves a story v2 by ID
 func (s *StoryDatabase) GetStoryV2(ctx context.Context, storyID string) (map[string]interface{}, error) {
 	doc, err := s.client.Collection(s.collectionV2).Doc(storyID).Get(ctx)

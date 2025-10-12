@@ -432,8 +432,16 @@ func GetDefaultChirpVoice() string {
 	return GlobalSettings.DefaultChirpVoice
 }
 
+func GetDefaultStandardVoice() string {
+	return GlobalSettings.DefaultStandardVoice
+}
+
 // BuildVoiceName composes the full Google TTS voice name using the active suffix
 // Example: languageCode "en-US" + suffix "-Chirp3-HD-Achernar" => "en-US-Chirp3-HD-Achernar"
 func BuildVoiceName(languageCode string) string {
 	return languageCode + GetActiveVoiceSuffix()
+}
+
+func BuildTeluguVoiceName(languageCode string) string {
+	return languageCode + GetDefaultStandardVoice()
 }
