@@ -62,7 +62,7 @@ func NewGeminiStoryGenerationHelper() *GeminiStoryGenerationHelper {
 
 func (s *GeminiStoryGenerationHelper) CreateTopics(prompt string) (*model.TopicResponse, error) {
 	s.logger.Printf("Creating topics for prompt")
-	topicsResponse, err := s.GenerateText(prompt)
+	topicsResponse, err := s.GenerateText(prompt, "gemini-2.0-flash-lite")
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate topics: %v", err)
 	}
@@ -108,10 +108,10 @@ func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version i
 
 	// Create the complete prompt
 	fullPrompt := fmt.Sprintf("%s\n\n%s", systemMessage, formattedPrompt)
-	return s.GenerateText(fullPrompt)
+	return s.GenerateText(fullPrompt, s.modelName)
 }
 
-func (s *GeminiStoryGenerationHelper) GenerateText(prompt string) (*model.StoryResponse, error) {
+func (s *GeminiStoryGenerationHelper) GenerateText(prompt string, modelName string) (*model.StoryResponse, error) {
 	s.logger.Printf("Creating story for prompt")
 
 	if s.client == nil {
@@ -147,7 +147,7 @@ func (s *GeminiStoryGenerationHelper) GenerateText(prompt string) (*model.StoryR
 	config := &genai.GenerateContentConfig{
 		SafetySettings:  safetySettings,
 		Temperature:     genai.Ptr(float32(0.8)),
-		TopP:            genai.Ptr(float32(0.9)),
+		TopP:            genai.Ptr(float32(0.95)),
 		TopK:            genai.Ptr(float32(40.0)),
 		MaxOutputTokens: int32(2048),
 		ThinkingConfig: &genai.ThinkingConfig{
@@ -157,7 +157,7 @@ func (s *GeminiStoryGenerationHelper) GenerateText(prompt string) (*model.StoryR
 
 	resp, err := s.client.Models.GenerateContent(
 		ctx,
-		s.modelName,
+		modelName,
 		genai.Text(prompt),
 		config,
 	)

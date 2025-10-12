@@ -417,7 +417,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	defer util.RecoverPanic()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(3)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
@@ -434,25 +434,25 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		wg.Done() // Ensure wg.Done() is called even on panic
 	})
 
-	// // Process theme 2 in a goroutine
-	// util.GoroutineWithRecoveryAndHandler(func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
-	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
-	// 	}
-	// }, func(r interface{}) {
-	// 	wg.Done() // Ensure wg.Done() is called even on panic
-	// })
+	// Process theme 2 in a goroutine
+	util.GoroutineWithRecoveryAndHandler(func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 2 processing error: %v", err)
+		}
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
-	// // Process theme 3 in a goroutine
-	// util.GoroutineWithRecoveryAndHandler(func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, metadata.Language, semaphore); err != nil {
-	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
-	// 	}
-	// }, func(r interface{}) {
-	// 	wg.Done() // Ensure wg.Done() is called even on panic
-	// })
+	// Process theme 3 in a goroutine
+	util.GoroutineWithRecoveryAndHandler(func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, metadata.Language, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 3 processing error: %v", err)
+		}
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
 	// Wait for all theme processing to complete
 	wg.Wait()
@@ -641,6 +641,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 				"country":     country,
 				"religions":   item.Key,
 				"preferences": preferences,
+				"language":    language,
 			}
 
 			err := sgh.StoryHelper(ctx, "2", theme2_id, item.Topic, 2, kwargs)
@@ -733,6 +734,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 
 			kwargs := map[string]interface{}{
 				"preferences": topic.Key,
+				"language":    language,
 			}
 			err := sgh.StoryHelper(ctx, "3", theme3_id, topic.Topic, 2, kwargs)
 			if err != nil {
