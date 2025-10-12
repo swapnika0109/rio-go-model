@@ -84,7 +84,7 @@ func (s *GeminiStoryGenerationHelper) CreateTopics(prompt string) (*model.TopicR
 }
 
 func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*model.StoryResponse, error) {
-	s.logger.Printf("Creating story for theme: %s, topic: %s, version: %d", theme, topic, version)
+	s.logger.Printf("Creating story with gemini for theme: %s, topic: %s, version: %d", theme, topic, version)
 
 	if theme == "" {
 		s.logger.Println("Warning: Theme is required but not provided")

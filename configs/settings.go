@@ -104,7 +104,7 @@ func NewSettings() *Settings {
 		EmailSender:             getEnvString("EMAIL_SENDER", "rio.oly.pluto@gmail.com"),
 		EmailTo:                 getEnvString("EMAIL_TO", "rio.oly.pluto@gmail.com"),
 		DefaultChirpVoice:       getEnvString("DEFAULT_CHIRP_VOICE", "-Chirp3-HD-Achernar"),
-		DefaultStandardVoice:    getEnvString("DEFAULT_STANDARD_VOICE", "-Standard-A"),
+		DefaultStandardVoice:    getEnvString("DEFAULT_STANDARD_VOICE", "-Standard-C"),
 		DefaultStoryToGenerate:  getEnvInt("DEFAULT_STORY_TO_GENERATE", 2),
 		StoriesPerTheme:         getEnvInt("STORIES_PER_THEME", 2),
 		DataUploadMaxMemorySize: getEnvInt("DATA_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB

@@ -214,6 +214,7 @@ func main() {
 	api.Use(util.HTTPPanicRecoveryMiddleware)
 	api.HandleFunc("/story", storyTopicsHandler.CreateStory).Methods("POST")
 	api.HandleFunc("/stories", storyTopicsHandler.ListStories).Methods("GET")
+	api.HandleFunc("/reset-audio-by-theme-id", storyTopicsHandler.ResetAudioByThemeID).Methods("GET")
 	api.HandleFunc("/user-profile", storyTopicsHandler.UserProfile).Methods("GET")
 	api.HandleFunc("/user-profile", storyTopicsHandler.UpdateUserProfile).Methods("PUT")
 	api.HandleFunc("/user-profile", storyTopicsHandler.DeleteUserProfile).Methods("DELETE")

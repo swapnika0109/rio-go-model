@@ -71,7 +71,7 @@ func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, 
 	languageName := configs.BuildVoiceName(languageCode)
 	g.Logger.Printf("Mapped language code: %s, Voice name: %s", languageCode, languageName)
 
-	if language == "Telugu" {
+	if language == "Telugu" && languageName == "-Standard-C" {
 		g.Logger.Printf("Processing Telugu text with SSML...")
 		teluguSSMLBuilder := util.NewTeluguSSMLBuilder()
 		ssml = teluguSSMLBuilder.BuildTeluguSSML(text)
