@@ -11,15 +11,17 @@ import (
 	"time"
 
 	"rio-go-model/configs"
+	"rio-go-model/internal/util/tokens"
 
 	"google.golang.org/genai"
 )
 
 type GeminiStoryGenerationHelper struct {
-	logger    *log.Logger
-	apiKey    string
-	modelName string
-	client    *genai.Client
+	logger          *log.Logger
+	apiKey          string
+	modelName       string
+	storyCharacters *tokens.StoryCharacters
+	client          *genai.Client
 }
 
 type AIMessage struct {
@@ -49,12 +51,13 @@ func NewGeminiStoryGenerationHelper() *GeminiStoryGenerationHelper {
 	if err != nil {
 		log.Fatalf("Failed to create Gemini client: %v", err)
 	}
-
+	storyCharacters := tokens.NewStoryCharacters()
 	helper := &GeminiStoryGenerationHelper{
-		logger:    log.New(os.Stdout, "GeminiStoryGenerationHelper: ", log.LstdFlags),
-		apiKey:    apiKey,
-		modelName: "gemini-2.5-flash-lite",
-		client:    client,
+		logger:          log.New(os.Stdout, "GeminiStoryGenerationHelper: ", log.LstdFlags),
+		apiKey:          apiKey,
+		modelName:       "gemini-2.5-flash-lite",
+		client:          client,
+		storyCharacters: storyCharacters,
 	}
 	log.Printf("✅ Gemini HTTP helper ready (publishers/google), model=%s", helper.modelName)
 	return helper
@@ -68,6 +71,7 @@ func (s *GeminiStoryGenerationHelper) CreateTopics(prompt string) (*model.TopicR
 	}
 
 	topicsData := topicsResponse.Story
+	totalTokens := topicsResponse.TotalTokens
 
 	// Parse topics from response
 	topics := util.ParseTopics(topicsData)
@@ -79,7 +83,8 @@ func (s *GeminiStoryGenerationHelper) CreateTopics(prompt string) (*model.TopicR
 	}
 
 	return &model.TopicResponse{
-		Title: topics,
+		Title:       topics,
+		TotalTokens: totalTokens,
 	}, nil
 }
 
@@ -161,10 +166,14 @@ func (s *GeminiStoryGenerationHelper) GenerateText(prompt string, modelName stri
 		genai.Text(prompt),
 		config,
 	)
+
 	if err != nil {
 		s.logger.Printf("Error generating story: %v", err)
 		return nil, fmt.Errorf("failed to generate story: %v", err)
 	}
+
+	totalTokens := s.storyCharacters.GetGoogleStoryTokens(modelName, resp)
+	s.logger.Printf("Total tokens: %d", totalTokens)
 
 	// Extract the generated text
 	if len(resp.Candidates) == 0 || len(resp.Candidates[0].Content.Parts) == 0 {
@@ -197,6 +206,7 @@ func (s *GeminiStoryGenerationHelper) GenerateText(prompt string, modelName stri
 	s.logger.Printf("Successfully generated story with %d characters", len(storyText))
 
 	return &model.StoryResponse{
-		Story: storyText,
+		Story:       storyText,
+		TotalTokens: totalTokens,
 	}, nil
 }

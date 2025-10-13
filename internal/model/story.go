@@ -2,8 +2,9 @@ package model
 
 // StoryResponse represents the response for story generation
 type StoryResponse struct {
-	Story string `json:"story,omitempty"`
-	Error string `json:"error,omitempty"`
+	Story       string `json:"story,omitempty"`
+	TotalTokens int32  `json:"total_tokens,omitempty"`
+	Error       string `json:"error,omitempty"`
 }
 
 type PromptEngineConfig struct {
@@ -12,6 +13,7 @@ type PromptEngineConfig struct {
 }
 
 type TopicResponse struct {
-	Title []string `json:"title,omitempty"`
-	Error string   `json:"error,omitempty"`
+	Title       []string `json:"title,omitempty"`
+	TotalTokens int32    `json:"total_tokens,omitempty"`
+	Error       string   `json:"error,omitempty"`
 }

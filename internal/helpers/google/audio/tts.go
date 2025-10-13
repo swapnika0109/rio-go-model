@@ -12,6 +12,7 @@ import (
 	"rio-go-model/internal/util"
 
 	"rio-go-model/configs"
+	"rio-go-model/internal/util/tokens"
 
 	texttospeech "cloud.google.com/go/texttospeech/apiv1"
 	texttospeechpb "cloud.google.com/go/texttospeech/apiv1/texttospeechpb"
@@ -19,8 +20,9 @@ import (
 )
 
 type GoogleTTS struct {
-	Client *texttospeech.Client
-	Logger *log.Logger
+	Client          *texttospeech.Client
+	Logger          *log.Logger
+	storyCharacters *tokens.StoryCharacters
 }
 
 type GoogleTTSRequest struct {
@@ -58,15 +60,18 @@ func NewGoogleTTS() *GoogleTTS {
 		}
 	}
 	log.Println("Google TTS client initialized successfully")
+	storyCharacters := tokens.NewStoryCharacters()
 	return &GoogleTTS{
-		Client: client,
-		Logger: log.New(os.Stdout, "GoogleTTS: ", log.LstdFlags),
+		Client:          client,
+		storyCharacters: storyCharacters,
+		Logger:          log.New(os.Stdout, "GoogleTTS: ", log.LstdFlags),
 	}
 }
 
-func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, error) {
+func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, int32, error) {
 	g.Logger.Printf("GenerateAudioAdapter called - Language: %s, Text length: %d", language, len(text))
 	var ssml string
+	var totalTokens int32
 	languageCode := util.LanguageMapper(language)
 	languageName := configs.BuildVoiceName(languageCode)
 	g.Logger.Printf("Mapped language code: %s, Voice name: %s", languageCode, languageName)
@@ -82,14 +87,16 @@ func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, 
 		// Check if SSML exceeds 5000 byte limit
 		if len(ssml) > 5000 {
 			g.Logger.Printf("SSML exceeds 5000 byte limit (%d bytes), splitting into chunks...", len(ssml))
-			return g.generateAudioInChunks(text, language, languageCode, languageName)
+			audio, err := g.generateAudioInChunks(text, language, languageCode, languageName)
+			return audio, totalTokens, err
 		}
 	}
 
 	// Check if normal text exceeds 5000 byte limit (for non-SSML languages)
 	if len(ssml) == 0 && len(text) > 5000 {
 		g.Logger.Printf("Text exceeds 5000 byte limit (%d bytes), splitting into chunks...", len(text))
-		return g.generateAudioInChunksNormal(text, language, languageCode, languageName)
+		audio, err := g.generateAudioInChunksNormal(text, language, languageCode, languageName)
+		return audio, totalTokens, err
 	}
 
 	request := GoogleTTSRequest{
@@ -98,14 +105,20 @@ func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, 
 		LanguageCode: languageCode,
 		LanguageName: languageName,
 	}
+	// totalTokens is set from input char counts below
+	// Log audio character counts (approx billing units)
+	if g.storyCharacters != nil {
+		totalTokens = int32(g.storyCharacters.CountAudioChars(text, ssml))
+	}
+
 	g.Logger.Printf("Calling GenerateAudio with request...")
 	response := g.GenerateAudio(request)
 	if response.Error != "" {
 		g.Logger.Printf("GenerateAudio returned error: %s", response.Error)
-		return nil, fmt.Errorf("%s", response.Error)
+		return nil, totalTokens, fmt.Errorf("%s", response.Error)
 	}
 	g.Logger.Printf("GenerateAudio succeeded, audio content length: %d", len(response.AudioContent))
-	return response.AudioContent, nil
+	return response.AudioContent, totalTokens, nil
 }
 
 // generateAudioInChunksNormal splits long text into smaller chunks without SSML and combines the audio

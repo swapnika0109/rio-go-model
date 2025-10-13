@@ -53,7 +53,7 @@ func (s *StoryAudioCrud) ResetAudioByThemeID(ctx context.Context, themeID string
 				continue
 			}
 
-			audioData, err = s.storyGenerator.audioStoryGenerator.GenerateAudioAdapter(story["story_text"].(string), language)
+			audioData, _, err = s.storyGenerator.audioStoryGenerator.GenerateAudioAdapter(story["story_text"].(string), language)
 			if err != nil {
 				s.logger.Errorf("GenerateAudioAdapter failed: %v", err)
 			} else {

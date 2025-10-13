@@ -919,3 +919,30 @@ func (a *AppHelper) GetDocID(title, theme string) string {
 	// Simple implementation - you can enhance this as needed
 	return fmt.Sprintf("%s_%s", title, theme)
 }
+
+func (s *StoryDatabase) UpdateAPITokens(ctx context.Context, api_model string, tokensUsed int32) (string, error) {
+	log.Printf("Updating API Trigger for %s", api_model)
+	ud, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
+	if err != nil {
+		return "", fmt.Errorf("error reading api model: %v", err)
+	}
+	userData := ud.Data()
+	var allTokensUsed int32
+	if allTokensUsed, ok := userData["tokensUsed"].(int32); ok {
+		allTokensUsed += tokensUsed
+	} else {
+		allTokensUsed = tokensUsed
+	}
+
+	if tokensUsed > 0 {
+		userData["tokensUsed"] = allTokensUsed
+		userData["updated_at"] = getUTCTimestamp()
+		_, err = s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
+		if err != nil {
+			return "", fmt.Errorf("error creating api model: %v", err)
+		}
+		return "Document Updated successfully", nil
+	} else {
+		return "No tokens used", nil
+	}
+}
