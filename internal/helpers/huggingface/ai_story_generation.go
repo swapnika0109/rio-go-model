@@ -121,8 +121,8 @@ func (s *StoryCreator) CreateTopics(prompt string) (*model.TopicResponse, error)
 }
 
 // CreateStory generates a story based on theme, topic, and version
-func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*model.StoryResponse, error) {
-	s.logger.Printf("Creating story with huggingface for theme: %s, topic: %s, version: %d", theme, topic, version)
+func (s *StoryCreator) CreateStory(theme, topic string, kwargs map[string]interface{}) (*model.StoryResponse, error) {
+	s.logger.Printf("Creating story with huggingface for theme: %s, topic: %s", theme, topic)
 
 	// Validate inputs
 	if theme == "" {
@@ -140,7 +140,7 @@ func (s *StoryCreator) CreateStory(theme, topic string, version int, kwargs map[
 	}
 
 	// Generate formatted prompt
-	formattedPrompt, systemMessage, err := util.GenerateFormattedPrompt(theme, topic, version, kwargs)
+	formattedPrompt, systemMessage, err := util.GenerateFormattedPrompt(theme, topic, kwargs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate formatted prompt: %v", err)
 	}

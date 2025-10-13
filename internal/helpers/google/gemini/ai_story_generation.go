@@ -83,8 +83,8 @@ func (s *GeminiStoryGenerationHelper) CreateTopics(prompt string) (*model.TopicR
 	}, nil
 }
 
-func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*model.StoryResponse, error) {
-	s.logger.Printf("Creating story with gemini for theme: %s, topic: %s, version: %d", theme, topic, version)
+func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, kwargs map[string]interface{}) (*model.StoryResponse, error) {
+	s.logger.Printf("Creating story with gemini for theme: %s, topic: %s", theme, topic)
 
 	if theme == "" {
 		s.logger.Println("Warning: Theme is required but not provided")
@@ -101,7 +101,7 @@ func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, version i
 	}
 
 	// Generate formatted prompt
-	formattedPrompt, systemMessage, err := util.GenerateFormattedPrompt(theme, topic, version, kwargs)
+	formattedPrompt, systemMessage, err := util.GenerateFormattedPrompt(theme, topic, kwargs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate formatted prompt: %v", err)
 	}

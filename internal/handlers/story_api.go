@@ -347,6 +347,10 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	language := ""
+	if languageVal, ok := userProfile["language"].(string); ok {
+		language = languageVal
+	}
 
 	logger.Printf("INFO: User details - Country: %s, City: %s, Preferences: %v, Religions: %v", country, city, preferences, religions)
 
@@ -370,7 +374,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 	switch theme {
 	case "1":
 		logger.Println("INFO: Fetching theme 1 data")
-		themeData, err = h.storyDB.ReadMDTopics1(r.Context(), country, city, preferences)
+		themeData, err = h.storyDB.ReadMDTopics1(r.Context(), country, city, preferences, language)
 		if err != nil {
 			logger.Printf("ERROR: Error fetching theme 1 data: %v", err)
 		}
@@ -384,7 +388,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		logger.Printf("INFO: Theme 1 data: %v", themeData)
 	case "2":
 		logger.Println("INFO: Fetching theme 2 data")
-		themeData, err = h.storyDB.ReadMDTopics2(r.Context(), country, religions, preferences)
+		themeData, err = h.storyDB.ReadMDTopics2(r.Context(), country, religions, preferences, language)
 		if err != nil {
 			logger.Printf("ERROR: Error fetching theme 2 data: %v", err)
 		}
@@ -398,7 +402,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		logger.Printf("INFO: Theme 2 data: %v", themeData)
 	case "3":
 		logger.Println("INFO: Fetching theme 3 data")
-		themeData, err = h.storyDB.ReadMDTopics3(r.Context(), preferences)
+		themeData, err = h.storyDB.ReadMDTopics3(r.Context(), preferences, language)
 		if err != nil {
 			logger.Printf("ERROR: Error fetching theme 3 data: %v", err)
 		}
@@ -417,12 +421,9 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 
 	// Exactly like Python: if theme_data is None or theme_data == []
 	if len(themeData) == 0 {
-		logger.Println("INFO: No theme data found, fetching stories directly")
-		stories, err = h.storyDB.ListStories(r.Context(), limit, theme)
-		if err != nil {
-			logger.Printf("ERROR: Error fetching stories directly: %v", err)
-		}
-		logger.Printf("INFO: Direct stories fetch result: %v", len(stories))
+		logger.Println("INFO: No theme data found, returning empty stories")
+		return
+
 	} else {
 		// Exactly like Python: for theme_topic in theme_data
 		for _, themeTopic := range themeData {
@@ -459,19 +460,6 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Printf("INFO: Filtered stories count: %d", len(filteredStories))
-
-	// Exactly like Python: if stories is None or stories == []
-	if len(filteredStories) == 0 {
-		logger.Println("INFO: No stories found from topics, fetching stories directly")
-		directStories, err := h.storyDB.ListStories(r.Context(), limit, theme)
-		if err != nil {
-			logger.Printf("ERROR: Error in fallback stories fetch: %v", err)
-		} else {
-			filteredStories = directStories
-		}
-		logger.Printf("INFO: Fallback stories fetch result: %v", filteredStories)
-	}
-
 	// Process stories exactly like Python
 	for _, story := range filteredStories {
 		// Exactly like Python: image_blob_path = story.get('image_url', '').split('kutty_bucket/')[-1] if story.get('image_url') else None
@@ -487,23 +475,6 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 
 		var imageBlobPath = imageURL
 		var audioBlobPath = audioURL
-
-		// if imageURL != "" && strings.Contains(imageURL, "kutty_bucket/") {
-		// 	parts := strings.Split(imageURL, "kutty_bucket/")
-		// 	if len(parts) > 1 {
-		// 		imageBlobPath = parts[1]
-		// 	}
-		// }
-
-		// log.Println("imageBlobPath ", imageBlobPath)
-
-		// if audioURL != "" && strings.Contains(audioURL, "kutty_bucket/") {
-		// 	parts := strings.Split(audioURL, "kutty_bucket/")
-		// 	if len(parts) > 1 {
-		// 		audioBlobPath = parts[1]
-		// 	}
-		// }
-		// log.Println("audioBlobPath ", audioBlobPath)
 
 		logger.Printf("DEBUG: Processing story - Image path: %s, Audio path: %s", imageBlobPath, audioBlobPath)
 

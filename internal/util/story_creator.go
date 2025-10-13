@@ -23,117 +23,98 @@ type StoryResponse struct {
 }
 
 // generateFormattedPrompt generates the formatted prompt based on version and parameters
-func GenerateFormattedPrompt(theme, topic string, version int, kwargs map[string]interface{}) (string, string, error) {
+func GenerateFormattedPrompt(theme, topic string, kwargs map[string]interface{}) (string, string, error) {
 	var formattedPrompt, systemMessage string
+	var promptTemplate *PromptTemplate
+	// Extract parameters
+	country := getStringFromMap(kwargs, "country", "")
+	city := getStringFromMap(kwargs, "city", "")
+	religions := getStringSliceFromMap(kwargs, "religions")
+	preferences := getStringSliceFromMap(kwargs, "preferences")
 
-	if version == 2 {
-		// // Dynamic prompt for version 2
-		// promptTemplate, err := getDynamicPromptConfig(theme)
-		// if err != nil {
-		// 	return "", "", err
-		// }
-		var promptTemplate *PromptTemplate
-		// Extract parameters
-		country := getStringFromMap(kwargs, "country", "")
-		city := getStringFromMap(kwargs, "city", "")
-		religions := getStringSliceFromMap(kwargs, "religions")
-		preferences := getStringSliceFromMap(kwargs, "preferences")
+	religionsStr := strings.Join(religions, ", ")
 
-		religionsStr := strings.Join(religions, ", ")
-
-		switch theme {
-		case "1":
-			if kwargs["language"] == "Telugu" {
-				cfg := telugu.PlanetProtectorPromptConfig(topic, country, city)
-				promptTemplate = &PromptTemplate{
-					Prompt: cfg.Prompt,
-					System: cfg.System,
-				}
-				formattedPrompt = promptTemplate.Prompt
-				systemMessage = promptTemplate.System
-			} else {
-				cfg := english.PlanetProtectorPromptConfig(topic, country, city)
-				promptTemplate = &PromptTemplate{
-					Prompt: cfg.Prompt,
-					System: cfg.System,
-				}
-				formattedPrompt = promptTemplate.Prompt
-				systemMessage = promptTemplate.System
-			}
-
-		case "2":
-			if kwargs["language"] == "Telugu" {
-				cfg := telugu.MindfulStoriesPromptConfig(topic, religionsStr)
-				promptTemplate = &PromptTemplate{
-					Prompt: cfg.Prompt,
-					System: cfg.System,
-				}
-			} else {
-				cfg := english.MindfulStoriesPromptConfig(topic, religionsStr)
-				promptTemplate = &PromptTemplate{
-					Prompt: cfg.Prompt,
-					System: cfg.System,
-				}
+	switch theme {
+	case "1":
+		if kwargs["language"] == "Telugu" {
+			cfg := telugu.PlanetProtectorPromptConfig(topic, country, city)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
 			}
 			formattedPrompt = promptTemplate.Prompt
 			systemMessage = promptTemplate.System
-
-		case "3":
-			if kwargs["language"] == "Telugu" {
-				cfg := telugu.ChillStoriesPromptConfig(topic)
-				promptTemplate = &PromptTemplate{
-					Prompt: cfg.Prompt,
-					System: cfg.System,
-				}
-			} else {
-				cfg := english.ChillStoriesPromptConfig(topic)
-				promptTemplate = &PromptTemplate{
-					Prompt: cfg.Prompt,
-					System: cfg.System,
-				}
+		} else {
+			cfg := english.PlanetProtectorPromptConfig(topic, country, city)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
 			}
 			formattedPrompt = promptTemplate.Prompt
 			systemMessage = promptTemplate.System
-
-		default:
-			// Load a dynamic prompt template for unknown themes to avoid nil dereference
-			tmpl, err := getDynamicPromptConfig(theme)
-			if err != nil {
-				return "", "", err
-			}
-			promptTemplate = tmpl
-			formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religionsStr, strings.Join(preferences, ", "))
-			systemMessage = promptTemplate.System
 		}
 
-		// Add preference-specific content
-		for _, preference := range preferences {
-			preference = strings.ToUpper(preference)
-			if kwargs["language"] == "Telugu" {
-				prefContent := telugu.Preferences()[preference]
-				if prefContent != "" {
-					formattedPrompt += prefContent
-				}
-			} else {
-				prefContent := english.Preferences()[preference]
-				if prefContent != "" {
-					formattedPrompt += prefContent
-				}
+	case "2":
+		if kwargs["language"] == "Telugu" {
+			cfg := telugu.MindfulStoriesPromptConfig(topic, religionsStr)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
+			}
+		} else {
+			cfg := english.MindfulStoriesPromptConfig(topic, religionsStr)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
 			}
 		}
-		// s.logger.Printf("Generated prompt 3: %s", formattedPrompt)
+		formattedPrompt = promptTemplate.Prompt
+		systemMessage = promptTemplate.System
 
-	} else {
-		// Standard prompt for version 1
-		promptTemplate, err := getPromptConfig(theme)
+	case "3":
+		if kwargs["language"] == "Telugu" {
+			cfg := telugu.ChillStoriesPromptConfig(topic)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
+			}
+		} else {
+			cfg := english.ChillStoriesPromptConfig(topic)
+			promptTemplate = &PromptTemplate{
+				Prompt: cfg.Prompt,
+				System: cfg.System,
+			}
+		}
+		formattedPrompt = promptTemplate.Prompt
+		systemMessage = promptTemplate.System
+
+	default:
+		// Load a dynamic prompt template for unknown themes to avoid nil dereference
+		tmpl, err := getDynamicPromptConfig(theme)
 		if err != nil {
 			return "", "", err
 		}
-
-		formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic)
+		promptTemplate = tmpl
+		formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religionsStr, strings.Join(preferences, ", "))
 		systemMessage = promptTemplate.System
 	}
 
+	// Add preference-specific content
+	for _, preference := range preferences {
+		preference = strings.ToUpper(preference)
+		if kwargs["language"] == "Telugu" {
+			prefContent := telugu.Preferences()[preference]
+			if prefContent != "" {
+				formattedPrompt += prefContent
+			}
+		} else {
+			prefContent := english.Preferences()[preference]
+			if prefContent != "" {
+				formattedPrompt += prefContent
+			}
+		}
+	}
+	// s.logger.Printf("Generated prompt 3: %s", formattedPrompt)
 	return formattedPrompt, systemMessage, nil
 }
 

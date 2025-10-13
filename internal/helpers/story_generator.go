@@ -125,46 +125,29 @@ func (sgh *StoryGenerationHelper) GenerateImage(prompt string) ([]byte, error) {
 }
 
 // StoryHelper generates a complete story with image and audio
-func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_id, topic string, version int, kwargs map[string]interface{}) error {
-	sgh.logger.Infof("Generating story for theme: %s, topic: %s, version: %d", theme, topic, version)
+func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_id, topic string, kwargs map[string]interface{}) error {
+	sgh.logger.Infof("Generating story for theme: %s, topic: %s, version: %d", theme, topic)
 
 	// Generate story using StoryCreator
 	var storyResponse *StoryGenerationResponse
-	storyResponse = &StoryGenerationResponse{StoryText: "Bubble‑Bunny’s Clean‑Air Quest: A fluffy bunny flies through a sky of bubbles to clear smoky clouds._1"}
-
-	if version == 1 {
-		response, err := sgh.geminiStoryGenerator.CreateStory(theme, topic, version, kwargs)
-		if err != nil {
-			return fmt.Errorf("failed to generate story: %v", err)
-		}
-		if response.Error != "" {
-			return fmt.Errorf("story generation error: %s", response.Error)
-		}
-		if response.Story == "" {
-			return fmt.Errorf("no story text generated")
-		}
-		storyResponse = &StoryGenerationResponse{StoryText: response.Story}
+	isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
+	var response *model.StoryResponse
+	if (err != nil || isSuspended) && kwargs["language"].(string) != "Telugu" {
+		response, err = sgh.storyCreator.CreateStory(theme, topic, kwargs)
 	} else {
-		isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
-		var response *model.StoryResponse
-		if (err != nil || isSuspended) && kwargs["language"].(string) != "Telugu" {
-			response, err = sgh.storyCreator.CreateStory(theme, topic, version, kwargs)
-		} else {
-			response, err = sgh.geminiStoryGenerator.CreateStory(theme, topic, version, kwargs)
-		}
-		// Version 2 with dynamic parameters
-		if err != nil {
-			return fmt.Errorf("failed to generate story: %v", err)
-		}
-		if response.Error != "" {
-			return fmt.Errorf("story generation error: %s", response.Error)
-		}
-		if response.Story == "" {
-			return fmt.Errorf("no story text generated")
-		}
-		storyResponse = &StoryGenerationResponse{StoryText: response.Story}
+		response, err = sgh.geminiStoryGenerator.CreateStory(theme, topic, kwargs)
 	}
-
+	// Version 2 with dynamic parameters
+	if err != nil {
+		return fmt.Errorf("failed to generate story: %v", err)
+	}
+	if response.Error != "" {
+		return fmt.Errorf("story generation error: %s", response.Error)
+	}
+	if response.Story == "" {
+		return fmt.Errorf("no story text generated")
+	}
+	storyResponse = &StoryGenerationResponse{StoryText: response.Story}
 	// Generate image and audio in parallel using worker pools
 	imageResultChan := make(chan struct {
 		data []byte
@@ -189,7 +172,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		var audioData []byte
 		language := kwargs["language"].(string)
 		suspended, err := sgh.storyDatabase.SuspendAudioAPI(ctx, "audio")
-		if language != "Telugu" && (suspended || err != nil) {
+		if suspended || err != nil {
 			if err != nil {
 				sgh.logger.Errorf("Failed to read audio api trigger: %v", err)
 			} else {
@@ -262,16 +245,6 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 
 	// Start audio upload worker
 	util.GoroutineWithRecovery(func() {
-		// Decode base64 audio data
-		// audioBytes, err := base64.StdEncoding.DecodeString(audioData)
-		// if err != nil {
-		// 	audioUploadChan <- struct {
-		// 		url string
-		// 		err error
-		// 	}{"", fmt.Errorf("failed to decode audio: %v", err)}
-		// 	return
-		// }
-
 		url, err := sgh.storageService.UploadFile(audioData, "audio", "wav")
 		audioUploadChan <- struct {
 			url string
@@ -306,32 +279,6 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		sgh.logger.Errorf("Upload error: %v", uploadErr)
 		return fmt.Errorf("file upload failed: %v", uploadErr)
 	}
-
-	// Generate signed URLs for frontend access
-	// imageSignedURL, err := sgh.storageService.GenerateSignedURL(imageURL, 24*time.Hour)
-	// log.Println("signed url for blob path ", blobPath, " is ", imageSignedURL)
-	// if err != nil {
-	// 	sgh.logger.Errorf("Failed to generate signed URL for image: %v", err)
-	// 	return nil, fmt.Errorf("failed to generate image URL: %v", err)
-	// }
-
-	// audioSignedURL, err := sgh.storageService.GenerateSignedURL(audioURL, 24*time.Hour)
-	// if err != nil {
-	// 	sgh.logger.Errorf("Failed to generate signed URL for audio: %v", err)
-	// 	return nil, fmt.Errorf("failed to generate audio URL: %v", err)
-	// }
-
-	// Prepare response data
-	// responseData := &StoryGenerationResponse{
-	// 	StoryID:   storyID,
-	// 	Title:     topic,
-	// 	StoryText: storyResponse.StoryText,
-	// 	ImageURL:  imageSignedURL,
-	// 	AudioURL:  audioSignedURL,
-	// 	AudioType: "wav",
-	// 	Theme:     theme,
-	// }
-
 	// Save to database (non-blocking)
 	util.GoroutineWithRecovery(func() {
 		dbData := map[string]interface{}{
@@ -347,14 +294,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-
-		var err error
-		if version == 1 {
-			_, err = sgh.storyDatabase.CreateStory(ctx, dbData)
-		} else {
-			_, err = sgh.storyDatabase.CreateStoryV2(ctx, theme_id, dbData)
-		}
-
+		_, err := sgh.storyDatabase.CreateStoryV2(ctx, theme_id, dbData)
 		if err != nil {
 			sgh.logger.Errorf("Database save error: %v", err)
 		} else {
@@ -475,11 +415,32 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	}
 }
 
+func (sgh *StoryGenerationHelper) TopicsGenerator(ctx context.Context, prompt string, language string) ([]string, error) {
+	sgh.logger.Infof("Starting topics generator ")
+	// Create topics
+	isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
+	var topicsResponse *model.TopicResponse
+	if (err != nil || isSuspended) && language == "English" {
+		topicsResponse, err = sgh.storyCreator.CreateTopics(prompt)
+	} else {
+		topicsResponse, err = sgh.geminiStoryGenerator.CreateTopics(prompt)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to create topics: %v", err)
+	}
+	if topicsResponse.Error != "" {
+		return nil, fmt.Errorf("topics creation error: %s", topicsResponse.Error)
+	}
+
+	topics := topicsResponse.Title
+	return topics, nil
+}
+
 // getDynamicPromptingTheme1 processes theme 1 with parallel story generation controlled by a semaphore
 func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context, country, city string, preferences []string, language string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 1 processing for country %s and city %s", country, city)
 	// Check if topics already exist
-	existing, err := sgh.storyDatabase.ReadMDTopics1(ctx, country, city, preferences)
+	existing, err := sgh.storyDatabase.ReadMDTopics1(ctx, country, city, preferences, language)
 	if err != nil {
 		return fmt.Errorf("error checking existing topics: %v", err)
 	}
@@ -500,25 +461,14 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 		}
 
 		// Create topics
-		isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
-		var topicsResponse *model.TopicResponse
-		if (err != nil || isSuspended) && language != "Telugu" {
-			topicsResponse, err = sgh.storyCreator.CreateTopics(prompt)
-		} else {
-			topicsResponse, err = sgh.geminiStoryGenerator.CreateTopics(prompt)
-		}
+		topics, err := sgh.TopicsGenerator(ctx, prompt, language)
 		if err != nil {
 			return fmt.Errorf("failed to create topics: %v", err)
 		}
-		if topicsResponse.Error != "" {
-			return fmt.Errorf("topics creation error: %s", topicsResponse.Error)
-		}
-
-		topics := topicsResponse.Title
 		sgh.logger.Infof("Generated %d topics for theme 1", len(topics))
 
 		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics1(ctx, theme1_id, country, city, preference, topics)
+		_, err = sgh.storyDatabase.CreateMDTopics1(ctx, theme1_id, country, city, preference, topics, language)
 		if err != nil {
 			return fmt.Errorf("failed to save topics: %v", err)
 		}
@@ -554,7 +504,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 				"language":    language,
 			}
 
-			err := sgh.StoryHelper(ctx, "1", theme1_id, topic.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "1", theme1_id, topic.Topic, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 			}
@@ -574,7 +524,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 	sgh.logger.Infof("Starting theme 2 processing for country %s and religions %v", country, religions)
 
 	// Check if topics already exist
-	existing, err := sgh.storyDatabase.ReadMDTopics2(ctx, country, religions, preferences)
+	existing, err := sgh.storyDatabase.ReadMDTopics2(ctx, country, religions, preferences, language)
 	if err != nil {
 		return fmt.Errorf("error checking existing topics: %v", err)
 	}
@@ -596,19 +546,15 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 			return fmt.Errorf("failed to generate prompt: %v", err)
 		}
 
-		topicsResponse, err := sgh.storyCreator.CreateTopics(prompt)
+		// Create topics
+		topics, err := sgh.TopicsGenerator(ctx, prompt, language)
 		if err != nil {
 			return fmt.Errorf("failed to create topics: %v", err)
 		}
-		if topicsResponse.Error != "" {
-			return fmt.Errorf("topics creation error: %s", topicsResponse.Error)
-		}
-
-		topics := topicsResponse.Title
 		sgh.logger.Infof("Generated %d topics for theme 2", len(topics))
 
 		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics2(ctx, theme2_id, country, religion, preferences, topics)
+		_, err = sgh.storyDatabase.CreateMDTopics2(ctx, theme2_id, country, religion, language, preferences, topics)
 		if err != nil {
 			return fmt.Errorf("failed to save topics: %v", err)
 		}
@@ -644,7 +590,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 				"language":    language,
 			}
 
-			err := sgh.StoryHelper(ctx, "2", theme2_id, item.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "2", theme2_id, item.Topic, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", item.Topic, err)
 			}
@@ -664,7 +610,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	sgh.logger.Infof("Starting theme 3 processing for preferences %v", preferences)
 
 	// Check if topics already exist
-	existing, err := sgh.storyDatabase.ReadMDTopics3(ctx, preferences)
+	existing, err := sgh.storyDatabase.ReadMDTopics3(ctx, preferences, language)
 	if err != nil {
 		return fmt.Errorf("error checking existing topics: %v", err)
 	}
@@ -687,22 +633,15 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 		}
 
 		// log.Println("prompt .. ", prompt)
-
-		// Create topics
-		topicsResponse, err := sgh.storyCreator.CreateTopics(prompt)
+		topics, err := sgh.TopicsGenerator(ctx, prompt, language)
 		if err != nil {
 			return fmt.Errorf("failed to create topics: %v", err)
 		}
-		if topicsResponse.Error != "" {
-			return fmt.Errorf("topics creation error: %s", topicsResponse.Error)
-		}
-
-		topics := topicsResponse.Title
 		sgh.logger.Infof("Generated %d topics for theme 3", len(topics))
 
 		// log.Println("length of topics", len(topics))
 		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics3(ctx, theme3_id, preference, topics)
+		_, err = sgh.storyDatabase.CreateMDTopics3(ctx, theme3_id, preference, language, topics)
 		if err != nil {
 			return fmt.Errorf("failed to save topics: %v", err)
 		}
@@ -736,7 +675,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 				"preferences": topic.Key,
 				"language":    language,
 			}
-			err := sgh.StoryHelper(ctx, "3", theme3_id, topic.Topic, 2, kwargs)
+			err := sgh.StoryHelper(ctx, "3", theme3_id, topic.Topic, kwargs)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 			}

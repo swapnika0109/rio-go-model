@@ -5,19 +5,20 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"rio-go-model/internal/util"
 	"strings"
 	"time"
-	"rio-go-model/internal/util"
+
 	"google.golang.org/genai"
 	// "google.golang.org/api/option"
 )
 
 type VertexStoryGenerationHelper struct {
-	client        *genai.Client
-	logger        *log.Logger
-	projectID     string
-	location      string
-	modelName     string
+	client    *genai.Client
+	logger    *log.Logger
+	projectID string
+	location  string
+	modelName string
 }
 
 type StoryResponse struct {
@@ -37,10 +38,10 @@ func NewVertexStoryGenerationHelper() *VertexStoryGenerationHelper {
 	}
 
 	return &VertexStoryGenerationHelper{
-		projectID:     projectID,
-		location:      location,
-		modelName:     "gemini-1.5-flash",
-		logger:        log.New(os.Stdout, "VertexAI: ", log.LstdFlags),
+		projectID: projectID,
+		location:  location,
+		modelName: "gemini-1.5-flash",
+		logger:    log.New(os.Stdout, "VertexAI: ", log.LstdFlags),
 	}
 }
 
@@ -60,12 +61,10 @@ func (s *VertexStoryGenerationHelper) Init(ctx context.Context) error {
 	_, err = os.Stat(credPath)
 	if err == nil {
 		log.Println("Using service account from file for vertex")
-		client, err = genai.NewClient(ctx, &genai.ClientConfig{Backend: genai.BackendVertexAI,
-		})
+		client, err = genai.NewClient(ctx, &genai.ClientConfig{Backend: genai.BackendVertexAI})
 	} else {
 		log.Println("Using deafult service account for Vertex AI")
-		client, err = genai.NewClient(ctx, &genai.ClientConfig{Backend: genai.BackendVertexAI,
-		})
+		client, err = genai.NewClient(ctx, &genai.ClientConfig{Backend: genai.BackendVertexAI})
 	}
 
 	if err != nil {
@@ -78,8 +77,8 @@ func (s *VertexStoryGenerationHelper) Init(ctx context.Context) error {
 }
 
 // CreateStory generates a story using Vertex AI
-func (s *VertexStoryGenerationHelper) CreateStory(theme, topic string, version int, kwargs map[string]interface{}) (*StoryResponse, error) {
-	s.logger.Printf("Creating story for theme: %s, topic: %s, version: %d", theme, topic, version)
+func (s *VertexStoryGenerationHelper) CreateStory(theme, topic string, kwargs map[string]interface{}) (*StoryResponse, error) {
+	s.logger.Printf("Creating story for theme: %s, topic: %s", theme, topic)
 
 	// Validate inputs
 	if theme == "" {
@@ -103,11 +102,11 @@ func (s *VertexStoryGenerationHelper) CreateStory(theme, topic string, version i
 	}
 
 	// Generate formatted prompt
-	formattedPrompt, systemMessage, err := util.GenerateFormattedPrompt(theme, topic, version, kwargs)
+	formattedPrompt, systemMessage, err := util.GenerateFormattedPrompt(theme, topic, kwargs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate formatted prompt: %v", err)
 	}
-	
+
 	// Set safety settings for child-friendly content
 	// safetySettings := []*genai.SafetySetting{
 	// 	{
@@ -138,8 +137,8 @@ func (s *VertexStoryGenerationHelper) CreateStory(theme, topic string, version i
 	config := &genai.GenerateContentConfig{
 		// SafetySettings: safetySettings,
 		Temperature:     genai.Ptr(float32(0.8)),
-		TopP:           genai.Ptr(float32(0.9)),
-		TopK:           genai.Ptr(float32(40.0)),
+		TopP:            genai.Ptr(float32(0.9)),
+		TopK:            genai.Ptr(float32(40.0)),
 		MaxOutputTokens: int32(2048),
 	}
 
