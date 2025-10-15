@@ -107,7 +107,7 @@ func (s *StoryCreator) CreateTopics(prompt string) (*model.TopicResponse, error)
 	}
 
 	// Parse topics from response
-	topics := util.ParseTopics(topicsData)
+	topics := util.ParseTopics(topicsData, configs.GetSettings().DefaultStoryToGenerate)
 	s.logger.Printf("Successfully generated %d topics", len(topics))
 	settings := configs.GetSettings()
 

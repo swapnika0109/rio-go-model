@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -221,8 +222,18 @@ func getStringSliceFromMap(m map[string]interface{}, key string) []string {
 }
 
 // parseTopics parses topics from the AI response
-func ParseTopics(topicsData string) []string {
-	topicsList := strings.Split(topicsData, "\n")
+func ParseTopics(topicsData string, storiesPerPreference int) []string {
+	log.Println("topicsData .. ", topicsData)
+	topicsDataLngth := strings.Split(topicsData, "[")
+	if len(topicsDataLngth) > 1 {
+		topicsData = topicsDataLngth[1]
+	} else {
+		topicsData = topicsDataLngth[0]
+	}
+	topicsData = strings.Split(topicsData, "]")[0]
+	log.Println("topicsData after triming .. ", topicsData)
+	topicsList := strings.Split(topicsData, ";")
+	log.Println("topicsList .. ", topicsList)
 	topics := make([]string, 0)
 
 	for _, topic := range topicsList {
@@ -231,11 +242,29 @@ func ParseTopics(topicsData string) []string {
 			continue
 		}
 
-		// Skip introductory text
-		if strings.Contains(topic, "ఖచ్చితంగా") || strings.Contains(topic, "టాపిక్స్") ||
-			strings.Contains(topic, "ఇక్కడ ఉన్నాయి") || strings.Contains(topic, "అందించండి") {
+		if strings.Contains(topic, "]") {
+			topic = strings.ReplaceAll(topic, "]", "")
+			topic = strings.TrimSpace(topic)
+		}
+
+		if strings.Contains(topic, "[") {
+			topic = strings.ReplaceAll(topic, "[", "")
+			topic = strings.TrimSpace(topic)
+		}
+
+		topicValidationStr := strings.Split(topic, ":")
+		if len(topicValidationStr) > 2 {
 			continue
 		}
+		if len(topicValidationStr) == 2 {
+			topic = topicValidationStr[1]
+		}
+
+		// Skip introductory text
+		// if strings.Contains(topic, "ఖచ్చితంగా") || strings.Contains(topic, "టాపిక్స్") ||
+		// 	strings.Contains(topic, "ఇక్కడ ఉన్నాయి") || strings.Contains(topic, "అందించండి") {
+		// 	continue
+		// }
 
 		// Handle markdown formatted topics (e.g., "**1. Title: Description**")
 		if strings.Contains(topic, "**") {
@@ -246,8 +275,9 @@ func ParseTopics(topicsData string) []string {
 			re := regexp.MustCompile(`^\d+\.\s*`)
 			cleanTopic = re.ReplaceAllString(cleanTopic, "")
 
-			// Check if it has title:description format
-			if strings.Contains(cleanTopic, ":") {
+			// Append as a single topic string (no title:description required)
+			cleanTopic = strings.TrimSpace(cleanTopic)
+			if len(cleanTopic) > 0 {
 				topics = append(topics, cleanTopic)
 			}
 			continue
@@ -258,21 +288,23 @@ func ParseTopics(topicsData string) []string {
 			parts := strings.Split(topic, `"`)
 			if len(parts) > 1 {
 				finalTopic := strings.TrimSpace(parts[1])
-				formatingValidation := strings.Split(finalTopic, ":")
-				if len(formatingValidation) == 2 {
+				if len(finalTopic) > 0 {
 					topics = append(topics, finalTopic)
 				}
 			}
 		} else {
-			// Handle numbered topics without markdown (e.g., "1. Title: Description")
+			// Handle numbered topics without markdown (e.g., "1. Some Topic Text")
 			re := regexp.MustCompile(`^\d+\.\s*`)
 			cleanTopic := re.ReplaceAllString(topic, "")
+			cleanTopic = strings.TrimSpace(cleanTopic)
 
-			if len(cleanTopic) > 10 && strings.Contains(cleanTopic, ":") {
+			if len(cleanTopic) > 0 {
 				topics = append(topics, cleanTopic)
 			}
 		}
 	}
-
+	if len(topics) > storiesPerPreference {
+		topics = topics[:storiesPerPreference]
+	}
 	return topics
 }

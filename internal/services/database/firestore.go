@@ -141,14 +141,18 @@ func (s *StoryDatabase) Close() error {
 //	CreateAPITrigger(ctx, "gemini", 100.0, 50.0, "production")  // With all parameters
 func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string, optionalParams ...interface{}) (string, error) {
 	log.Printf("Creating API Trigger for %s", api_model)
-
-	// Initialize userData with required fields
-	userData := map[string]interface{}{
-		"suspend":    true,
-		"created_at": getUTCTimestamp(),
-		"updated_at": getUTCTimestamp(),
-		"reset_at":   getNextMonthResetTime(),
-		"api_model":  api_model,
+	ud, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
+	var userData map[string]interface{}
+	if err != nil {
+		userData = map[string]interface{}{
+			"suspend":    true,
+			"created_at": getUTCTimestamp(),
+			"updated_at": getUTCTimestamp(),
+			"reset_at":   getNextMonthResetTime(),
+			"api_model":  api_model,
+		}
+	} else {
+		userData = ud.Data()
 	}
 
 	// Process optional parameters
@@ -173,7 +177,7 @@ func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string, 
 		}
 	}
 
-	_, err := s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
+	_, err = s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
 	if err != nil {
 		return "", fmt.Errorf("error creating api model: %v", err)
 	}
@@ -230,8 +234,27 @@ func (s *StoryDatabase) SuspendAudioAPI(ctx context.Context, api_model string) (
 	}
 	curr_time := getUTCTimestamp()
 	reset_at := data.Data()["reset_at"].(time.Time)
-	costAmount := data.Data()["costAmount"].(float64)
-	budgetAmount := data.Data()["budgetAmount"].(float64)
+
+	// Handle both int64 and float64 types for costAmount
+	costAmount, ok := data.Data()["costAmount"].(float64)
+	if !ok {
+		if intVal, intOk := data.Data()["costAmount"].(int64); intOk {
+			costAmount = float64(intVal)
+		} else {
+			costAmount = 0
+		}
+	}
+
+	// Handle both int64 and float64 types for budgetAmount
+	budgetAmount, ok := data.Data()["budgetAmount"].(float64)
+	if !ok {
+		if intVal, intOk := data.Data()["budgetAmount"].(int64); intOk {
+			budgetAmount = float64(intVal)
+		} else {
+			budgetAmount = 0
+		}
+	}
+
 	thresholdPercCal := (costAmount / budgetAmount) * 100
 	tag := data.Data()["tag"].(string)
 	if api_model == "audio" && thresholdPercCal >= 25 && tag == configs.GetDefaultChirpVoice() && curr_time.Before(reset_at) {
@@ -261,8 +284,27 @@ func (s *StoryDatabase) SuspendGeminiAPI(ctx context.Context, api_model string) 
 	}
 	curr_time := getUTCTimestamp()
 	reset_at := data.Data()["reset_at"].(time.Time)
-	costAmount := data.Data()["costAmount"].(float64)
-	budgetAmount := data.Data()["budgetAmount"].(float64)
+
+	// Handle both int64 and float64 types for costAmount
+	costAmount, ok := data.Data()["costAmount"].(float64)
+	if !ok {
+		if intVal, intOk := data.Data()["costAmount"].(int64); intOk {
+			costAmount = float64(intVal)
+		} else {
+			costAmount = 0
+		}
+	}
+
+	// Handle both int64 and float64 types for budgetAmount
+	budgetAmount, ok := data.Data()["budgetAmount"].(float64)
+	if !ok {
+		if intVal, intOk := data.Data()["budgetAmount"].(int64); intOk {
+			budgetAmount = float64(intVal)
+		} else {
+			budgetAmount = 0
+		}
+	}
+
 	thresholdPercCal := (costAmount / budgetAmount) * 100
 	//If the threshold percentage is greater than 90% and the current time is before the reset time, return true
 	if thresholdPercCal >= 60 && curr_time.Before(reset_at) {
@@ -921,28 +963,40 @@ func (a *AppHelper) GetDocID(title, theme string) string {
 }
 
 func (s *StoryDatabase) UpdateAPITokens(ctx context.Context, api_model string, tokensUsed int32) (string, error) {
-	log.Printf("Updating API Trigger for %s", api_model)
+	log.Printf("Updating API Trigger for %s is %d", api_model, tokensUsed)
 	ud, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
+	var userData map[string]interface{}
 	if err != nil {
-		return "", fmt.Errorf("error reading api model: %v", err)
+		log.Printf("Error updating API Trigger for %s: %v", api_model, err)
+		userData = map[string]interface{}{
+			"created_at":   getUTCTimestamp(),
+			"updated_at":   getUTCTimestamp(),
+			"reset_at":     getNextMonthResetTime(),
+			"api_model":    api_model,
+			"budgetAmount": 0,
+			"costAmount":   0,
+			"tag":          "",
+		}
+	} else {
+		log.Printf("Else: Updating API Trigger for %s is %d", api_model, ud.Data()["tokensUsed"])
+		userData = ud.Data()
 	}
-	userData := ud.Data()
 	var allTokensUsed int32
-	if allTokensUsed, ok := userData["tokensUsed"].(int32); ok {
+	var ok bool
+	if allTokensUsed, ok = userData["tokensUsed"].(int32); ok {
+		log.Printf("All tokens used for %d is %d", tokensUsed, allTokensUsed)
 		allTokensUsed += tokensUsed
 	} else {
 		allTokensUsed = tokensUsed
+		log.Printf("Else: All tokens used for %d is %d", tokensUsed, allTokensUsed)
 	}
-
-	if tokensUsed > 0 {
-		userData["tokensUsed"] = allTokensUsed
-		userData["updated_at"] = getUTCTimestamp()
-		_, err = s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
-		if err != nil {
-			return "", fmt.Errorf("error creating api model: %v", err)
-		}
-		return "Document Updated successfully", nil
-	} else {
-		return "No tokens used", nil
+	log.Printf("Updating API Trigger for %s is %d", api_model, allTokensUsed)
+	userData["tokensUsed"] = allTokensUsed
+	userData["updated_at"] = getUTCTimestamp()
+	_, err = s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
+	if err != nil {
+		return "", fmt.Errorf("error creating api model: %v", err)
 	}
+	log.Printf("Document Updated successfully for %s", api_model)
+	return "Document Updated successfully", nil
 }

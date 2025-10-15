@@ -126,11 +126,12 @@ func (sgh *StoryGenerationHelper) GenerateImage(prompt string) ([]byte, error) {
 
 // StoryHelper generates a complete story with image and audio
 func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_id, topic string, kwargs map[string]interface{}) error {
-	sgh.logger.Infof("Generating story for theme: %s, topic: %s, version: %d", theme, topic)
+	sgh.logger.Infof("Generating story for theme: %s, topic: %s", theme, topic)
 
 	// Generate story using StoryCreator
 	var storyResponse *StoryGenerationResponse
 	isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
+	sgh.logger.Infof("Should suspend gemini api : %t", isSuspended)
 	var response *model.StoryResponse
 	if (err != nil || isSuspended) && kwargs["language"].(string) != "Telugu" {
 		response, err = sgh.storyCreator.CreateStory(theme, topic, kwargs)
@@ -138,7 +139,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		response, err = sgh.geminiStoryGenerator.CreateStory(theme, topic, kwargs)
 		sgh.storyDatabase.UpdateAPITokens(ctx, "gemini", (int32)(response.TotalTokens))
 	}
-	// Version 2 with dynamic parameters
+
 	if err != nil {
 		return fmt.Errorf("failed to generate story: %v", err)
 	}
@@ -360,7 +361,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	defer util.RecoverPanic()
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(1)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
@@ -377,25 +378,25 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		wg.Done() // Ensure wg.Done() is called even on panic
 	})
 
-	// Process theme 2 in a goroutine
-	util.GoroutineWithRecoveryAndHandler(func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 2 processing error: %v", err)
-		}
-	}, func(r interface{}) {
-		wg.Done() // Ensure wg.Done() is called even on panic
-	})
+	// // Process theme 2 in a goroutine
+	// util.GoroutineWithRecoveryAndHandler(func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
+	// 	}
+	// }, func(r interface{}) {
+	// 	wg.Done() // Ensure wg.Done() is called even on panic
+	// })
 
-	// Process theme 3 in a goroutine
-	util.GoroutineWithRecoveryAndHandler(func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, metadata.Language, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 3 processing error: %v", err)
-		}
-	}, func(r interface{}) {
-		wg.Done() // Ensure wg.Done() is called even on panic
-	})
+	// // Process theme 3 in a goroutine
+	// util.GoroutineWithRecoveryAndHandler(func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, metadata.Language, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
+	// 	}
+	// }, func(r interface{}) {
+	// 	wg.Done() // Ensure wg.Done() is called even on panic
+	// })
 
 	// Wait for all theme processing to complete
 	wg.Wait()
