@@ -110,7 +110,6 @@ func (s *GeminiStoryGenerationHelper) CreateStory(theme, topic string, kwargs ma
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate formatted prompt: %v", err)
 	}
-
 	// Create the complete prompt
 	fullPrompt := fmt.Sprintf("%s\n\n%s", systemMessage, formattedPrompt)
 	return s.GenerateText(fullPrompt, s.modelName)

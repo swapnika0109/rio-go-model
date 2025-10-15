@@ -30,10 +30,9 @@ func GenerateFormattedPrompt(theme, topic string, kwargs map[string]interface{})
 	// Extract parameters
 	country := getStringFromMap(kwargs, "country", "")
 	city := getStringFromMap(kwargs, "city", "")
-	religions := getStringSliceFromMap(kwargs, "religions")
-	preferences := getStringSliceFromMap(kwargs, "preferences")
-
-	religionsStr := strings.Join(religions, ", ")
+	religion := getStringFromMap(kwargs, "religions", "")
+	preference := getStringFromMap(kwargs, "preferences", "")
+	log.Printf("Generated preferences: %v", preference)
 
 	switch theme {
 	case "1":
@@ -57,13 +56,13 @@ func GenerateFormattedPrompt(theme, topic string, kwargs map[string]interface{})
 
 	case "2":
 		if kwargs["language"] == "Telugu" {
-			cfg := telugu.MindfulStoriesPromptConfig(topic, religionsStr)
+			cfg := telugu.MindfulStoriesPromptConfig(topic, religion)
 			promptTemplate = &PromptTemplate{
 				Prompt: cfg.Prompt,
 				System: cfg.System,
 			}
 		} else {
-			cfg := english.MindfulStoriesPromptConfig(topic, religionsStr)
+			cfg := english.MindfulStoriesPromptConfig(topic, religion)
 			promptTemplate = &PromptTemplate{
 				Prompt: cfg.Prompt,
 				System: cfg.System,
@@ -96,26 +95,28 @@ func GenerateFormattedPrompt(theme, topic string, kwargs map[string]interface{})
 			return "", "", err
 		}
 		promptTemplate = tmpl
-		formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religionsStr, strings.Join(preferences, ", "))
+		formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religion, preference)
 		systemMessage = promptTemplate.System
 	}
 
 	// Add preference-specific content
-	for _, preference := range preferences {
-		preference = strings.ToUpper(preference)
-		if kwargs["language"] == "Telugu" {
-			prefContent := telugu.Preferences()[preference]
-			if prefContent != "" {
-				formattedPrompt += prefContent
-			}
-		} else {
-			prefContent := english.Preferences()[preference]
-			if prefContent != "" {
-				formattedPrompt += prefContent
-			}
+	preference = strings.ToUpper(preference)
+	if kwargs["language"] == "Telugu" {
+		prefContent := telugu.Preferences()[strings.ToUpper(preference)]
+		if prefContent != "" {
+			formattedPrompt += prefContent
+		}
+	} else {
+		log.Printf("Generated preference: %s", preference)
+		prefContent := english.Preferences()[strings.ToUpper(preference)]
+		log.Printf("Generated preference content: %s", prefContent)
+		if prefContent != "" {
+			formattedPrompt += prefContent
+			log.Printf("Generated preference content: %s", formattedPrompt)
 		}
 	}
-	// s.logger.Printf("Generated prompt 3: %s", formattedPrompt)
+
+	log.Printf("Generated prompt 3: %s", formattedPrompt)
 	return formattedPrompt, systemMessage, nil
 }
 

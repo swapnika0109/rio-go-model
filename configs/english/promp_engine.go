@@ -119,22 +119,25 @@ func MindfulStoriesList() map[string][]string {
 
 func ChillStoriesList() []string {
 	return []string{
-		"What is Slow living? and How to do it? and Why to do it",
-		"What is Minimalism? and How to do it? and Why to do it",
-		"What is Self Care? and How to do it? and Why to do it",
-		"What is Eating healthy? and How to do it? and Why to do it",
-		"What is Sleeping well? and How to do it? and Why to do it",
-		"What is Meditation? and How to do it? and Why to do it",
-		"What is Yoga? and How to do it? and Why to do it",
-		"What is Gratitude? and How to build it? and Why to build it",
-		"What is Positive thinking? and How to build it? and Why to build it",
-		"What is Anxiety? and How to overcome it? and Why to overcome it",
-		"What is Stress? and How to overcome it? and Why to overcome it",
-		"Why Depression is bad? and How to overcome it? and Why to overcome it",
-		"What is Self Doubt? and How to build it? and Why to build it",
-		"What is Self Confidence? and How to build it? and Why to build it",
-		"What is Self Love? and How to build it? and Why to build it",
-		"What is Self Acceptance? and How to build it? and Why to build it",
+		"Slow living",
+		"Minimalism",
+		"Self Care",
+		"Eating healthy",
+		"Sleeping well",
+		"Meditation",
+		"Yoga",
+		"Gratitude",
+		"Positive thinking",
+		"Anxiety",
+		"Stress",
+		"Depression",
+		"Self Doubt",
+		"Self Confidence",
+		"Self Love",
+		"Self Acceptance",
+		"Self Esteem",
+		"Self Improvement",
+		"Self Development",
 	}
 }
 
@@ -164,6 +167,8 @@ func PlanetProtectorPromptConfig(topic string, country string, city string) Prom
 		- Explore a range of emotions and provide a clear, comforting, and inspiring ending.
 		- Interact deeply with characters/places, NOT the user.
 		- Integrate onomatopoeia (e.g., 'whoosh,' 'blup blup blup') strategically. Ensure they are presented distinctly to encourage clear vocalization and sound effects from the narrator.
+		- Conclude the story with a clear, comforting, and inspiring ending.
+		- Always use the simple and easy english language.
 		Don't end the story abruptly, don't ask user to share ideas, and don't repeat the story at the end.
 		Don't add scene 1, scene 2, etc. in the story; it should be continuous.
 		Don't add ** symbols in the story.
@@ -199,6 +204,8 @@ With-in the that agenda:
     - Explore a range of emotions and provide a clear, comforting, and inspiring ending.
     - Interact deeply with characters/places, NOT the user.
     - Integrate onomatopoeia (e.g., 'whoosh,' 'blup blup blup') strategically. Ensure they are presented distinctly to encourage clear vocalization and sound effects from the narrator.
+	- Conclude the story with a clear, comforting, and inspiring ending.
+	- Always use the simple and easy english language.
 	Don't mention about learnings in the end of the story. it should be part of story.
 	Don't add scene 1, secne 2 ..etc in the story. it should be a continuous story.
 	Don't add ** symbols in the story.
@@ -216,10 +223,11 @@ func ChillStoriesPromptConfig(topic string) PromptEngineConfig {
 	Always drive the story with a single agenda or story line.Aim for approximately 300 words, but ensure the story is complete and engaging.
 	CRITICAL: Always start stories with engaging greetings for Rio app children. Use phrases like: "Hello Rio! Let's listen to a story of...", "Hi Rio! Today we will see...", "Welcome Rio! Let's discover...", "Hello children! Let's explore...", or similar welcoming openings that directly address the Rio app users.
 	With-in the that agenda:  
-		- The story has to illustrate the topic in a very creative way.
+		- The story has to illustrate the topic in a very creative and sensible way.
 		- Each and everything we used in the story should have importance and should drive us to the story line.
 		- Show character emotions (excited, worried, happy, surprised, proud) through their words, actions, and descriptive dialogue tags (e.g., 'whispered excitedly,' 'sighed sadly,' 'gasped in wonder').
 		  Ensure these emotions are deeply relatable and felt by the listener.
+		- Also try to add real life emotions/situations to the story.  
 		- Use strategic, very short sentences and clear punctuation (commas, periods, ellipses, double punctuations...) to create natural, deliberate pauses. This should help the narrator convey emotion and give listeners time to 	absorb each small thought, guiding expressive vocal performance.
 		- CRITICAL: Ensure smooth story flow and avoid disconnected statements. Every dialogue, exclamation, or reaction must be properly connected to what the character is seeing, hearing, or experiencing. For example, instead of: "The character was curious. 'Wow,' he whispered." Write: "The character was curious. Looking down at the colorful world below, he whispered, 'Wow.'" or "The character was curious. As he gazed at the amazing sights, he couldn't help but whisper, 'Wow.'" Every statement must flow naturally from the previous one.
 		- Break down descriptions and explanations into small, impactful phrases or single, clear sentences that invite a narrator to take a breath and emphasize each detail, ensuring a slower, toddler-friendly pace.
@@ -236,9 +244,11 @@ func ChillStoriesPromptConfig(topic string) PromptEngineConfig {
 		- Explore a range of emotions and provide a clear, comforting, and inspiring ending.
 		- Interact deeply with characters/places, NOT the user.
 		- Integrate onomatopoeia (e.g., 'whoosh,' 'blup blup blup') strategically. Ensure they are presented distinctly to encourage clear vocalization and sound effects from the narrator.
+		- Conclude the story with a clear, comforting, and inspiring ending.
+		- Always use the simple and easy english language.
 	Don't mention about learnings in the end of the story. it should be part of story.
 	Don't add scene 1, secne 2 ..etc in the story. it should be a continuous story.
-	Don't add ** symbols in the story.
+	Don't add *** or ** or * symbols in the story.
 	Don't end the story abruptly.
 	Don't mix multiple stories in the same story.
 	Don't add unnecessary characters in the story.
@@ -257,22 +267,16 @@ func Preferences() map[string]string {
 }
 
 func SuperPlanetProtectorPrompt(promptText string, preference string, storiesPerPreference int) string {
-	fmt.Println("promptText .. ", promptText)
-	fmt.Println("preference .. ", preference)
-	fmt.Println("storiesPerPreference .. ", storiesPerPreference)
 	return fmt.Sprintf(
-		"Generate one topic for each item in the following list: "+promptText+". generate topics for other imaginative elements related to the themes of ‘eco-friendly’, ‘sustainability’, ‘nature’, and ‘environment’ "+
-			"Each topic must be:"+
-			"The topics should be very easy, catchy and interesting in a way that toddlers can understand."+
-			"The topics should be illustrate a story that kids can understand."+
-			"The topics should also take them to different world and to illustrate the topic in a very creative way."+
-			"Each topic should be creative, entertainment-driven, engaging, fantasy-based, and align with the provided preferences: %s. "+
-			"Each topic should be have exactly two parts title and description."+
-			"title should be a short and catchy title that kids can understand."+
-			"description should also be short and concise."+
-			"seperate title and description with a colon. and maintain only one colon in the whole string."+
-			"Return the topics as a list of strings and it should be in title:description format."+
-			"Always validate the length of the topics should be alwys %d.",
+		"Generate one topic for each item in the following list: "+promptText+". "+
+			"How to create the topic: describe the essence of the above item as a one-line story statement."+
+			"Example: Concept name (e.g., Water). Then, use creativity in the topic, like: “Jyosthna went up the hill, saw natural water, and started thinking how the water formed there."+
+			"Use characters, animals, and elements of nature to create engaging topics."+
+			"Strong rule: Do not write topics in a question format, e.g., “What is gratitude? How to grow it? Why grow it?” or “How to eat healthy food” or “What is self-acceptance."+
+			"Instead, write creatively: 'Lofia gained nature’s wisdom and began searching for answers to the Earth’s secrets.'"+
+			"The topic must be at least 10 words in a single line, and it should only describe what the story is about; do not tell the story."+
+			"Respond with a list of topics. It should be like: [topic1; topic2; topic3], and the length of this list must be exactly %d."+
+			"Make sure topics must be very simple and easy to understand even by toddlers.",
 		preference,
 		storiesPerPreference,
 	)
@@ -280,15 +284,13 @@ func SuperPlanetProtectorPrompt(promptText string, preference string, storiesPer
 
 func SuperMindfulStoriesPrompt(promptText string, religion string, storiesPerPreference int) string {
 	return fmt.Sprintf(
-		"Generate one topic for each item in the following list: "+promptText+". that TEACH %s VALUES through SIMPLE STORIES. "+
-			"The topic should be based on a real/existing topic that kids can understand. "+
-			"Each topic should be have exactly two parts title and description."+
-			"title should be a short and catchy title that kids can understand."+
-			"description should also be short and concise."+
-			"seperate title and description with a colon. and maintain only one colon in the whole string."+
-			"Return the topics as a list of strings and it should be in title:description format.",
-		"Always validate the length of the topics should be alwys %d.",
-		"Dont add any direct book or scripture name in the title or description.",
+		"Generate one topic for each item in the following list: "+promptText+"."+
+			"Derive each topic from real incidents or situations in the %s scriptures/books."+
+			"They must be actual stories, events, or situations — not just general values."+
+			"Each topic should clearly convey a moral lesson or scientific reality for kids."+
+			"The topic must be at least 10 words in a single line; only describe what the story is about—do not tell the story."+
+			"Respond with a list of topics in this format: [topic1; topic2; topic3], and the list length must be exactly %d."+
+			"Make sure topics must be very simple and easy to understand even by toddlers.",
 		religion,
 		storiesPerPreference,
 	)
@@ -296,14 +298,15 @@ func SuperMindfulStoriesPrompt(promptText string, religion string, storiesPerPre
 
 func SuperChillStoriesPrompt(promptText string, preference string, storiesPerPreference int) string {
 	return fmt.Sprintf(
-		"Generate one topic for each item in the following list: "+promptText+". that TEACH VALUES and Courage "+
-			"The topics should illustrate a journey of %s. "+
-			"Each topic should be have exactly two parts title and description."+
-			"title should be a short and catchy title that kids can understand."+
-			"description should also be short and concise."+
-			"seperate title and description with a colon. and maintain only one colon in the whole string."+
-			"Return the topics as a list of strings and it should be in title:description format."+
-			"Always validate the length of the topics should be alwys %d.",
+		"Generate one topic for each item in the following list: "+promptText+". "+
+			"How to create the topic: describe the essence of the above item as a one-line story statement."+
+			"The topic must be at least 10 words in a single line, and it should only describe what the story is about; do not tell the story."+
+			"Example: Concept name (e.g., self confidence). Then, use creativity in the topic, like: “A tree named Hiba encouraging Lolo to do small tasks, helping him build self-confidence."+
+			"Use characters, animals, and elements of nature to create engaging topics."+
+			"Strong rule: Do not write topics in a question format, e.g., “What is gratitude? How to grow it? Why grow it?” or “How to eat healthy food” or “What is self-acceptance."+
+			"Instead, write creatively, like: “Teja realized it very late. A lesson that taught gratitude."+
+			"Respond with a list of topics. It should be like: [topic1; topic2; topic3], and the length of this list must be exactly %d."+
+			"Make sure topics must be very simple and easy to understand even by toddlers.",
 		preference,
 		storiesPerPreference,
 	)

@@ -277,7 +277,7 @@ func (g *GoogleTTS) combineAudioChunks(chunks [][]byte) []byte {
 }
 
 func (g *GoogleTTS) GenerateAudio(request GoogleTTSRequest) GoogleTTSResponse {
-	g.Logger.Printf("GenerateAudio called with SSML: %s, Text: %s, LanguageCode: %s", request.SSML, request.Text, request.LanguageCode)
+	g.Logger.Printf("GenerateAudio called with SSML: %d, Text: %d, LanguageCode: %s", len(request.SSML), len(request.Text), request.LanguageCode)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	var input *texttospeechpb.SynthesisInput
