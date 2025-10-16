@@ -84,6 +84,7 @@ type StoryData struct {
 	Audio     string `json:"audio"`
 	AudioType string `json:"audio_type"`
 	Theme     string `json:"theme"`
+	Language  string `json:"language"`
 }
 
 // GetStoryTopics handles GET request for story topics
@@ -532,6 +533,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 			Audio:     audioSignedURL,
 			AudioType: audioType,
 			Theme:     storyTheme,
+			Language:  language,
 		})
 	}
 
