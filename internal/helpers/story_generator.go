@@ -426,14 +426,25 @@ func (sgh *StoryGenerationHelper) TopicsGenerator(ctx context.Context, prompt st
 	var topicsResponse *model.TopicResponse
 	if (err != nil || isSuspended) && language == "English" {
 		topicsResponse, err = sgh.storyCreator.CreateTopics(prompt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create topics: %v", err)
+		}
+		//if topics are not generated, try again with Gemini
+		if len(topicsResponse.Title) == 0 {
+			topicsResponse, err = sgh.storyCreator.CreateTopics(prompt)
+		}
 	} else {
 		topicsResponse, err = sgh.geminiStoryGenerator.CreateTopics(prompt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create topics: %v", err)
+		}
+		//if topics are not generated, try again with huggingface
+		if len(topicsResponse.Title) == 0 {
+			topicsResponse, err = sgh.storyCreator.CreateTopics(prompt)
+		}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create topics: %v", err)
-	}
-	if topicsResponse.Error != "" {
-		return nil, fmt.Errorf("topics creation error: %s", topicsResponse.Error)
 	}
 
 	topics := topicsResponse.Title
