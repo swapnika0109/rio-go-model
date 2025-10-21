@@ -42,7 +42,7 @@ func (d *DynamicPrompting) GetPlanetProtectorsStories(country, city string, pref
 			promptText += topic
 		}
 	}
-
+	log.Println("promptText: ", promptText)
 	var superPrompt string
 	switch language {
 	case "English":
@@ -74,7 +74,7 @@ func (d *DynamicPrompting) GetMindfulStories(country, religion string, preferenc
 			promptText += topic
 		}
 	}
-
+	log.Println("promptText: ", promptText)
 	var superPrompt string
 
 	switch language {
@@ -106,6 +106,7 @@ func (d *DynamicPrompting) GetChillStories(preference string, language string, s
 			promptText += topic
 		}
 	}
+	log.Println("promptText: ", promptText)
 	var superPrompt string
 	switch language {
 	case "English":

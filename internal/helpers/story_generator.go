@@ -184,7 +184,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 			audioData, err = sgh.audioGenerator.GenerateAudio(storyResponse.StoryText)
 		} else {
 			sgh.logger.Infof("Using Google Audio API to generate story audio...")
-			audioData, totalTokens, err = sgh.audioStoryGenerator.GenerateAudioAdapter(storyResponse.StoryText, language)
+			audioData, totalTokens, err = sgh.audioStoryGenerator.GenerateAudioAdapter(storyResponse.StoryText, language, theme)
 			sgh.storyDatabase.UpdateAPITokens(ctx, "audio", (int32)(totalTokens))
 		}
 		audioResultChan <- struct {
@@ -361,32 +361,32 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	defer util.RecoverPanic()
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(1)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
 	const maxConcurrentStories = 5
 	semaphore := make(chan struct{}, maxConcurrentStories)
 
-	// Process theme 1 in a goroutine
-	util.GoroutineWithRecoveryAndHandler(func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences, metadata.Language, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 1 processing error: %v", err)
-		}
-	}, func(r interface{}) {
-		wg.Done() // Ensure wg.Done() is called even on panic
-	})
+	// // Process theme 1 in a goroutine
+	// util.GoroutineWithRecoveryAndHandler(func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences, metadata.Language, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 1 processing error: %v", err)
+	// 	}
+	// }, func(r interface{}) {
+	// 	wg.Done() // Ensure wg.Done() is called even on panic
+	// })
 
-	// Process theme 2 in a goroutine
-	util.GoroutineWithRecoveryAndHandler(func() {
-		defer wg.Done()
-		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
-			sgh.logger.Errorf("Theme 2 processing error: %v", err)
-		}
-	}, func(r interface{}) {
-		wg.Done() // Ensure wg.Done() is called even on panic
-	})
+	// // Process theme 2 in a goroutine
+	// util.GoroutineWithRecoveryAndHandler(func() {
+	// 	defer wg.Done()
+	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
+	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
+	// 	}
+	// }, func(r interface{}) {
+	// 	wg.Done() // Ensure wg.Done() is called even on panic
+	// })
 
 	// Process theme 3 in a goroutine
 	util.GoroutineWithRecoveryAndHandler(func() {

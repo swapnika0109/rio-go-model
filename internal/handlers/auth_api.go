@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	// "io/ioutil"
 	"log"
 	"net/http"
@@ -99,7 +100,7 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	// 4. Get or create user profile and get token version
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
+
 	userProfile, err := h.db.GetUserProfileByEmail(ctx, googleEmail)
 	if err != nil {
 		log.Printf("ERROR: Failed to query user profile: %v", err)
@@ -160,9 +161,9 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
 		return
 	}
-	
+
 	// (Optional check for token type if you added it to validateToken)
-	
+
 	// 2. Generate a new access token.
 	newAccessToken, err := util.GenerateAccessTokenFromRefresh(req.RefreshToken)
 	if err != nil {
@@ -204,9 +205,9 @@ func (h *AuthHandler) RefreshTokenWeb(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
 		return
 	}
-	
+
 	// (Optional check for token type if you added it to validateToken)
-	
+
 	// 2. Generate a new access token.
 	newAccessToken, err := util.GenerateAccessTokenFromRefresh(cookie.Value)
 	if err != nil {
@@ -259,16 +260,16 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		// Increment token version to invalidate all existing tokens for this user
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		
+
 		if err := h.db.IncrementTokenVersion(ctx, email); err != nil {
 			log.Printf("WARNING: Failed to increment token version: %v", err)
 		} else {
 			log.Printf("Token version incremented for user: %s", email)
 		}
 	}
-	
+
 	log.Printf("User logged out successfully")
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Logout successful",
@@ -295,16 +296,16 @@ func (h *AuthHandler) LogoutWeb(w http.ResponseWriter, r *http.Request) {
 		// Increment token version to invalidate all existing tokens for this user
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		
+
 		if err := h.db.IncrementTokenVersion(ctx, email); err != nil {
 			log.Printf("WARNING: Failed to increment token version: %v", err)
 		} else {
 			log.Printf("Token version incremented for user: %s", email)
 		}
 	}
-	
+
 	log.Printf("User logged out successfully")
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Logout successful",

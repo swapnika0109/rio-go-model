@@ -68,12 +68,25 @@ func NewGoogleTTS() *GoogleTTS {
 	}
 }
 
-func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, int32, error) {
-	g.Logger.Printf("GenerateAudioAdapter called - Language: %s, Text length: %d", language, len(text))
+func (g *GoogleTTS) GenerateAudioAdapter(text string, language string, theme string) ([]byte, int32, error) {
+	g.Logger.Printf("GenerateAudioAdapter called - Language: %s, Text length: %d, Theme: %s", language, len(text), theme)
 	var ssml string
 	var totalTokens int32
-	languageCode := util.LanguageMapper(language)
-	languageName := configs.BuildVoiceName(languageCode)
+	languageCode := util.LanguageMapper(theme)
+	no, err := util.RandomFromLength(len(configs.GlobalSettings.ChirpVoices))
+	log.Println("Random voice number: %d", no)
+	if err != nil {
+		g.Logger.Printf("Failed to get random voice number: %v", err)
+		return nil, totalTokens, fmt.Errorf("failed to get random voice number: %v", err)
+	}
+	languageName := configs.GetChirpVoices(languageCode, no)
+	log.Println("Language name: %s", languageName)
+	// voices, err := g.ListVoices(languageCode)
+	// if err != nil {
+	// 	g.Logger.Printf("Failed to list voices: %v", err)
+	// 	return nil, totalTokens, fmt.Errorf("failed to list voices: %v", err)
+	// }
+	// g.Logger.Printf("Voices: %v", voices)
 	g.Logger.Printf("Mapped language code: %s, Voice name: %s", languageCode, languageName)
 
 	if language == "Telugu" && languageName == "-Standard-C" {
@@ -83,7 +96,6 @@ func (g *GoogleTTS) GenerateAudioAdapter(text string, language string) ([]byte, 
 		g.Logger.Printf("Generated Telugu SSML length: %d bytes", len(ssml))
 		languageName = configs.BuildTeluguVoiceName(languageCode)
 		g.Logger.Printf("Updated voice name for Telugu: %s", languageName)
-
 		// Check if SSML exceeds 5000 byte limit
 		if len(ssml) > 5000 {
 			g.Logger.Printf("SSML exceeds 5000 byte limit (%d bytes), splitting into chunks...", len(ssml))

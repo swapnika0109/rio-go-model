@@ -17,3 +17,11 @@ func RandomFrom(list []string) (int, error) {
 	}
 	return rand.Intn(len(list)), nil
 }
+
+// RandomFrom returns a random index from the provided list length.
+func RandomFromLength(length int) (int, error) {
+	if length == 0 {
+		return 0, errors.New("list is empty")
+	}
+	return rand.Intn(length), nil
+}

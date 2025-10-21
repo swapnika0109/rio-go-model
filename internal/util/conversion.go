@@ -1,17 +1,10 @@
 package util
 
 // LanguageMapper maps language and country to language code
-func LanguageMapper(language string) string {
-	// if language == "" {
-	// 	return "en-US"
-	// }
-
-	// switch language {
-	// case "English":
-	// 	return "en-US"
-	// case "Telugu":
-	// 	return "te-IN"
-	// }
+func LanguageMapper(theme string) string {
+	if theme == "2" {
+		return "en-IN"
+	}
 	return "en-US"
 }
 

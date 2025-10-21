@@ -32,6 +32,7 @@ func (s *StoryAudioCrud) ResetAudioByThemeID(ctx context.Context, themeID string
 		s.storageService.DeleteFile(story["audio_url"].(string))
 		var audioData []byte
 		language := story["language"].(string)
+		theme := story["theme"].(string)
 		suspended, err := s.db.SuspendAudioAPI(ctx, "audio")
 		if language != "Telugu" && (suspended || err != nil) {
 			if err != nil {
@@ -53,7 +54,7 @@ func (s *StoryAudioCrud) ResetAudioByThemeID(ctx context.Context, themeID string
 				continue
 			}
 
-			audioData, _, err = s.storyGenerator.audioStoryGenerator.GenerateAudioAdapter(story["story_text"].(string), language)
+			audioData, _, err = s.storyGenerator.audioStoryGenerator.GenerateAudioAdapter(story["story_text"].(string), language, theme)
 			if err != nil {
 				s.logger.Errorf("GenerateAudioAdapter failed: %v", err)
 			} else {

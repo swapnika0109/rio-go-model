@@ -71,6 +71,8 @@ type Settings struct {
 	// Preferences
 	Preferences map[string]string
 
+	ChirpVoices []string
+
 	// Dynamic Prompts Configuration
 	DynamicPromptsConfig map[string]PromptConfig
 	DefaultChirpVoice    string
@@ -103,10 +105,10 @@ func NewSettings() *Settings {
 		EmailAppPassword:        getEnvString("EMAIL_APP_PASSWORD", ""),
 		EmailSender:             getEnvString("EMAIL_SENDER", "rio.oly.pluto@gmail.com"),
 		EmailTo:                 getEnvString("EMAIL_TO", "rio.oly.pluto@gmail.com"),
-		DefaultChirpVoice:       getEnvString("DEFAULT_CHIRP_VOICE", "-Chirp3-HD-Achernar"),
+		DefaultChirpVoice:       getEnvString("DEFAULT_CHIRP_VOICE", "-Chirp3-HD-Gacrux"),
 		DefaultStandardVoice:    getEnvString("DEFAULT_STANDARD_VOICE", "-Standard-C"),
-		DefaultStoryToGenerate:  getEnvInt("DEFAULT_STORY_TO_GENERATE", 10),
-		StoriesPerTheme:         getEnvInt("STORIES_PER_THEME", 10),
+		DefaultStoryToGenerate:  getEnvInt("DEFAULT_STORY_TO_GENERATE", 2),
+		StoriesPerTheme:         getEnvInt("STORIES_PER_THEME", 2),
 		DataUploadMaxMemorySize: getEnvInt("DATA_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
 		FileUploadMaxMemorySize: getEnvInt("FILE_UPLOAD_MAX_MEMORY_SIZE", 5242880), // 5MB
 
@@ -141,6 +143,7 @@ func NewSettings() *Settings {
 		StoryThemes:          initStoryThemes(),
 		PromptsConfig:        initPromptsConfig(),
 		Preferences:          initPreferences(),
+		ChirpVoices:          initChirpVoices(),
 		DynamicPromptsConfig: initDynamicPromptsConfig(),
 	}
 }
@@ -203,6 +206,25 @@ func initStoryThemes() map[string]string {
 		"1": "Eco-conscious, Clean planet, Nature, Wildlife, Environment",
 		"2": "Mindful, Meditation, Yoga, Wellness, Self-care, tradition",
 		"3": "Slow living, Minimalism, Minimalist lifestyle, Minimalist design, simple living",
+	}
+}
+
+func initChirpVoices() []string {
+	return []string{
+		"-Chirp3-HD-Gacrux",
+		"-Chirp3-HD-Achernar",
+		"-Chirp3-HD-Callirrhoe",
+		"-Chirp3-HD-Despina",
+		"-Chirp3-HD-Iapetus",
+		"-Chirp3-HD-Leda",
+		"-Chirp3-HD-Zephyr",
+		"-Chirp3-HD-Schedar",
+		"-Chirp3-HD-Sadaltager",
+		"-Chirp3-HD-Rasalgethi",
+		"-Chirp3-HD-Umbriel",
+		"-Chirp3-HD-Pulcherrima",
+		"-Chirp3-HD-Charon",
+		"-Chirp3-HD-Zubenelgenubi",
 	}
 }
 
@@ -444,4 +466,11 @@ func BuildVoiceName(languageCode string) string {
 
 func BuildTeluguVoiceName(languageCode string) string {
 	return languageCode + GetDefaultStandardVoice()
+}
+
+func GetChirpVoices(languageCode string, voiceNo int) string {
+	if GetActiveVoiceSuffix() == GlobalSettings.DefaultChirpVoice {
+		return languageCode + GlobalSettings.ChirpVoices[voiceNo]
+	}
+	return BuildVoiceName(languageCode)
 }
