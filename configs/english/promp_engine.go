@@ -172,7 +172,7 @@ func PlanetProtectorPromptConfig(topic string, country string, city string) Prom
 		- You MUST NOT end the story abruptly, don't ask user to share ideas, and don't repeat the story at the end.
 		- You MUST NOT add scene 1, scene 2, etc. in the story; it should be continuous.
 		- You MUST NOT add charecters like *, ** symbols in the story.
-		- You MUST NOT add charecters like *did* etc in the story. Strictly No Stars in the story.
+		- You MUST NOT add charecters like *did* etc in the story. Strictly No Astricks in the story.
 		- You MUST NOT mix multiple stories in the same story.
 		- You MUST NOT add unnecessary characters in the story.
 		IMPORTANT: Write ONLY the story. NO notes, NO explanations, NO meta-commentary. Use only words a 3-year-old would understand. NO complex terms!`,
@@ -215,7 +215,7 @@ With-in the that agenda:
 	- You MUST NOT mention about learnings in the end of the story. it should be part of story.
 	- You MUST NOT add scene 1, secne 2 ..etc in the story. it should be a continuous story.
 	- You MUST NOT add charecters like *, ** symbols in the story.
-	- You MUST NOT add charecters like *did* etc in the story. Strictly No Stars in the story.
+	- You MUST NOT add charecters like *did* etc in the story. Strictly No Astricks in the story.
 	- You MUST NOT end the story abruptly.
 	- You MUST NOT mix multiple stories in the same story.
 	- You MUST NOT add unnecessary characters in the story.
@@ -252,12 +252,12 @@ func ChillStoriesPromptConfig(topic string) PromptEngineConfig {
 		- Explore a range of emotions and provide a clear, comforting, and inspiring ending.
 		- Interact deeply with characters/places, NOT the user.
 		- Conclude the story with a clear message, comforting, and inspiring ending.
-		- Always use the simple and easy english language.
+		- Always use the very simple and very easy english language.
 	STRICT RULES (non-negotiable):
 	- You MUST NOT mention about learnings in the end of the story. it should be part of story.
 	- You MUST NOT add scene 1, secne 2 ..etc in the story. it should be a continuous story.
 	- You MUST NOT add charecters like *, ** symbols in the story.
-	- You MUST NOT add charecters like *did* etc in the story. Strictly No Stars in the story.
+	- You MUST NOT add charecters like *did* etc in the story. Strictly No Astricks in the story.
 	- You MUST NOT end the story abruptly.
 	- You MUST NOT mix multiple stories in the same story.
 	- You MUST NOT add unnecessary characters in the story.
