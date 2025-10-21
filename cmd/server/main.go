@@ -233,7 +233,7 @@ func main() {
 	authRouter.HandleFunc("/logout", authHandler.Logout).Methods("POST")
 	authRouter.HandleFunc("/logout/", authHandler.Logout).Methods("POST")
 	authRouter.HandleFunc("/w/logout/", authHandler.LogoutWeb).Methods("POST")
-	authRouter.HandleFunc("/w/token/refresh/", authHandler.RefreshTokenWeb).Methods("POST")
+	authRouter.HandleFunc("/w/token/refresh", authHandler.RefreshTokenWeb).Methods("POST")
 
 	// Configure CORS (use rs/cors only)
 	c := cors.New(cors.Options{
