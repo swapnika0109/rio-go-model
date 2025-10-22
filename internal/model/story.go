@@ -17,3 +17,8 @@ type TopicResponse struct {
 	TotalTokens int32    `json:"total_tokens,omitempty"`
 	Error       string   `json:"error,omitempty"`
 }
+
+type ImageResponse struct {
+	Image []byte `json:"image,omitempty"`
+	Error string `json:"error,omitempty"`
+}

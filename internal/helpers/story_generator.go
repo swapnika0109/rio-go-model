@@ -25,18 +25,19 @@ import (
 
 // StoryGenerationHelper orchestrates the complete story generation process
 type StoryGenerationHelper struct {
-	settings               *configs.Settings
-	logger                 *util.CustomLogger
-	storyCreator           *huggingface.StoryCreator
-	vertexAiStoryGenerator *vertex.VertexStoryGenerationHelper
-	geminiStoryGenerator   *gemini.GeminiStoryGenerationHelper
-	audioStoryGenerator    *audio.GoogleTTS
-	imageCreator           *ImageCreator
-	audioGenerator         *AudioGenerator
-	dynamicPrompting       *DynamicPrompting
-	storyDatabase          *database.StoryDatabase
-	storageService         *database.StorageService
-	httpClient             *HTTPClient
+	settings                    *configs.Settings
+	logger                      *util.CustomLogger
+	storyCreator                *huggingface.StoryCreator
+	vertexAiStoryGenerator      *vertex.VertexStoryGenerationHelper
+	geminiStoryGenerator        *gemini.GeminiStoryGenerationHelper
+	geminiImageGenerationHelper *gemini.GeminiImageGenerationHelper
+	audioStoryGenerator         *audio.GoogleTTS
+	imageCreator                *ImageCreator
+	audioGenerator              *AudioGenerator
+	dynamicPrompting            *DynamicPrompting
+	storyDatabase               *database.StoryDatabase
+	storageService              *database.StorageService
+	httpClient                  *HTTPClient
 }
 
 // HTTPClient represents an HTTP client with connection pooling
@@ -92,18 +93,19 @@ func NewStoryGenerationHelper(
 	logger := util.GetLogger("story.generator", settings)
 
 	return &StoryGenerationHelper{
-		settings:               settings,
-		logger:                 logger,
-		storyCreator:           huggingface.NewStoryCreator(),
-		vertexAiStoryGenerator: vertex.NewVertexStoryGenerationHelper(),
-		geminiStoryGenerator:   gemini.NewGeminiStoryGenerationHelper(),
-		audioStoryGenerator:    audio.NewGoogleTTS(),
-		imageCreator:           NewImageCreator(),
-		audioGenerator:         NewAudioGenerator(),
-		dynamicPrompting:       NewDynamicPrompting(),
-		storyDatabase:          storyDB,
-		storageService:         storageService,
-		httpClient:             &HTTPClient{}, // Initialize with proper client
+		settings:                    settings,
+		logger:                      logger,
+		storyCreator:                huggingface.NewStoryCreator(),
+		vertexAiStoryGenerator:      vertex.NewVertexStoryGenerationHelper(),
+		geminiStoryGenerator:        gemini.NewGeminiStoryGenerationHelper(),
+		geminiImageGenerationHelper: gemini.NewGeminiImageGenerationHelper(),
+		audioStoryGenerator:         audio.NewGoogleTTS(),
+		imageCreator:                NewImageCreator(),
+		audioGenerator:              NewAudioGenerator(),
+		dynamicPrompting:            NewDynamicPrompting(),
+		storyDatabase:               storyDB,
+		storageService:              storageService,
+		httpClient:                  &HTTPClient{}, // Initialize with proper client
 	}
 }
 
@@ -160,9 +162,25 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		err  error
 	}, 1)
 
+	language := kwargs["language"].(string)
+
 	// Start image generation worker
 	util.GoroutineWithRecovery(func() {
-		imageData, err := sgh.GenerateImage(topic)
+		var imageData []byte
+		var err error
+		if language == "Telugu" {
+			imageData, err = sgh.geminiImageGenerationHelper.CreateTopicsImage(topic)
+			if err != nil {
+				sgh.logger.Errorf("Failed to generate image: %v", err)
+				imageData = nil
+			}
+		} else {
+			imageData, err = sgh.GenerateImage(topic)
+			if err != nil {
+				sgh.logger.Errorf("Failed to generate image: %v", err)
+				imageData = nil
+			}
+		}
 		imageResultChan <- struct {
 			data []byte
 			err  error
@@ -173,7 +191,6 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 	util.GoroutineWithRecovery(func() {
 		var audioData []byte
 		var totalTokens int32
-		language := kwargs["language"].(string)
 		suspended, err := sgh.storyDatabase.SuspendAudioAPI(ctx, "audio")
 		if (suspended || err != nil) && language != "Telugu" {
 			if err != nil {
@@ -361,32 +378,32 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	defer util.RecoverPanic()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(3)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
 	const maxConcurrentStories = 5
 	semaphore := make(chan struct{}, maxConcurrentStories)
 
-	// // Process theme 1 in a goroutine
-	// util.GoroutineWithRecoveryAndHandler(func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences, metadata.Language, semaphore); err != nil {
-	// 		sgh.logger.Errorf("Theme 1 processing error: %v", err)
-	// 	}
-	// }, func(r interface{}) {
-	// 	wg.Done() // Ensure wg.Done() is called even on panic
-	// })
+	// Process theme 1 in a goroutine
+	util.GoroutineWithRecoveryAndHandler(func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme1(ctx, metadata.Country, metadata.City, metadata.Preferences, metadata.Language, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 1 processing error: %v", err)
+		}
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
-	// // Process theme 2 in a goroutine
-	// util.GoroutineWithRecoveryAndHandler(func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
-	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
-	// 	}
-	// }, func(r interface{}) {
-	// 	wg.Done() // Ensure wg.Done() is called even on panic
-	// })
+	// Process theme 2 in a goroutine
+	util.GoroutineWithRecoveryAndHandler(func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 2 processing error: %v", err)
+		}
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
 	// Process theme 3 in a goroutine
 	util.GoroutineWithRecoveryAndHandler(func() {

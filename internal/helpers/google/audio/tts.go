@@ -74,7 +74,6 @@ func (g *GoogleTTS) GenerateAudioAdapter(text string, language string, theme str
 	var totalTokens int32
 	languageCode := util.LanguageMapper(theme)
 	no, err := util.RandomFromLength(len(configs.GlobalSettings.ChirpVoices))
-	log.Println("Random voice number: %d", no)
 	if err != nil {
 		g.Logger.Printf("Failed to get random voice number: %v", err)
 		return nil, totalTokens, fmt.Errorf("failed to get random voice number: %v", err)
