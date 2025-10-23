@@ -419,6 +419,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 
 	var storiesData []StoryData
 	var stories []map[string]interface{}
+	themeIDCache := make(map[string]struct{})
 
 	// Exactly like Python: if theme_data is None or theme_data == []
 	if len(themeData) == 0 {
@@ -430,7 +431,11 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		for _, themeTopic := range themeData {
 			if themeTopic != nil {
 				id, ok := themeTopic["theme_id"]
+				logger.Printf("INFO: theme_id: %v", id)
 				if ok {
+					if _, exists := themeIDCache[id.(string)]; exists {
+						continue
+					}
 					themeID, ok := id.(string)
 					if !ok {
 						logger.Printf("WARNING: theme_id is not a string: %v", id)
@@ -446,9 +451,13 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 					if len(systemStories) > 0 {
 						logger.Printf("INFO: Found %d stories for theme_id: %s", len(systemStories), themeID)
 						stories = append(stories, systemStories...)
+						themeIDCache[themeID] = struct{}{}
 					}
 				}
 			}
+		}
+		for k := range themeIDCache {
+			delete(themeIDCache, k)
 		}
 	}
 

@@ -16,6 +16,7 @@ import (
 	"rio-go-model/internal/helpers/google/vertex"
 	"rio-go-model/internal/helpers/huggingface"
 	"rio-go-model/internal/services/database"
+	"rio-go-model/internal/services/translator"
 	"rio-go-model/internal/util"
 
 	"rio-go-model/internal/model"
@@ -38,6 +39,7 @@ type StoryGenerationHelper struct {
 	storyDatabase               *database.StoryDatabase
 	storageService              *database.StorageService
 	httpClient                  *HTTPClient
+	translator                  *translator.Translator
 }
 
 // HTTPClient represents an HTTP client with connection pooling
@@ -106,6 +108,7 @@ func NewStoryGenerationHelper(
 		storyDatabase:               storyDB,
 		storageService:              storageService,
 		httpClient:                  &HTTPClient{}, // Initialize with proper client
+		translator:                  translator.NewTranslator(),
 	}
 }
 
@@ -166,21 +169,20 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 
 	// Start image generation worker
 	util.GoroutineWithRecovery(func() {
-		var imageData []byte
-		var err error
+		translatedTopic := topic
 		if language == "Telugu" {
-			imageData, err = sgh.geminiImageGenerationHelper.CreateTopicsImage(topic)
+			translatedTopic, err = sgh.translator.Translate(topic)
 			if err != nil {
 				sgh.logger.Errorf("Failed to generate image: %v", err)
-				imageData = nil
 			}
-		} else {
-			imageData, err = sgh.GenerateImage(topic)
-			if err != nil {
-				sgh.logger.Errorf("Failed to generate image: %v", err)
-				imageData = nil
-			}
+			sgh.logger.Infof("Translated topic: %s", topic)
 		}
+		imageData, err := sgh.GenerateImage(translatedTopic)
+		if err != nil {
+			sgh.logger.Errorf("Failed to generate image: %v", err)
+			imageData = nil
+		}
+
 		imageResultChan <- struct {
 			data []byte
 			err  error
