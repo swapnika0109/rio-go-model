@@ -527,15 +527,13 @@ func (s *StoryDatabase) InitialReadMDTopics1(ctx context.Context) ([]map[string]
 		return nil, fmt.Errorf("error getting user profile: %v", err)
 	}
 	log.Printf("User profile: %v", userProfile)
-	country := userProfile["country"].(string)
-	city := userProfile["city"].(string)
+	language := userProfile["language"].(string)
 	preferences := util.SafeStringSlice(userProfile["preferences"])
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
 		query := s.client.Collection(s.mdCollection1).
-			Where("country", "==", country).
-			Where("city", "==", city).
+			Where("language", "==", language).
 			Where("preference", "==", preference)
 
 		iterationDocs, err := query.Documents(ctx).GetAll()
@@ -572,11 +570,18 @@ func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string,
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
-		query := s.client.Collection(s.mdCollection1).
-			Where("language", "==", language).
-			Where("country", "==", country).
-			Where("city", "==", city).
-			Where("preference", "==", preference)
+		var query firestore.Query
+		if country == "Any" {
+			query = s.client.Collection(s.mdCollection1).
+				Where("language", "==", language).
+				Where("preference", "==", preference)
+		} else {
+			query = s.client.Collection(s.mdCollection1).
+				Where("language", "==", language).
+				Where("country", "==", country).
+				Where("city", "==", city).
+				Where("preference", "==", preference)
+		}
 
 		iterationDocs, err := query.Documents(ctx).GetAll()
 		if err != nil {
@@ -634,15 +639,15 @@ func (s *StoryDatabase) InitialReadMDTopics2(ctx context.Context) ([]map[string]
 		return nil, fmt.Errorf("error getting user profile: %v", err)
 	}
 	log.Printf("User profile: %v", userProfile)
-	country := userProfile["country"].(string)
 	religions := util.SafeStringSlice(userProfile["religions"])
 	preferences := util.SafeStringSlice(userProfile["preferences"])
+	language := userProfile["language"].(string)
 
 	var allDocs []*firestore.DocumentSnapshot
 	for _, religion := range religions {
 		query := s.client.Collection(s.mdCollection2).
-			Where("country", "==", country).
 			Where("religion", "==", religion).
+			Where("language", "==", language).
 			Where("preferences", "array-contains-any", preferences)
 
 		iterationDocs, err := query.Documents(ctx).GetAll()
@@ -678,11 +683,19 @@ func (s *StoryDatabase) ReadMDTopics2(ctx context.Context, country string, relig
 	// First filter by country and religions using array-contains-any
 	var allDocs []*firestore.DocumentSnapshot
 	for _, religion := range religions {
-		query := s.client.Collection(s.mdCollection2).
-			Where("language", "==", language).
-			Where("country", "==", country).
-			Where("religion", "==", religion).
-			Where("preferences", "array-contains-any", preferences)
+		var query firestore.Query
+		if country == "Any" {
+			query = s.client.Collection(s.mdCollection2).
+				Where("language", "==", language).
+				Where("religion", "==", religion).
+				Where("preferences", "array-contains-any", preferences)
+		} else {
+			query = s.client.Collection(s.mdCollection2).
+				Where("language", "==", language).
+				Where("country", "==", country).
+				Where("religion", "==", religion).
+				Where("preferences", "array-contains-any", preferences)
+		}
 
 		iterationDocs, err := query.Documents(ctx).GetAll()
 		if err != nil {
