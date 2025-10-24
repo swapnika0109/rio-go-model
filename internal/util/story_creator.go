@@ -224,7 +224,6 @@ func getStringSliceFromMap(m map[string]interface{}, key string) []string {
 
 // parseTopics parses topics from the AI response
 func ParseTopics(topicsData string, storiesPerPreference int) []string {
-	log.Println("topicsData .. ", topicsData)
 	topicsDataLngth := strings.Split(topicsData, "[")
 	if len(topicsDataLngth) > 1 {
 		topicsData = topicsDataLngth[1]
@@ -232,9 +231,7 @@ func ParseTopics(topicsData string, storiesPerPreference int) []string {
 		topicsData = topicsDataLngth[0]
 	}
 	topicsData = strings.Split(topicsData, "]")[0]
-	log.Println("topicsData after triming .. ", topicsData)
 	topicsList := strings.Split(topicsData, ";")
-	log.Println("topicsList .. ", topicsList)
 	topics := make([]string, 0)
 
 	for _, topic := range topicsList {

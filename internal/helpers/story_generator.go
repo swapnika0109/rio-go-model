@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -127,6 +128,11 @@ func (sgh *StoryGenerationHelper) GenerateImage(prompt string) ([]byte, error) {
 
 	}
 	return imgResp.Data, nil
+}
+
+func (sgh *StoryGenerationHelper) GetCPUCore() int {
+	cpu := runtime.NumCPU()
+	return cpu * 2 // Return double the number of CPU cores
 }
 
 // StoryHelper generates a complete story with image and audio
@@ -380,11 +386,11 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	defer util.RecoverPanic()
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(1)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
-	const maxConcurrentStories = 5
+	maxConcurrentStories := sgh.GetCPUCore()
 	semaphore := make(chan struct{}, maxConcurrentStories)
 
 	// Process theme 1 in a goroutine
@@ -478,15 +484,19 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("error checking existing topics: %v", err)
 	}
-
+	storiesToGenerate := sgh.settings.DefaultStoryToGenerate
 	if existing != nil && len(existing) >= sgh.settings.DefaultStoryToGenerate {
 		sgh.logger.Infof("Topics already exist for theme 1")
 		return nil
+	} else {
+		storiesToGenerate = storiesToGenerate - len(existing)
 	}
 	theme1_id := uuid.New().String()
-	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
-	var allTopics []topicWithKey
-	var concatTopics = make(map[string][]string)
+	var storiesPerPreference = int(math.Round(float64(storiesToGenerate) / float64(len(preferences))))
+	// var concatTopics = make(map[string][]string)
+	var wg sync.WaitGroup
+	topicSuccessResultChannel := make(chan topicWithKey)
+	go sgh.listenTheme1(topicSuccessResultChannel, ctx, theme1_id, country, city, language)
 	for _, preference := range preferences {
 		// Generate prompt
 		prompt, err := sgh.dynamicPrompting.GetPlanetProtectorsStories(country, city, preference, language, storiesPerPreference)
@@ -500,57 +510,85 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 			return fmt.Errorf("failed to create topics: %v", err)
 		}
 		sgh.logger.Infof("Generated %d topics for theme 1", len(topics))
-
-		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics1(ctx, theme1_id, country, city, preference, topics, language)
-		if err != nil {
-			return fmt.Errorf("failed to save topics: %v", err)
-		}
-
-		concatTopics[preference] = append(concatTopics[preference], topics...)
-
-	}
-
-	for key, topics := range concatTopics {
-		for _, topic := range topics {
-			allTopics = append(allTopics, topicWithKey{Key: key, Topic: topic})
-		}
-	}
-
-	// Generate stories for first few topics in parallel
-	storiesPerTheme := sgh.settings.StoriesPerTheme
-	if len(allTopics) < storiesPerTheme {
-		storiesPerTheme = len(allTopics)
-	}
-
-	var wg sync.WaitGroup
-
-	for _, topic := range allTopics[:storiesPerTheme] {
 		wg.Add(1)
 		util.GoroutineWithRecoveryAndHandler(func() {
 			semaphore <- struct{}{}        // Acquire a spot
 			defer func() { <-semaphore }() // Release the spot
 			defer wg.Done()
-			kwargs := map[string]interface{}{
-				"country":     country,
-				"city":        city,
-				"preferences": topic.Key,
-				"language":    language,
-			}
-
-			err := sgh.StoryHelper(ctx, "1", theme1_id, topic.Topic, kwargs)
-			if err != nil {
-				sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
+			for _, topic := range topics {
+				kwargs := map[string]interface{}{
+					"country":     country,
+					"city":        city,
+					"preferences": preference,
+					"language":    language,
+				}
+				err := sgh.StoryHelper(ctx, "1", theme1_id, topic, kwargs)
+				if err != nil {
+					sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
+				} else {
+					sgh.logger.Infof("Sending response to the channel for topic %s", topic)
+					topicSuccessResultChannel <- topicWithKey{Key: preference, Topic: topic}
+				}
 			}
 		}, func(r interface{}) {
 			<-semaphore // Release semaphore on panic
-			wg.Done()   // Ensure wg.Done() is called even on panic
 		})
 	}
 	wg.Wait()
-
+	time.Sleep(100 * time.Millisecond)
+	close(topicSuccessResultChannel)
 	sgh.logger.Infof("Completed theme 1 processing")
 	return nil
+}
+
+func (sgh *StoryGenerationHelper) listenTheme1(ch <-chan topicWithKey, ctx context.Context, theme1_id string, country string, city string, language string) {
+	fmt.Println("Listener started...")
+	var topicsResult = make(map[string][]string)
+	for topicRes := range ch { // ← Read ALL items
+		sgh.logger.Infof("Received response from the channel for topic %s", topicRes.Topic)
+		topicsResult[topicRes.Key] = append(topicsResult[topicRes.Key], topicRes.Topic)
+	}
+	//Save topics to database
+	for preference, topics := range topicsResult {
+		_, err := sgh.storyDatabase.CreateMDTopics1(ctx, theme1_id, country, city, preference, topics, language)
+		if err != nil {
+			sgh.logger.Errorf("failed to save topics: %v", err)
+		}
+	}
+}
+
+func (sgh *StoryGenerationHelper) listenTheme2(ch <-chan topicWithKey, ctx context.Context, theme2_id string, country string, preferences []string, language string) {
+	fmt.Println("Listener started theem2...")
+	var topicsResult = make(map[string][]string)
+	for topicRes := range ch { // ← Read ALL items
+		sgh.logger.Infof("Received response from the channel(theme 2) for topic %s", topicRes.Topic)
+		topicsResult[topicRes.Key] = append(topicsResult[topicRes.Key], topicRes.Topic)
+	}
+	//Save topics to database
+	for religion, topics := range topicsResult {
+		// Save topics to database
+		_, err := sgh.storyDatabase.CreateMDTopics2(ctx, theme2_id, country, religion, language, preferences, topics)
+		if err != nil {
+			sgh.logger.Errorf("failed to save topics for theme 2: %v", err)
+		}
+	}
+}
+
+func (sgh *StoryGenerationHelper) listenTheme3(ch <-chan topicWithKey, ctx context.Context, theme3_id string, language string) {
+	fmt.Println("Listener started theem3...")
+	var topicsResult = make(map[string][]string)
+	for topicRes := range ch { // ← Read ALL items
+		sgh.logger.Infof("Received response from the channel(theme 3) for topic %s", topicRes.Topic)
+		topicsResult[topicRes.Key] = append(topicsResult[topicRes.Key], topicRes.Topic)
+	}
+	//Save topics to database
+	for preference, topics := range topicsResult {
+		// Save topics to database
+		_, err := sgh.storyDatabase.CreateMDTopics3(ctx, theme3_id, preference, language, topics)
+		if err != nil {
+			sgh.logger.Errorf("failed to save topics: %v", err)
+		}
+	}
 }
 
 // getDynamicPromptingTheme2 processes theme 2 with parallel story generation controlled by a semaphore
@@ -567,10 +605,10 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 		return nil
 	}
 	theme2_id := uuid.New().String()
-	// CORRECT: Initialize the map using make()
-	concatTopics := make(map[string][]string)
 	storiesPerPreference := int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(religions))))
-
+	topicSuccessResultChannel := make(chan topicWithKey)
+	var wg sync.WaitGroup
+	go sgh.listenTheme2(topicSuccessResultChannel, ctx, theme2_id, country, preferences, language)
 	for _, religion := range religions {
 		if strings.EqualFold(religion, "any") {
 			continue
@@ -586,31 +624,6 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 			return fmt.Errorf("failed to create topics: %v", err)
 		}
 		sgh.logger.Infof("Generated %d topics for theme 2", len(topics))
-
-		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics2(ctx, theme2_id, country, religion, language, preferences, topics)
-		if err != nil {
-			return fmt.Errorf("failed to save topics: %v", err)
-		}
-		// CORRECT: Use map assignment syntax
-		concatTopics[religion] = append(concatTopics[religion], topics...)
-	}
-
-	// Generate stories for first few topics in parallel
-	var allTopics []topicWithKey
-	for key, topics := range concatTopics {
-		for _, topic := range topics {
-			allTopics = append(allTopics, topicWithKey{Key: key, Topic: topic})
-		}
-	}
-
-	storiesPerTheme := sgh.settings.StoriesPerTheme
-	if len(allTopics) < storiesPerTheme {
-		storiesPerTheme = len(allTopics)
-	}
-
-	var wg sync.WaitGroup
-	for _, item := range allTopics[:storiesPerTheme] {
 		wg.Add(1)
 		util.GoroutineWithRecoveryAndHandler(func() {
 			semaphore <- struct{}{}
@@ -619,22 +632,27 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 
 			kwargs := map[string]interface{}{
 				"country":     country,
-				"religions":   item.Key,
+				"religions":   religion,
 				"preferences": preferences,
 				"language":    language,
 			}
-
-			err := sgh.StoryHelper(ctx, "2", theme2_id, item.Topic, kwargs)
-			if err != nil {
-				sgh.logger.Errorf("Failed to generate story for topic %s: %v", item.Topic, err)
+			for _, topic := range topics {
+				err := sgh.StoryHelper(ctx, "2", theme2_id, topic, kwargs)
+				if err != nil {
+					sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
+				} else {
+					sgh.logger.Infof("Sending response to the channel for topic %s", topic)
+					topicSuccessResultChannel <- topicWithKey{Key: religion, Topic: topic}
+				}
 			}
 		}, func(r interface{}) {
 			<-semaphore // Release semaphore on panic
-			wg.Done()   // Ensure wg.Done() is called even on panic
 		})
-	}
-	wg.Wait()
 
+	}
+
+	wg.Wait()
+	close(topicSuccessResultChannel)
 	sgh.logger.Infof("Completed theme 2 processing")
 	return nil
 }
@@ -654,9 +672,9 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	}
 
 	theme3_id := uuid.New().String()
-
-	var allTopics []topicWithKey
-	var concatTopics = make(map[string][]string)
+	topicSuccessResultChannel := make(chan topicWithKey)
+	var wg sync.WaitGroup
+	go sgh.listenTheme3(topicSuccessResultChannel, ctx, theme3_id, language)
 	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
 	// log.Println("storiesPerPreference", storiesPerPreference)
 	for _, preference := range preferences {
@@ -672,54 +690,32 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 			return fmt.Errorf("failed to create topics: %v", err)
 		}
 		sgh.logger.Infof("Generated %d topics for theme 3", len(topics))
-
-		// log.Println("length of topics", len(topics))
-		// Save topics to database
-		_, err = sgh.storyDatabase.CreateMDTopics3(ctx, theme3_id, preference, language, topics)
-		if err != nil {
-			return fmt.Errorf("failed to save topics: %v", err)
-		}
-		concatTopics[preference] = append(concatTopics[preference], topics...)
-	}
-
-	// log.Println("length of concatTopics", len(concatTopics))
-	for key, topics := range concatTopics {
-		for _, topic := range topics {
-			allTopics = append(allTopics, topicWithKey{Key: key, Topic: topic})
-		}
-	}
-
-	// Generate stories for first few topics in parallel
-	storiesPerTheme := sgh.settings.StoriesPerTheme
-	if len(allTopics) < storiesPerTheme {
-		storiesPerTheme = len(allTopics)
-	}
-
-	var wg sync.WaitGroup
-
-	for _, topic := range allTopics[:storiesPerTheme] {
 		wg.Add(1)
 		util.GoroutineWithRecoveryAndHandler(func() {
 			semaphore <- struct{}{}        // Acquire a spot
 			defer func() { <-semaphore }() // Release the spot
 			defer wg.Done()
-
 			kwargs := map[string]interface{}{
-				"preferences": topic.Key,
+				"preferences": preference,
 				"language":    language,
 			}
 			sgh.logger.Infof("kwargs.. %v", kwargs)
-			err := sgh.StoryHelper(ctx, "3", theme3_id, topic.Topic, kwargs)
-			if err != nil {
-				sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
+			for _, topic := range topics {
+				err := sgh.StoryHelper(ctx, "3", theme3_id, topic, kwargs)
+				if err != nil {
+					sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
+				} else {
+					sgh.logger.Infof("Sending response to the channel 3 for topic %s", topic)
+					topicSuccessResultChannel <- topicWithKey{Key: preference, Topic: topic}
+				}
 			}
 		}, func(r interface{}) {
 			<-semaphore // Release semaphore on panic
-			wg.Done()   // Ensure wg.Done() is called even on panic
 		})
+
 	}
 	wg.Wait()
-
+	close(topicSuccessResultChannel)
 	sgh.logger.Infof("Completed theme 3 processing")
 	return nil
 }

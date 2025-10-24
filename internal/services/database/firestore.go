@@ -596,7 +596,7 @@ func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string,
 	}
 
 	if len(allDocs) == 0 {
-		log.Println("No metadata topics found for any preference")
+		log.Println("No metadata topics found for any preference... ")
 		return nil, nil
 	}
 
