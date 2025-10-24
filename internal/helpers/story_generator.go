@@ -386,7 +386,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	defer util.RecoverPanic()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(3)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
