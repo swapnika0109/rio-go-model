@@ -456,9 +456,6 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
-		for k := range themeIDCache {
-			delete(themeIDCache, k)
-		}
 	}
 
 	// Exactly like Python: stories = [story for story in stories if story is not None]

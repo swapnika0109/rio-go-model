@@ -64,6 +64,7 @@ type StoryGenerationResponse struct {
 // A helper struct to associate a topic with its original key (preference or religion).
 type topicWithKey struct {
 	Key   string
+	Theme string
 	Topic string
 }
 
@@ -491,13 +492,14 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 	} else {
 		storiesToGenerate = storiesToGenerate - len(existing)
 	}
-	theme1_id := uuid.New().String()
+
 	var storiesPerPreference = int(math.Round(float64(storiesToGenerate) / float64(len(preferences))))
 	// var concatTopics = make(map[string][]string)
 	var wg sync.WaitGroup
 	topicSuccessResultChannel := make(chan topicWithKey)
-	go sgh.listenTheme1(topicSuccessResultChannel, ctx, theme1_id, country, city, language)
+	go sgh.listenTheme1(topicSuccessResultChannel, ctx, country, city, language)
 	for _, preference := range preferences {
+		theme1_id := uuid.New().String()
 		// Generate prompt
 		prompt, err := sgh.dynamicPrompting.GetPlanetProtectorsStories(country, city, preference, language, storiesPerPreference)
 		if err != nil {
@@ -527,7 +529,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 					sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 				} else {
 					sgh.logger.Infof("Sending response to the channel for topic %s", topic)
-					topicSuccessResultChannel <- topicWithKey{Key: preference, Topic: topic}
+					topicSuccessResultChannel <- topicWithKey{Key: preference, Theme: theme1_id, Topic: topic}
 				}
 			}
 		}, func(r interface{}) {
@@ -541,50 +543,56 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 	return nil
 }
 
-func (sgh *StoryGenerationHelper) listenTheme1(ch <-chan topicWithKey, ctx context.Context, theme1_id string, country string, city string, language string) {
+func (sgh *StoryGenerationHelper) listenTheme1(ch <-chan topicWithKey, ctx context.Context, country string, city string, language string) {
 	fmt.Println("Listener started...")
 	var topicsResult = make(map[string][]string)
+	var topicsResultThemeId = make(map[string]string)
 	for topicRes := range ch { // ← Read ALL items
 		sgh.logger.Infof("Received response from the channel for topic %s", topicRes.Topic)
 		topicsResult[topicRes.Key] = append(topicsResult[topicRes.Key], topicRes.Topic)
+		topicsResultThemeId[topicRes.Key] = topicRes.Theme
 	}
 	//Save topics to database
 	for preference, topics := range topicsResult {
-		_, err := sgh.storyDatabase.CreateMDTopics1(ctx, theme1_id, country, city, preference, topics, language)
+		_, err := sgh.storyDatabase.CreateMDTopics1(ctx, topicsResultThemeId[preference], country, city, preference, topics, language)
 		if err != nil {
 			sgh.logger.Errorf("failed to save topics: %v", err)
 		}
 	}
 }
 
-func (sgh *StoryGenerationHelper) listenTheme2(ch <-chan topicWithKey, ctx context.Context, theme2_id string, country string, preferences []string, language string) {
+func (sgh *StoryGenerationHelper) listenTheme2(ch <-chan topicWithKey, ctx context.Context, country string, preferences []string, language string) {
 	fmt.Println("Listener started theem2...")
 	var topicsResult = make(map[string][]string)
+	var topicsResultThemeId = make(map[string]string)
 	for topicRes := range ch { // ← Read ALL items
 		sgh.logger.Infof("Received response from the channel(theme 2) for topic %s", topicRes.Topic)
 		topicsResult[topicRes.Key] = append(topicsResult[topicRes.Key], topicRes.Topic)
+		topicsResultThemeId[topicRes.Key] = topicRes.Theme
 	}
 	//Save topics to database
 	for religion, topics := range topicsResult {
 		// Save topics to database
-		_, err := sgh.storyDatabase.CreateMDTopics2(ctx, theme2_id, country, religion, language, preferences, topics)
+		_, err := sgh.storyDatabase.CreateMDTopics2(ctx, topicsResultThemeId[religion], country, religion, language, preferences, topics)
 		if err != nil {
 			sgh.logger.Errorf("failed to save topics for theme 2: %v", err)
 		}
 	}
 }
 
-func (sgh *StoryGenerationHelper) listenTheme3(ch <-chan topicWithKey, ctx context.Context, theme3_id string, language string) {
+func (sgh *StoryGenerationHelper) listenTheme3(ch <-chan topicWithKey, ctx context.Context, language string) {
 	fmt.Println("Listener started theem3...")
 	var topicsResult = make(map[string][]string)
+	var topicsResultThemeId = make(map[string]string)
 	for topicRes := range ch { // ← Read ALL items
 		sgh.logger.Infof("Received response from the channel(theme 3) for topic %s", topicRes.Topic)
 		topicsResult[topicRes.Key] = append(topicsResult[topicRes.Key], topicRes.Topic)
+		topicsResultThemeId[topicRes.Key] = topicRes.Theme
 	}
 	//Save topics to database
 	for preference, topics := range topicsResult {
 		// Save topics to database
-		_, err := sgh.storyDatabase.CreateMDTopics3(ctx, theme3_id, preference, language, topics)
+		_, err := sgh.storyDatabase.CreateMDTopics3(ctx, topicsResultThemeId[preference], preference, language, topics)
 		if err != nil {
 			sgh.logger.Errorf("failed to save topics: %v", err)
 		}
@@ -604,12 +612,13 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 		sgh.logger.Infof("Topics already exist for theme 2")
 		return nil
 	}
-	theme2_id := uuid.New().String()
+
 	storiesPerPreference := int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(religions))))
 	topicSuccessResultChannel := make(chan topicWithKey)
 	var wg sync.WaitGroup
-	go sgh.listenTheme2(topicSuccessResultChannel, ctx, theme2_id, country, preferences, language)
+	go sgh.listenTheme2(topicSuccessResultChannel, ctx, country, preferences, language)
 	for _, religion := range religions {
+		theme2_id := uuid.New().String()
 		if strings.EqualFold(religion, "any") {
 			continue
 		}
@@ -642,7 +651,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 					sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 				} else {
 					sgh.logger.Infof("Sending response to the channel for topic %s", topic)
-					topicSuccessResultChannel <- topicWithKey{Key: religion, Topic: topic}
+					topicSuccessResultChannel <- topicWithKey{Key: religion, Theme: theme2_id, Topic: topic}
 				}
 			}
 		}, func(r interface{}) {
@@ -671,13 +680,13 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 		return nil
 	}
 
-	theme3_id := uuid.New().String()
 	topicSuccessResultChannel := make(chan topicWithKey)
 	var wg sync.WaitGroup
-	go sgh.listenTheme3(topicSuccessResultChannel, ctx, theme3_id, language)
+	go sgh.listenTheme3(topicSuccessResultChannel, ctx, language)
 	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
 	// log.Println("storiesPerPreference", storiesPerPreference)
 	for _, preference := range preferences {
+		theme3_id := uuid.New().String()
 		// Generate prompt
 		prompt, err := sgh.dynamicPrompting.GetChillStories(preference, language, storiesPerPreference)
 		if err != nil {
@@ -706,7 +715,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 					sgh.logger.Errorf("Failed to generate story for topic %s: %v", topic, err)
 				} else {
 					sgh.logger.Infof("Sending response to the channel 3 for topic %s", topic)
-					topicSuccessResultChannel <- topicWithKey{Key: preference, Topic: topic}
+					topicSuccessResultChannel <- topicWithKey{Key: preference, Theme: theme3_id, Topic: topic}
 				}
 			}
 		}, func(r interface{}) {

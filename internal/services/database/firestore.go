@@ -996,6 +996,7 @@ func (s *StoryDatabase) UpdateAPITokens(ctx context.Context, api_model string, t
 	}
 	var allTokensUsed int32
 	var ok bool
+	log.Printf(" token used: %v", userData["tokensUsed"])
 	if allTokensUsed, ok = userData["tokensUsed"].(int32); ok {
 		log.Printf("All tokens used for %d is %d", tokensUsed, allTokensUsed)
 		allTokensUsed += tokensUsed
@@ -1013,3 +1014,68 @@ func (s *StoryDatabase) UpdateAPITokens(ctx context.Context, api_model string, t
 	log.Printf("Document Updated successfully for %s", api_model)
 	return "Document Updated successfully", nil
 }
+
+// func (s *StoryDatabase) MigrateAllThemeId(ctx context.Context) ([]map[string]interface{}, error) {
+// 	query := s.client.Collection(s.mdCollection3).Documents(ctx)
+// 	for {
+// 		theme1_id := uuid.New().String()
+// 		docSnapshot, err := query.Next()
+// 		if err != nil {
+// 			if err.Error() == "iterator.Done" {
+// 				break
+// 			}
+// 			return nil, fmt.Errorf("error iterating documents: %v", err)
+// 		}
+// 		oldTheme1_id := docSnapshot.Data()["theme_id"].(string)
+// 		log.Printf("Migrating theme 1 id: %s, old theme 1 id: %s", theme1_id, oldTheme1_id)
+
+// 		storyData := docSnapshot.Data()
+// 		storyData["theme_id"] = theme1_id
+// 		_, err = s.client.Collection(s.mdCollection3).Doc(docSnapshot.Ref.ID).Set(ctx, storyData)
+// 		if err != nil {
+// 			log.Printf("Error migrating story %s: %v", docSnapshot.Ref.ID, err)
+// 			continue
+// 		}
+
+// 		log.Printf("Migrating story: %s", docSnapshot.Ref.ID)
+
+// 		// Handle both []string and []interface{} types from Firestore
+// 		var topics []string
+// 		if topicsInterface, ok := storyData["topics"].([]string); ok {
+// 			topics = topicsInterface
+// 		} else if topicsArray, ok := storyData["topics"].([]interface{}); ok {
+// 			for _, topic := range topicsArray {
+// 				if topicStr, ok := topic.(string); ok {
+// 					topics = append(topics, topicStr)
+// 				}
+// 			}
+// 		} else {
+// 			log.Printf("Warning: topics field is not []string or []interface{} for story %s", docSnapshot.Ref.ID)
+// 			continue
+// 		}
+
+// 		for _, topic := range topics {
+// 			log.Printf("Migrating topic: %s", topic)
+// 			docID := topic + "_3"
+// 			// docID := s.appHelper.GetDocID(topic, storyData["theme"].(string))
+// 			log.Printf("Migrating topic: %s, docID: %s", topic, docID)
+
+// 			// Check if topic document exists
+// 			topicDocSnapshot, err := s.client.Collection(s.collectionV2).Doc(docID).Get(ctx)
+// 			if err == nil && topicDocSnapshot.Exists() {
+// 				log.Printf("Topic document exists: %s", docID)
+// 				// Document exists, update theme_id
+// 				topicData := topicDocSnapshot.Data()
+// 				topicData["theme_id"] = theme1_id
+// 				_, err = s.client.Collection(s.collectionV2).Doc(docID).Set(ctx, topicData)
+// 				if err != nil {
+// 					log.Printf("Error updating theme_id for topic %s: %v", docID, err)
+// 				} else {
+// 					log.Printf("Updated theme_id for existing topic: %s", docID)
+// 				}
+// 			}
+// 		}
+// 		log.Printf("Migrating story: %s completed", docSnapshot.Ref.ID)
+// 	}
+// 	return nil, nil
+// }
