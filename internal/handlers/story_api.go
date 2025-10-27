@@ -186,17 +186,16 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	userTokenVersion, err := h.storyDB.GetTokenVersion(ctx, email)
-	if err != nil {
+	if err == nil {
 		log.Printf("ERROR: Failed to get token version: %v", err)
-		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
-		return
+		err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+		if err != nil {
+			log.Printf("❌ DEBUG: Token version mismatch: %v", err)
+			h.sendErrorResponse(w, http.StatusUnauthorized, err.Error())
+			return
+		}
 	}
-	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
-	if err != nil {
-		log.Printf("❌ DEBUG: Token version mismatch: %v", err)
-		h.sendErrorResponse(w, http.StatusUnauthorized, err.Error())
-		return
-	}
+
 	log.Printf("✅ DEBUG: Authentication successful - Username: %s, Email: %s", username, email)
 	// Thread-safe lazy initialization
 	// h.initMutex.Lock()
