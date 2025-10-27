@@ -118,6 +118,7 @@ func (h *AuthHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. Issue our own JWT access and refresh tokens.
+	log.Printf("❌ DEBUG: Token version: %d", tokenVersion)
 	tokenPair, err := util.GenerateTokens(username, googleEmail, tokenVersion)
 	if err != nil {
 		log.Printf("ERROR: Failed to generate local JWTs: %v", err)
@@ -155,17 +156,32 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 1. Validate the refresh token. We can expand validateToken to check for "refresh" type.
-	_, _, err := util.VerifyToken(req.RefreshToken) // VerifyToken internally calls validateToken
+	username, email, tokenVersion, err := util.VerifyToken(req.RefreshToken) // VerifyToken internally calls validateToken
 	if err != nil {
 		log.Printf("ERROR: Invalid refresh token provided: %v", err)
 		http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	// (Optional check for token type if you added it to validateToken)
+	userTokenVersion, err := h.db.GetTokenVersion(ctx, email)
+	if err != nil {
+		log.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+
+	err = util.VerifyUserTokenVersion(userTokenVersion, tokenVersion)
+	if err != nil {
+		log.Printf("ERROR: Token version mismatch: %v", err)
+		http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
+		return
+	}
 
 	// 2. Generate a new access token.
-	newAccessToken, err := util.GenerateAccessTokenFromRefresh(req.RefreshToken)
+	newAccessToken, err := util.GenerateAccessTokenFromRefresh(username, email, req.RefreshToken, tokenVersion)
 	if err != nil {
 		log.Printf("ERROR: Failed to generate new access token: %v", err)
 		http.Error(w, "Failed to generate new access token", http.StatusInternalServerError)
@@ -192,7 +208,7 @@ func (h *AuthHandler) RefreshToken(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} util.HttpError "Failed to generate new access token"
 // @Router       /auth/w/token/refresh [post]
 func (h *AuthHandler) RefreshTokenWeb(w http.ResponseWriter, r *http.Request) {
-	_, _, err := util.ValidateRefreshCookies(r)
+	username, email, tokenVersion, err := util.ValidateRefreshCookies(r)
 	if err != nil {
 		log.Printf("ERROR: Invalid refresh token provided: %v", err)
 		http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
@@ -207,9 +223,22 @@ func (h *AuthHandler) RefreshTokenWeb(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// (Optional check for token type if you added it to validateToken)
-
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userTokenVersion, err := h.db.GetTokenVersion(ctx, email)
+	if err != nil {
+		log.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+	err = util.VerifyUserTokenVersion(userTokenVersion, tokenVersion)
+	if err != nil {
+		log.Printf("ERROR: Token version mismatch: %v", err)
+		http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
+		return
+	}
 	// 2. Generate a new access token.
-	newAccessToken, err := util.GenerateAccessTokenFromRefresh(cookie.Value)
+	newAccessToken, err := util.GenerateAccessTokenFromRefresh(username, email, cookie.Value, tokenVersion)
 	if err != nil {
 		log.Printf("ERROR: Failed to generate new access token: %v", err)
 		http.Error(w, "Failed to generate new access token", http.StatusInternalServerError)
@@ -252,7 +281,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate the refresh token to get user email
-	_, email, err := util.VerifyToken(req.Refresh)
+	_, email, tokenVersion, err := util.VerifyToken(req.Refresh)
 	if err != nil {
 		log.Printf("WARNING: Invalid refresh token during logout: %v", err)
 		// Don't return error for invalid token during logout - just log it
@@ -260,7 +289,18 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		// Increment token version to invalidate all existing tokens for this user
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-
+		userTokenVersion, err := h.db.GetTokenVersion(ctx, email)
+		if err != nil {
+			log.Printf("ERROR: Failed to get token version: %v", err)
+			http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+			return
+		}
+		err = util.VerifyUserTokenVersion(userTokenVersion, tokenVersion)
+		if err != nil {
+			log.Printf("ERROR: Token version mismatch: %v", err)
+			http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
+			return
+		}
 		if err := h.db.IncrementTokenVersion(ctx, email); err != nil {
 			log.Printf("WARNING: Failed to increment token version: %v", err)
 		} else {
@@ -288,7 +328,7 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 // @Failure      500 {object} util.HttpError "Internal server error"
 // @Router       /auth/w/logout [post]
 func (h *AuthHandler) LogoutWeb(w http.ResponseWriter, r *http.Request) {
-	_, email, err := util.ValidateRefreshCookies(r)
+	_, email, tokenVersion, err := util.ValidateRefreshCookies(r)
 	if err != nil {
 		log.Printf("WARNING: Invalid refresh token during logout: %v", err)
 		// Don't return error for invalid token during logout - just log it
@@ -296,7 +336,18 @@ func (h *AuthHandler) LogoutWeb(w http.ResponseWriter, r *http.Request) {
 		// Increment token version to invalidate all existing tokens for this user
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-
+		userTokenVersion, err := h.db.GetTokenVersion(ctx, email)
+		if err != nil {
+			log.Printf("ERROR: Failed to get token version: %v", err)
+			http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+			return
+		}
+		err = util.VerifyUserTokenVersion(userTokenVersion, tokenVersion)
+		if err != nil {
+			log.Printf("ERROR: Token version mismatch: %v", err)
+			http.Error(w, fmt.Sprintf("Invalid refresh token: %v", err), http.StatusUnauthorized)
+			return
+		}
 		if err := h.db.IncrementTokenVersion(ctx, email); err != nil {
 			log.Printf("WARNING: Failed to increment token version: %v", err)
 		} else {

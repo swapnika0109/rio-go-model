@@ -1,24 +1,26 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"rio-go-model/internal/model"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
-	"log"
+	"time"
 	// "strings"
 )
 
 type StoryFeedbackHandler struct {
 	storyFeedbackDB *database.StoryDatabase
-	logger *log.Logger
+	logger          *log.Logger
 }
 
 func NewStoryFeedbackHandler(storyFeedbackDB *database.StoryDatabase) *StoryFeedbackHandler {
 	return &StoryFeedbackHandler{
 		storyFeedbackDB: storyFeedbackDB,
-		logger: log.New(log.Writer(), "[Story Feedback Service] ", log.LstdFlags|log.Lshortfile),
+		logger:          log.New(log.Writer(), "[Story Feedback Service] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 
@@ -35,13 +37,26 @@ func NewStoryFeedbackHandler(storyFeedbackDB *database.StoryDatabase) *StoryFeed
 // @Failure 500 {object} util.HttpError "Internal Server Error"
 // @Router /story-feedback [post]
 func (h *StoryFeedbackHandler) HandleStoryFeedback(w http.ResponseWriter, r *http.Request) {
-	_, email, err := util.VerifyAuth(r)
+	_, email, tokenVersion, err := util.VerifyAuth(r)
 	if err != nil {
 		h.logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
-
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userTokenVersion, err := h.storyFeedbackDB.GetTokenVersion(ctx, email)
+	if err != nil {
+		h.logger.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+	if err != nil {
+		h.logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
 	var storyFeedback model.StoryFeedback
 	if err := json.NewDecoder(r.Body).Decode(&storyFeedback); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)

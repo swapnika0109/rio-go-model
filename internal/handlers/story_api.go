@@ -177,9 +177,23 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 	// log.Println("token ", token)
 	// secretKey := configs.LoadSettings().SecretKey
 	// log.Println("token secretKey ", strings.TrimSpace(secretKey))
-	username, email, err := util.VerifyToken(token)
+	username, email, tokenVersion, err := util.VerifyToken(token)
 	if err != nil {
 		log.Printf("❌ DEBUG: Invalid token: %v", err)
+		h.sendErrorResponse(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userTokenVersion, err := h.storyDB.GetTokenVersion(ctx, email)
+	if err != nil {
+		log.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+	if err != nil {
+		log.Printf("❌ DEBUG: Token version mismatch: %v", err)
 		h.sendErrorResponse(w, http.StatusUnauthorized, err.Error())
 		return
 	}
@@ -232,10 +246,6 @@ func (h *Story) CreateStory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("✅ DEBUG: Request body parsed successfully: %+v", req)
-
-	// Create context with timeout
-	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
-	defer cancel()
 
 	err = h.storyGenerator.UploadMetadata(ctx, "", username, email, &helpers.MetadataRequest{
 		Country:     req.Country,
@@ -297,9 +307,23 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Error listing stories: %v", r), http.StatusInternalServerError)
 	})
 
-	username, email, err := util.VerifyAuth(r)
+	username, email, tokenVersion, err := util.VerifyAuth(r)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userTokenVersion, err := h.storyDB.GetTokenVersion(ctx, email)
+	if err != nil {
+		logger.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+	if err != nil {
+		logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
@@ -564,9 +588,24 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request) {
 	logger := h.logger
 	logger.Println("Starting user_profile request")
 
-	username, email, err := util.VerifyAuth(r)
+	username, email, tokenVersion, err := util.VerifyAuth(r)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userTokenVersion, err := h.storyDB.GetTokenVersion(ctx, email)
+	if err != nil {
+		logger.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+	if err != nil {
+		log.Printf("❌ DEBUG: Token version mismatch: %v, userTokenVersion: %d, tokenVersion: %d", err, userTokenVersion, tokenVersion)
+		logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
@@ -617,13 +656,26 @@ func (h *Story) UpdateUserProfile(w http.ResponseWriter, r *http.Request) {
 	logger := h.logger
 	logger.Println("Starting update_user_profile request")
 
-	_, email, err := util.VerifyAuth(r)
+	_, email, tokenVersion, err := util.VerifyAuth(r)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
-
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userTokenVersion, err := h.storyDB.GetTokenVersion(ctx, email)
+	if err != nil {
+		logger.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+	if err != nil {
+		logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
 	var userProfileRequest model.UserProfile
 	if err := json.NewDecoder(r.Body).Decode(&userProfileRequest); err != nil {
 		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
@@ -654,13 +706,26 @@ func (h *Story) DeleteUserProfile(w http.ResponseWriter, r *http.Request) {
 	logger := h.logger
 	logger.Println("Starting delete_user_profile request")
 
-	_, email, err := util.VerifyAuth(r)
+	_, email, tokenVersion, err := util.VerifyAuth(r)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
-
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	userTokenVersion, err := h.storyDB.GetTokenVersion(ctx, email)
+	if err != nil {
+		logger.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+	if err != nil {
+		logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
 	if err := h.storyDB.DeleteUserProfile(r.Context(), email); err != nil {
 		logger.Printf("ERROR: Error deleting user profile: %v", err)
 		http.Error(w, "Internal server error during user profile deletion", http.StatusInternalServerError)

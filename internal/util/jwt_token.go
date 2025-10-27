@@ -8,10 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"os"
+
+	"github.com/google/uuid"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwt"
-	"os"
-	"github.com/google/uuid"
 )
 
 // TokenPair represents a pair of access and refresh tokens
@@ -46,22 +47,22 @@ func GenerateTokens(username, email string, tokenVersion int64) (*TokenPair, err
 	}, nil
 }
 
-// GenerateAccessTokenFromRefresh creates a new access token from a valid refresh token.
-func GenerateAccessTokenFromRefresh(refreshTokenStr string) (string, error) {
-	username, email, err := validateToken(refreshTokenStr)
-	if err != nil {
-		return "", fmt.Errorf("invalid refresh token: %w", err)
+func VerifyUserTokenVersion(jwtTokenVersion int64, tokenVersion int64) error {
+	if jwtTokenVersion != tokenVersion {
+		return fmt.Errorf("token version mismatch: %d != %d", jwtTokenVersion, tokenVersion)
 	}
-	
+	return nil
+}
+
+// GenerateAccessTokenFromRefresh creates a new access token from a valid refresh token.
+func GenerateAccessTokenFromRefresh(username, email, refreshTokenStr string, tokenVersion int64) (string, error) {
 	secretKey := os.Getenv("SECRET_KEY")
 	if secretKey == "" {
 		return "", fmt.Errorf("SECRET_KEY environment variable not set")
 	}
 	secretKeyBytes := []byte(secretKey)
-
-	return createToken(username, email, 1*time.Hour, "access", secretKeyBytes)
+	return createTokenWithVersion(username, email, 1*time.Hour, "access", tokenVersion, secretKeyBytes)
 }
-
 func createTokenWithVersion(username, email string, expiryDuration time.Duration, tokenType string, tokenVersion int64, secret []byte) (string, error) {
 	token := jwt.New()
 	_ = token.Set(jwt.JwtIDKey, uuid.New().String())
@@ -95,7 +96,6 @@ func createToken(username, email string, expiryDuration time.Duration, tokenType
 	return string(signed), nil
 }
 
-
 // HttpError represents an HTTP error response
 type HttpError struct {
 	Status  int    `json:"status"`
@@ -105,15 +105,14 @@ type HttpError struct {
 func (e *HttpError) Error() string {
 	return fmt.Sprintf("HTTP %d: %s", e.Status, e.Message)
 }
-	
 
-func VerifyToken(token string) (string, string, error) {
-	username, email, err := validateToken(token)
+func VerifyToken(token string) (string, string, int64, error) {
+	username, email, tokenVersion, err := validateToken(token)
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 
-	return username, email, nil
+	return username, email, tokenVersion, nil
 }
 
 // GetTokenVersion extracts the token version from a JWT token
@@ -147,17 +146,18 @@ func GetTokenVersion(tokenStr string) (int64, error) {
 	return version, nil
 }
 
-func validateToken(tokenStr string) (string, string, error) {
+func validateToken(tokenStr string) (string, string, int64, error) {
 	var username, email string
+	var tokenVersion int64
 	if tokenStr != "" {
 		// Check if token is blacklisted first
 		// if GlobalBlacklist.IsBlacklisted(tokenStr) {
 		// 	return "", "", fmt.Errorf("token has been revoked")
 		// }
-		
+
 		secretKey := os.Getenv("SECRET_KEY")
 		if secretKey == "" {
-			return "", "", fmt.Errorf("SECRET_KEY environment variable not set")
+			return "", "", 0, fmt.Errorf("SECRET_KEY environment variable not set")
 		}
 		// --- START TEMPORARY DEBUGGING ---
 		// Using a hardcoded byte slice to eliminate any possibility of
@@ -174,7 +174,7 @@ func validateToken(tokenStr string) (string, string, error) {
 
 		if err != nil {
 			// If this fails, it is a signature or formatting error.
-			return "", "", fmt.Errorf("failed to parse or verify signature: %w", err)
+			return "", "", 0, fmt.Errorf("failed to parse or verify signature: %w", err)
 		}
 
 		// Manually log that validation was skipped
@@ -183,20 +183,34 @@ func validateToken(tokenStr string) (string, string, error) {
 		// Correctly extract claims using the .Get() method on the parsed token.
 		emailClaim, ok := token.Get("email")
 		if !ok {
-			return "", "", fmt.Errorf("email claim not found in token")
+			return "", "", 0, fmt.Errorf("email claim not found in token")
 		}
 		email, ok = emailClaim.(string)
 		if !ok {
-			return "", "", fmt.Errorf("email claim is not a string")
+			return "", "", 0, fmt.Errorf("email claim is not a string")
 		}
 
 		usernameClaim, ok := token.Get("username")
 		if !ok {
-			return "", "", fmt.Errorf("username claim not found in token")
+			return "", "", 0, fmt.Errorf("username claim not found in token")
 		}
 		username, ok = usernameClaim.(string)
 		if !ok {
-			return "", "", fmt.Errorf("username claim is not a string")
+			return "", "", 0, fmt.Errorf("username claim is not a string")
+		}
+
+		versionClaim, ok := token.Get("token_version")
+		if !ok {
+			return "", "", 0, fmt.Errorf("token_version claim not found in token")
+		}
+
+		// Handle both int64 and float64 (Firestore may return float64)
+		if v, ok := versionClaim.(int64); ok {
+			tokenVersion = v
+		} else if v, ok := versionClaim.(float64); ok {
+			tokenVersion = int64(v)
+		} else {
+			return "", "", 0, fmt.Errorf("version claim is not an int64 or float64")
 		}
 
 		// Check for token_type claim
@@ -204,10 +218,10 @@ func validateToken(tokenStr string) (string, string, error) {
 		if ok {
 			tokenType, ok := tokenTypeClaim.(string)
 			if !ok {
-				return "", "", fmt.Errorf("token_type claim not a string")
+				return "", "", 0, fmt.Errorf("token_type claim not a string")
 			}
 			if tokenType != "refresh" && tokenType != "access" {
-				return "", "", fmt.Errorf("invalid token_type: %s", tokenType)
+				return "", "", 0, fmt.Errorf("invalid token_type: %s", tokenType)
 			}
 
 			// For refresh endpoint, we must ensure the token is a refresh token
@@ -215,7 +229,7 @@ func validateToken(tokenStr string) (string, string, error) {
 		}
 
 	}
-	return username, email, nil
+	return username, email, tokenVersion, nil
 }
 
 func ValidateGoogleToken(token string) (string, string, error) {
@@ -281,38 +295,37 @@ func ValidateGoogleToken(token string) (string, string, error) {
 	return username, email, nil
 }
 
-
 func SetAuthCookies(w http.ResponseWriter, accessToken, refreshToken string) {
-    // Use environment to decide cookie flags for dev vs prod
-    // In production we expect HTTPS and cross-site usage → SameSite=None; Secure=true
-    // In local development over HTTP we use SameSite=Lax and Secure=false
-    isProd := os.Getenv("ENVIRONMENT") == "production"
-    sameSite := http.SameSiteLaxMode
-    secure := false
-    if isProd {
-        sameSite = http.SameSiteNoneMode
-        secure = true
-    }
+	// Use environment to decide cookie flags for dev vs prod
+	// In production we expect HTTPS and cross-site usage → SameSite=None; Secure=true
+	// In local development over HTTP we use SameSite=Lax and Secure=false
+	isProd := os.Getenv("ENVIRONMENT") == "production"
+	sameSite := http.SameSiteLaxMode
+	secure := false
+	if isProd {
+		sameSite = http.SameSiteNoneMode
+		secure = true
+	}
 
-    http.SetCookie(w, &http.Cookie{
-        Name:     "session_token",
-        Value:    accessToken,
-        Path:     "/",
-        HttpOnly: true,
-        Secure:   secure,
-        SameSite: sameSite,
-        MaxAge:   3600,
-    })
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    accessToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: sameSite,
+		MaxAge:   3600,
+	})
 
-    http.SetCookie(w, &http.Cookie{
-        Name:     "refresh_token",
-        Value:    refreshToken,
-        Path:     "/",
-        HttpOnly: true,
-        Secure:   secure,
-        SameSite: sameSite,
-        MaxAge:   604800,
-    })
+	http.SetCookie(w, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refreshToken,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: sameSite,
+		MaxAge:   604800,
+	})
 }
 
 func IsCookiesPresent(r *http.Request) bool {
@@ -323,35 +336,34 @@ func IsCookiesPresent(r *http.Request) bool {
 	return true
 }
 
-func ValidateSessionCookies(r *http.Request) (string, string, error){
+func ValidateSessionCookies(r *http.Request) (string, string, int64, error) {
 	cookie, err := r.Cookie("session_token")
 	if err != nil {
 		log.Println("session token not found in cookies: " + err.Error())
-		return "", "", fmt.Errorf("session token not found")
+		return "", "", 0, fmt.Errorf("session token not found")
 	}
 	return validateToken(cookie.Value)
 }
 
-func ValidateRefreshCookies(r *http.Request) (string, string, error){
+func ValidateRefreshCookies(r *http.Request) (string, string, int64, error) {
 	cookie, err := r.Cookie("refresh_token")
 	if err != nil {
 		log.Println("refresh token not found in cookies: " + err.Error())
-		return "", "", fmt.Errorf("refresh token not found")
+		return "", "", 0, fmt.Errorf("refresh token not found")
 	}
 	return validateToken(cookie.Value)
 }
 
 // Helper methods
 
-// VerifyAuth verifies the authentication token
-func VerifyAuth(r *http.Request) (string, string, error) {
+func GetTokenFromRequest(r *http.Request) (string, error) {
 	var token string
 	if !IsCookiesPresent(r) {
 		// If cookies are not present, use the Authorization header
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			log.Printf("❌ DEBUG: Authorization header is required")
-			return "", "", fmt.Errorf("Authorization header is required")
+			return "", fmt.Errorf("Authorization header is required")
 		}
 
 		// Remove "Bearer " prefix if present
@@ -361,19 +373,29 @@ func VerifyAuth(r *http.Request) (string, string, error) {
 
 		token = authHeader
 
-	}else{
+	} else {
 		cookie, err := r.Cookie("session_token")
 		if err != nil {
-			return "", "", fmt.Errorf("Session token not found")
+			return "", fmt.Errorf("Session token not found")
 		}
 		token = cookie.Value
 	}
+	return token, nil
+}
 
-	username, email, err := VerifyToken(token)
+// VerifyAuth verifies the authentication token
+func VerifyAuth(r *http.Request) (string, string, int64, error) {
+	token, err := GetTokenFromRequest(r)
 	if err != nil {
 		log.Printf("❌ DEBUG: Invalid token: %v", err)
-		return "", "", fmt.Errorf("Invalid token: %v", err)
+		return "", "", 0, fmt.Errorf("Invalid token: %v", err)
 	}
 
-	return username, email, nil
+	username, email, tokenVersion, err := VerifyToken(token)
+	if err != nil {
+		log.Printf("❌ DEBUG: Invalid token: %v", err)
+		return "", "", 0, fmt.Errorf("Invalid token: %v", err)
+	}
+
+	return username, email, tokenVersion, nil
 }
