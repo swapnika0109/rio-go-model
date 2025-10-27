@@ -596,19 +596,6 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	userTokenVersion, err := h.storyDB.GetTokenVersion(ctx, email)
-	if err != nil {
-		logger.Printf("ERROR: Failed to get token version: %v", err)
-		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
-		return
-	}
-	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
-	if err != nil {
-		log.Printf("❌ DEBUG: Token version mismatch: %v, userTokenVersion: %d, tokenVersion: %d", err, userTokenVersion, tokenVersion)
-		logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
-		return
-	}
 
 	logger.Printf("INFO: Extracted username: %s, email: %s", username, email)
 	user, err := h.storyDB.GetUserProfileByEmail(r.Context(), email)
@@ -625,12 +612,24 @@ func (h *Story) UserProfile(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(response)
 		return
 	}
-
 	// Check if username matches
 	if userUsername, ok := user["username"].(string); !ok || userUsername != username {
 		logger.Println("WARNING: User profile not found")
 		response := map[string]interface{}{"exists": false, "user": (&model.UserProfile{}).FromMap(user)}
 		json.NewEncoder(w).Encode(response)
+		return
+	}
+	userTokenVersion, err := h.storyDB.GetTokenVersion(ctx, email)
+	if err != nil {
+		logger.Printf("ERROR: Failed to get token version: %v", err)
+		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+		return
+	}
+	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+	if err != nil {
+		log.Printf("❌ DEBUG: Token version mismatch: %v, userTokenVersion: %d, tokenVersion: %d", err, userTokenVersion, tokenVersion)
+		logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
 	logger.Printf("INFO: User profile data: %v", user)

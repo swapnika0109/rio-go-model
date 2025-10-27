@@ -1,14 +1,12 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"rio-go-model/internal/model"
 	"rio-go-model/internal/services/database"
 	"rio-go-model/internal/util"
-	"time"
 	// "strings"
 )
 
@@ -37,26 +35,26 @@ func NewTcHandler(tcDB *database.StoryDatabase) *TcHandler {
 // @Failure 500 {object} util.HttpError "Internal Server Error"
 // @Router /tc [post]
 func (h *TcHandler) HandleTc(w http.ResponseWriter, r *http.Request) {
-	_, email, tokenVersion, err := util.VerifyAuth(r)
+	_, email, _, err := util.VerifyAuth(r)
 	if err != nil {
 		h.logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	userTokenVersion, err := h.tcDB.GetTokenVersion(ctx, email)
-	if err != nil {
-		h.logger.Printf("ERROR: Failed to get token version: %v", err)
-		http.Error(w, "Failed to get token version", http.StatusInternalServerError)
-		return
-	}
-	err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
-	if err != nil {
-		h.logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
-		return
-	}
+	// ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// defer cancel()
+	// userTokenVersion, err := h.tcDB.GetTokenVersion(ctx, email)
+	// if err != nil {
+	// 	h.logger.Printf("ERROR: Failed to get token version: %v", err)
+	// 	http.Error(w, "Failed to get token version", http.StatusInternalServerError)
+	// 	return
+	// }
+	// err = util.VerifyUserTokenVersion(tokenVersion, userTokenVersion)
+	// if err != nil {
+	// 	h.logger.Printf("❌ DEBUG: Token version mismatch: %v", err)
+	// 	http.Error(w, "Invalid token", http.StatusUnauthorized)
+	// 	return
+	// }
 	var tc model.Tc
 	if err := json.NewDecoder(r.Body).Decode(&tc); err != nil {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
