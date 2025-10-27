@@ -3,7 +3,6 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"math"
 	"runtime"
 	"strings"
 	"sync"
@@ -485,15 +484,12 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 	if err != nil {
 		return fmt.Errorf("error checking existing topics: %v", err)
 	}
-	storiesToGenerate := sgh.settings.DefaultStoryToGenerate
+
 	if existing != nil && len(existing) >= sgh.settings.DefaultStoryToGenerate {
 		sgh.logger.Infof("Topics already exist for theme 1")
 		return nil
-	} else {
-		storiesToGenerate = storiesToGenerate - len(existing)
 	}
-
-	var storiesPerPreference = int(math.Round(float64(storiesToGenerate) / float64(len(preferences))))
+	storiesPerPreference := sgh.settings.DefaultStoryToGenerate
 	// var concatTopics = make(map[string][]string)
 	var wg sync.WaitGroup
 	topicSuccessResultChannel := make(chan topicWithKey)
@@ -613,7 +609,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 		return nil
 	}
 
-	storiesPerPreference := int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(religions))))
+	storiesPerPreference := sgh.settings.DefaultStoryToGenerate
 	topicSuccessResultChannel := make(chan topicWithKey)
 	var wg sync.WaitGroup
 	go sgh.listenTheme2(topicSuccessResultChannel, ctx, country, preferences, language)
@@ -683,7 +679,7 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	topicSuccessResultChannel := make(chan topicWithKey)
 	var wg sync.WaitGroup
 	go sgh.listenTheme3(topicSuccessResultChannel, ctx, language)
-	var storiesPerPreference = int(math.Round(float64(sgh.settings.DefaultStoryToGenerate) / float64(len(preferences))))
+	var storiesPerPreference = sgh.settings.DefaultStoryToGenerate
 	// log.Println("storiesPerPreference", storiesPerPreference)
 	for _, preference := range preferences {
 		theme3_id := uuid.New().String()
