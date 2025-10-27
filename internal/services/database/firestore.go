@@ -571,21 +571,28 @@ func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string,
 	var allDocs []*firestore.DocumentSnapshot
 	for _, preference := range preferences {
 		var query firestore.Query
-		if country == "Any" {
-			query = s.client.Collection(s.mdCollection1).
-				Where("language", "==", language).
-				Where("preference", "==", preference)
-		} else {
+		var iterationDocs []*firestore.DocumentSnapshot
+		var err error
+
+		if country != "Any" {
 			query = s.client.Collection(s.mdCollection1).
 				Where("language", "==", language).
 				Where("country", "==", country).
 				Where("city", "==", city).
 				Where("preference", "==", preference)
+			iterationDocs, err = query.Documents(ctx).GetAll()
+			if err != nil {
+				return nil, fmt.Errorf("error executing query: %v", err)
+			}
 		}
-
-		iterationDocs, err := query.Documents(ctx).GetAll()
-		if err != nil {
-			return nil, fmt.Errorf("error executing query: %v", err)
+		if country == "Any" || len(iterationDocs) == 0 {
+			query = s.client.Collection(s.mdCollection1).
+				Where("language", "==", language).
+				Where("preference", "==", preference)
+			iterationDocs, err = query.Documents(ctx).GetAll()
+			if err != nil {
+				return nil, fmt.Errorf("error executing query: %v", err)
+			}
 		}
 
 		if len(iterationDocs) == 0 {
@@ -684,22 +691,28 @@ func (s *StoryDatabase) ReadMDTopics2(ctx context.Context, country string, relig
 	var allDocs []*firestore.DocumentSnapshot
 	for _, religion := range religions {
 		var query firestore.Query
-		if country == "Any" {
-			query = s.client.Collection(s.mdCollection2).
-				Where("language", "==", language).
-				Where("religion", "==", religion).
-				Where("preferences", "array-contains-any", preferences)
-		} else {
+		var iterationDocs []*firestore.DocumentSnapshot
+		var err error
+		if country != "Any" {
 			query = s.client.Collection(s.mdCollection2).
 				Where("language", "==", language).
 				Where("country", "==", country).
 				Where("religion", "==", religion).
 				Where("preferences", "array-contains-any", preferences)
+			iterationDocs, err = query.Documents(ctx).GetAll()
+			if err != nil {
+				return nil, fmt.Errorf("error executing query: %v", err)
+			}
 		}
-
-		iterationDocs, err := query.Documents(ctx).GetAll()
-		if err != nil {
-			return nil, fmt.Errorf("error executing query: %v", err)
+		if religion == "Any" || len(iterationDocs) == 0 {
+			query = s.client.Collection(s.mdCollection2).
+				Where("language", "==", language).
+				Where("religion", "==", religion).
+				Where("preferences", "array-contains-any", preferences)
+			iterationDocs, err = query.Documents(ctx).GetAll()
+			if err != nil {
+				return nil, fmt.Errorf("error executing query: %v", err)
+			}
 		}
 		if len(iterationDocs) == 0 {
 			log.Printf("No metadata topics found for religion: %s", religion)
