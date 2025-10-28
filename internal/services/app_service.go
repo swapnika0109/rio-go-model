@@ -3,10 +3,16 @@ package services
 import (
 	"context"
 	"log"
-	// "time"
+	"sync"
 
 	"rio-go-model/configs"
 	"rio-go-model/internal/services/database"
+)
+
+var (
+	instance *AppService
+	once     sync.Once
+	mu       sync.RWMutex
 )
 
 // AppService manages the application lifecycle
@@ -14,6 +20,7 @@ type AppService struct {
 	config    *configs.Config
 	firestore *database.StoryDatabase
 	storage   *database.StorageService
+	mu        sync.RWMutex // For thread safety
 }
 
 // NewAppService creates a new app service
@@ -21,6 +28,28 @@ func NewAppService(config *configs.Config) *AppService {
 	return &AppService{
 		config: config,
 	}
+}
+
+// SetInstance sets the singleton instance (called once during initialization)
+func SetInstance(app *AppService) {
+	once.Do(func() {
+		instance = app
+	})
+}
+
+// GetAppService returns the singleton AppService instance
+func GetAppService() *AppService {
+	if instance == nil {
+		log.Panic("AppService not initialized. Call SetInstance() first.")
+	}
+	return instance
+}
+
+// IsInitialized checks if the AppService is initialized
+func IsInitialized() bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	return instance != nil
 }
 
 // Initialize initializes all services
@@ -61,7 +90,10 @@ func (a *AppService) initializeFirestore(ctx context.Context) error {
 		return err
 	}
 
+	a.mu.Lock()
 	a.firestore = firestoreClient
+	a.mu.Unlock()
+
 	log.Printf("✅ Firestore connected to project: %s", a.config.Firestore.ProjectID)
 	return nil
 }
@@ -88,18 +120,25 @@ func (a *AppService) initializeStorage(ctx context.Context) error {
 		return err
 	}
 
+	a.mu.Lock()
 	a.storage = storageClient
+	a.mu.Unlock()
+
 	log.Printf("✅ Google Cloud Storage connected to bucket: %s", bucketName)
 	return nil
 }
 
-// GetFirestore returns the StoryDatabase client
+// GetFirestore returns the StoryDatabase client (thread-safe)
 func (a *AppService) GetFirestore() *database.StoryDatabase {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return a.firestore
 }
 
-// GetStorage returns the Storage client
+// GetStorage returns the Storage client (thread-safe)
 func (a *AppService) GetStorage() *database.StorageService {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return a.storage
 }
 
