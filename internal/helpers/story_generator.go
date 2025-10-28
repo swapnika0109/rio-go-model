@@ -140,6 +140,7 @@ func (sgh *StoryGenerationHelper) GetCPUCore() int {
 func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_id, topic string, kwargs map[string]interface{}) error {
 	sgh.logger.Infof("Generating story for theme: %s, topic: %s", theme, topic)
 	var voice string
+	var isGemini bool
 	// Generate story using StoryCreator
 	var storyResponse *StoryGenerationResponse
 	isSuspended, err := sgh.storyDatabase.SuspendGeminiAPI(ctx, "gemini")
@@ -147,8 +148,10 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 	var response *model.StoryResponse
 	if (err != nil || isSuspended) && kwargs["language"].(string) != "Telugu" {
 		response, err = sgh.storyCreator.CreateStory(theme, topic, kwargs)
+		isGemini = false
 	} else {
 		response, err = sgh.geminiStoryGenerator.CreateStory(theme, topic, kwargs)
+		isGemini = true
 		sgh.storyDatabase.UpdateAPITokens(ctx, "gemini", (int64)(response.TotalTokens))
 	}
 
@@ -311,7 +314,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		return fmt.Errorf("file upload failed: %v", uploadErr)
 	}
 	var storyType string
-	if voice == tts.Chirp3HD.String() {
+	if voice == tts.Chirp3HD.String() && isGemini {
 		storyType = tts.StoryPremium.String()
 	} else {
 		storyType = tts.StoryFree.String()
@@ -395,7 +398,7 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 	defer util.RecoverPanic()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(3)
 
 	// This semaphore limits the total number of concurrent StoryHelper calls across all themes.
 	// A value of 5 is a safe starting point for a 2-CPU instance.
@@ -412,25 +415,25 @@ func (sgh *StoryGenerationHelper) runBackgroundTasks(email string, metadata *Met
 		wg.Done() // Ensure wg.Done() is called even on panic
 	})
 
-	// // Process theme 2 in a goroutine
-	// util.GoroutineWithRecoveryAndHandler(func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
-	// 		sgh.logger.Errorf("Theme 2 processing error: %v", err)
-	// 	}
-	// }, func(r interface{}) {
-	// 	wg.Done() // Ensure wg.Done() is called even on panic
-	// })
+	// Process theme 2 in a goroutine
+	util.GoroutineWithRecoveryAndHandler(func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme2(ctx, metadata.Country, metadata.Religions, metadata.Preferences, metadata.Language, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 2 processing error: %v", err)
+		}
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
-	// // Process theme 3 in a goroutine
-	// util.GoroutineWithRecoveryAndHandler(func() {
-	// 	defer wg.Done()
-	// 	if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, metadata.Language, semaphore); err != nil {
-	// 		sgh.logger.Errorf("Theme 3 processing error: %v", err)
-	// 	}
-	// }, func(r interface{}) {
-	// 	wg.Done() // Ensure wg.Done() is called even on panic
-	// })
+	// Process theme 3 in a goroutine
+	util.GoroutineWithRecoveryAndHandler(func() {
+		defer wg.Done()
+		if err := sgh.getDynamicPromptingTheme3(ctx, metadata.Preferences, metadata.Language, semaphore); err != nil {
+			sgh.logger.Errorf("Theme 3 processing error: %v", err)
+		}
+	}, func(r interface{}) {
+		wg.Done() // Ensure wg.Done() is called even on panic
+	})
 
 	// Wait for all theme processing to complete
 	wg.Wait()
@@ -489,15 +492,15 @@ func (sgh *StoryGenerationHelper) TopicsGenerator(ctx context.Context, prompt st
 func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context, country, city string, preferences []string, language string, semaphore chan struct{}) error {
 	sgh.logger.Infof("Starting theme 1 processing for country %s and city %s", country, city)
 	// Check if topics already exist
-	// existing, err := sgh.storyDatabase.ReadMDTopics1(ctx, country, city, preferences, language)
-	// if err != nil {
-	// 	return fmt.Errorf("error checking existing topics: %v", err)
-	// }
+	existing, err := sgh.storyDatabase.ReadMDTopics1(ctx, country, city, preferences, language)
+	if err != nil {
+		return fmt.Errorf("error checking existing topics: %v", err)
+	}
 
-	// if existing != nil && len(existing) >= sgh.settings.DefaultStoryToGenerate {
-	// 	sgh.logger.Infof("Topics already exist for theme 1")
-	// 	return nil
-	// }
+	if existing != nil && len(existing) >= sgh.settings.DefaultStoryToGenerate {
+		sgh.logger.Infof("Topics already exist for theme 1")
+		return nil
+	}
 	storiesPerPreference := sgh.settings.DefaultStoryToGenerate
 	// var concatTopics = make(map[string][]string)
 	var wg sync.WaitGroup

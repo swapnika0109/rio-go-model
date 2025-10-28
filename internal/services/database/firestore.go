@@ -565,7 +565,6 @@ func (s *StoryDatabase) ReadMDTopics1(ctx context.Context, country, city string,
 			query = s.client.Collection(s.MdCollection1).
 				Where("language", "==", language).
 				Where("country", "==", country).
-				Where("city", "==", city).
 				Where("preference", "==", preference)
 			iterationDocs, err = query.Documents(ctx).GetAll()
 			if err != nil {
