@@ -1,12 +1,10 @@
 package util
 
 import (
-	"fmt"
 	"log"
 	"regexp"
 	"strings"
 
-	"rio-go-model/configs"
 	"rio-go-model/configs/english"
 	"rio-go-model/configs/telugu"
 )
@@ -87,16 +85,6 @@ func GenerateFormattedPrompt(theme, topic string, kwargs map[string]interface{})
 		}
 		formattedPrompt = promptTemplate.Prompt
 		systemMessage = promptTemplate.System
-
-	default:
-		// Load a dynamic prompt template for unknown themes to avoid nil dereference
-		tmpl, err := getDynamicPromptConfig(theme)
-		if err != nil {
-			return "", "", err
-		}
-		promptTemplate = tmpl
-		formattedPrompt = fmt.Sprintf(promptTemplate.Prompt, topic, country, city, religion, preference)
-		systemMessage = promptTemplate.System
 	}
 
 	// Add preference-specific content
@@ -126,68 +114,6 @@ func GenerateFormattedPrompt(theme, topic string, kwargs map[string]interface{})
 type PromptTemplate struct {
 	Prompt string `json:"prompt"`
 	System string `json:"system"`
-}
-
-// getDynamicPromptConfig gets the dynamic prompt configuration for a theme
-func getDynamicPromptConfig(theme string) (*PromptTemplate, error) {
-	// Load settings to get the actual prompt configuration
-	settings := configs.GetSettings()
-
-	if config, exists := settings.GetDynamicPromptConfig(theme); exists {
-		return &PromptTemplate{
-			Prompt: config.Prompt,
-			System: config.System,
-		}, nil
-	}
-
-	// Fallback to default if theme not found
-	return &PromptTemplate{
-		Prompt: "Create a story about %s set in %s, %s. Include elements related to %s and incorporate these preferences: %s.",
-		System: "You are a creative storyteller who creates engaging stories for children.",
-	}, nil
-}
-
-// getPromptConfig gets the standard prompt configuration for a theme
-func getPromptConfig(theme string) (*PromptTemplate, error) {
-	// Load settings to get the actual prompt configuration
-	settings := configs.GetSettings()
-
-	if config, exists := settings.GetPromptConfig(theme); exists {
-		return &PromptTemplate{
-			Prompt: config.Prompt,
-			System: config.System,
-		}, nil
-	}
-
-	// Fallback to default if theme not found
-	return &PromptTemplate{
-		Prompt: "Create a story about %s.",
-		System: "You are a creative storyteller who creates engaging stories for children.",
-	}, nil
-}
-
-// getPreferenceContent gets the content for a specific preference
-func getPreferenceContent(preference string) string {
-	// Load settings to get the actual preference configuration
-	settings := configs.GetSettings()
-
-	if content, exists := settings.GetPreference(preference); exists {
-		return content
-	}
-
-	// Fallback preferences if not found in settings
-	fallbackPreferences := map[string]string{
-		"NATURE":     " Focus on environmental themes and natural elements.",
-		"ADVENTURE":  " Include exciting adventures and challenges.",
-		"FRIENDSHIP": " Emphasize friendship and cooperation.",
-		"LEARNING":   " Include educational elements and life lessons.",
-	}
-
-	if content, exists := fallbackPreferences[preference]; exists {
-		return content
-	}
-
-	return ""
 }
 
 // Helper functions for map operations

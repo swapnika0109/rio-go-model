@@ -33,7 +33,7 @@ func (s *StoryAudioCrud) ResetAudioByThemeID(ctx context.Context, themeID string
 		var audioData []byte
 		language := story["language"].(string)
 		theme := story["theme"].(string)
-		suspended, err := s.db.SuspendAudioAPI(ctx, "audio")
+		suspended, voice, err := s.db.SuspendAudioAPI(ctx, "audio")
 		if language != "Telugu" && (suspended || err != nil) {
 			if err != nil {
 				s.logger.Errorf("Failed to read audio api trigger: %v", err)
@@ -54,7 +54,7 @@ func (s *StoryAudioCrud) ResetAudioByThemeID(ctx context.Context, themeID string
 				continue
 			}
 
-			audioData, _, err = s.storyGenerator.audioStoryGenerator.GenerateAudioAdapter(story["story_text"].(string), language, theme)
+			audioData, _, err = s.storyGenerator.audioStoryGenerator.GenerateAudioAdapter(story["story_text"].(string), language, theme, voice)
 			if err != nil {
 				s.logger.Errorf("GenerateAudioAdapter failed: %v", err)
 			} else {

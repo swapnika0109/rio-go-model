@@ -5,8 +5,34 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"rio-go-model/configs"
+	"rio-go-model/internal/services/tts"
+
+	"log"
+
 	"golang.org/x/net/html"
 )
+
+func GetVoiceList(voice string) []string {
+	switch voice {
+	case tts.Chirp3HD.String():
+		log.Println("Chirp3HD voices: %v", configs.GlobalSettings.ChirpVoices)
+		return configs.GlobalSettings.ChirpVoices
+	// case tts.WaveNet.String():
+	// 	log.Println("WaveNet voices: %v", configs.GlobalSettings.WaveNetVoices)
+	// 	return configs.GlobalSettings.WaveNetVoices
+	case tts.Standard.String():
+		log.Println("Standard voices: %v", configs.GlobalSettings.StandardVoices)
+		return configs.GlobalSettings.StandardVoices
+	}
+	return nil
+}
+
+func GetVoice(languageCode string, no int, voiceList []string) string {
+	voice := voiceList[no]
+	finalVoice := languageCode + voice
+	return finalVoice
+}
 
 // CountBillableCharacters estimates billable chars for Google TTS.
 // - If input is SSML, pass isSSML=true; tags are ignored.

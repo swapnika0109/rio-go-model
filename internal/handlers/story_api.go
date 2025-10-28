@@ -307,6 +307,7 @@ func (h *Story) ListStories(w http.ResponseWriter, r *http.Request) {
 	})
 
 	username, email, tokenVersion, err := util.VerifyAuth(r)
+	logger.Printf("DEBUG: Username: %s, Email: %s, Token version: %s", username, email, tokenVersion)
 	if err != nil {
 		logger.Printf("WARNING: Invalid token: %v", err)
 		http.Error(w, "Invalid token", http.StatusUnauthorized)

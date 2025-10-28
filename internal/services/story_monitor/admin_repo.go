@@ -33,9 +33,11 @@ func (a *AdminRepo) DeleteStoryByID(ctx context.Context, storyID string) error {
 	audioUrl := storyData["audio_url"].(string)
 	imageUrl := storyData["image_url"].(string)
 	if audioUrl != "" {
+		a.logger.Infof("Deleting audio file: %s", audioUrl)
 		a.storage.DeleteFile(audioUrl)
 	}
 	if imageUrl != "" {
+		a.logger.Infof("Deleting image file: %s", imageUrl)
 		a.storage.DeleteFile(imageUrl)
 	}
 	a.db.DeleteStory(ctx, storyID)
@@ -70,9 +72,11 @@ func (a *AdminRepo) DeleteStoryByID(ctx context.Context, storyID string) error {
 				continue
 			} else {
 				finalTopics = append(finalTopics, topicStr)
+				a.logger.Infof("Deleting topic: %s", topicStr)
 			}
 		}
 		docData["topics"] = finalTopics
+		a.logger.Infof("Updating metadata topics: %v", docData["topics"])
 		switch theme {
 		case "1":
 			_, err = a.db.GetClient().Collection(a.db.MdCollection1).Doc(doc.Ref.ID).Set(ctx, docData)

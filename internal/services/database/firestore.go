@@ -10,9 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"rio-go-model/configs"
 	"rio-go-model/internal/model"
 	"rio-go-model/internal/util"
+
+	"rio-go-model/internal/services/tts"
 
 	"cloud.google.com/go/firestore"
 	"google.golang.org/api/iterator"
@@ -39,11 +40,12 @@ func getNextMonthResetTime() time.Time {
 	return secondDayOfNextMonth
 }
 
-// APITriggerOptions represents optional parameters for creating API triggers
 type APITriggerOptions struct {
-	BudgetAmount *float64 // Pointer to allow nil (optional)
-	CostAmount   *float64 // Pointer to allow nil (optional)
-	Tag          *string  // Pointer to allow nil (optional)
+	DisplayName  string  `json:"budgetDisplayName"`
+	Threshold    float64 `json:"alertThresholdExceeded"`
+	CostAmount   float64 `json:"costAmount"`
+	BudgetAmount float64 `json:"budgetAmount"`
+	Currency     string  `json:"currencyCode"`
 }
 
 // safeStringSlice converts interface{} to []string safely
@@ -194,32 +196,27 @@ func (s *StoryDatabase) CreateAPITrigger(ctx context.Context, api_model string, 
 // This is a more type-safe alternative to the variadic approach
 // Usage examples:
 //
-//	CreateAPITriggerWithOptions(ctx, "gemini", nil)  // Basic usage
-//	CreateAPITriggerWithOptions(ctx, "gemini", &APITriggerOptions{BudgetAmount: &budget, CostAmount: &cost})  // With budget and cost
-//	CreateAPITriggerWithOptions(ctx, "gemini", &APITriggerOptions{BudgetAmount: &budget, CostAmount: &cost, Tag: &tag})  // With all parameters
-func (s *StoryDatabase) CreateAPITriggerWithOptions(ctx context.Context, api_model string, options *APITriggerOptions) (string, error) {
+//	CreateAPITriggerWithOptions(ctx, "audio", nil)  // Basic usage
+//	CreateAPITriggerWithOptions(ctx, "audio", &APITriggerOptions{BudgetAmount: &budget, CostAmount: &cost})  // With budget and cost
+//	CreateAPITriggerWithOptions(ctx, "audio", &APITriggerOptions{BudgetAmount: &budget, CostAmount: &cost, Tag: &tag})  // With all parameters
+func (s *StoryDatabase) CreateAPIAudioTrigger(ctx context.Context, api_model string, options *APITriggerOptions) (string, error) {
 	log.Printf("Creating API Trigger for %s with options", api_model)
-
 	// Initialize userData with required fields
 	userData := map[string]interface{}{
-		"suspend":    true,
-		"created_at": getUTCTimestamp(),
-		"updated_at": getUTCTimestamp(),
-		"reset_at":   getNextMonthResetTime(),
-		"api_model":  api_model,
+		"created_at":   getUTCTimestamp(),
+		"updated_at":   getUTCTimestamp(),
+		"reset_at":     getNextMonthResetTime(),
+		"api_model":    api_model,
+		"tag":          tts.Chirp3HD.String(),
+		"budgetAmount": options.BudgetAmount,
+		"costAmount":   options.CostAmount,
+		"threshold":    options.Threshold,
+		"displayName":  options.DisplayName,
+		"currency":     options.Currency,
 	}
 
-	// Add optional fields if provided
-	if options != nil {
-		if options.BudgetAmount != nil {
-			userData["budgetAmount"] = *options.BudgetAmount
-		}
-		if options.CostAmount != nil {
-			userData["costAmount"] = *options.CostAmount
-		}
-		if options.Tag != nil {
-			userData["tag"] = *options.Tag
-		}
+	if options.Threshold > 0.25 {
+		userData["tag"] = tts.Standard.String()
 	}
 
 	_, err := s.client.Collection(s.apiTrigger).Doc(api_model).Set(ctx, userData)
@@ -231,61 +228,39 @@ func (s *StoryDatabase) CreateAPITriggerWithOptions(ctx context.Context, api_mod
 }
 
 // Create Trigger Document on a user
-func (s *StoryDatabase) SuspendAudioAPI(ctx context.Context, api_model string) (bool, error) {
+func (s *StoryDatabase) SuspendAudioAPI(ctx context.Context, api_model string) (bool, string, error) {
 	log.Printf("Reading API Trigger for %s", api_model)
 	data, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
 	if err != nil {
-		return false, fmt.Errorf("error reading api model: %v", err)
+		return false, "", fmt.Errorf("error reading api model: %v", err)
 	}
 	curr_time := getUTCTimestamp()
 	reset_at := data.Data()["reset_at"].(time.Time)
 
 	// Handle both int64 and float64 types for costAmount
-	costAmount, ok := data.Data()["costAmount"].(float64)
+	threshold, ok := data.Data()["threshold"].(float64)
 	if !ok {
-		if intVal, intOk := data.Data()["costAmount"].(int64); intOk {
-			costAmount = float64(intVal)
+		if intVal, intOk := data.Data()["threshold"].(int64); intOk {
+			threshold = float64(intVal)
 		} else {
-			costAmount = 0
+			threshold = 0
 		}
 	}
-
-	// Handle both int64 and float64 types for budgetAmount
-	budgetAmount, ok := data.Data()["budgetAmount"].(float64)
+	tag, ok := data.Data()["tag"].(string)
 	if !ok {
-		if intVal, intOk := data.Data()["budgetAmount"].(int64); intOk {
-			budgetAmount = float64(intVal)
+		if intVal, intOk := data.Data()["tag"].(int64); intOk {
+			tag = string(intVal)
 		} else {
-			budgetAmount = 0
+			tag = ""
 		}
 	}
-
-	thresholdPercCal := (costAmount / budgetAmount) * 100
-	tag := data.Data()["tag"].(string)
-	log.Printf("Threshold percentage: %f", thresholdPercCal)
-	log.Printf("Tag: %s", tag)
-	log.Printf("Current time: %s", curr_time)
-	log.Printf("Reset time: %s", reset_at)
-	log.Printf("API model: %s", api_model)
-	log.Printf("Cost amount: %f", costAmount)
-	log.Printf("Budget amount: %f", budgetAmount)
-	if api_model == "audio" && thresholdPercCal >= 25 && tag == "-Chirp3-HD-Gacrux" && curr_time.Before(reset_at) {
-		// Switch to Standard voice globally once threshold is hit
-		configs.UseStandardVoice()
-		s.CreateAPITrigger(ctx, "audio", costAmount, budgetAmount, configs.GetActiveVoiceSuffix())
-		return false, nil
+	if curr_time.After(reset_at) {
+		s.CreateAPITrigger(ctx, "audio", tts.Chirp3HD.String(), &APITriggerOptions{BudgetAmount: 0, CostAmount: 0, Threshold: 0, DisplayName: "", Currency: ""})
 	}
-	//If the threshold percentage is greater than 90% and the current time is before the reset time, return true
-	if thresholdPercCal >= 80 && curr_time.Before(reset_at) {
-		return true, nil
-	} else if !reset_at.IsZero() && curr_time.After(reset_at) {
-		log.Printf("Resetting audio api trigger to")
-		configs.UseChirpVoice()
-		s.CreateAPITrigger(ctx, "audio", costAmount, budgetAmount, configs.GetActiveVoiceSuffix())
-		return false, nil
-	} else {
-		return false, nil
+	if threshold >= 0.88 {
+		return true, tag, nil
 	}
+	return false, tag, nil
 }
 
 func (s *StoryDatabase) SuspendGeminiAPI(ctx context.Context, api_model string) (bool, error) {

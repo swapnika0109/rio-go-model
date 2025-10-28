@@ -11,7 +11,6 @@ import (
 
 	"rio-go-model/internal/util"
 
-	"rio-go-model/configs"
 	"rio-go-model/internal/util/tokens"
 
 	texttospeech "cloud.google.com/go/texttospeech/apiv1"
@@ -68,17 +67,18 @@ func NewGoogleTTS() *GoogleTTS {
 	}
 }
 
-func (g *GoogleTTS) GenerateAudioAdapter(text string, language string, theme string) ([]byte, int32, error) {
+func (g *GoogleTTS) GenerateAudioAdapter(text string, language string, theme string, voice string) ([]byte, int32, error) {
 	g.Logger.Printf("GenerateAudioAdapter called - Language: %s, Text length: %d, Theme: %s", language, len(text), theme)
 	var ssml string
 	var totalTokens int32
-	languageCode := util.LanguageMapper(theme)
-	no, err := util.RandomFromLength(len(configs.GlobalSettings.ChirpVoices))
+	languageCode := util.LanguageMapper(language, theme)
+	voiceList := util.GetVoiceList(voice)
+	no, err := util.RandomFromLength(len(voiceList))
 	if err != nil {
 		g.Logger.Printf("Failed to get random voice number: %v", err)
 		return nil, totalTokens, fmt.Errorf("failed to get random voice number: %v", err)
 	}
-	languageName := configs.GetChirpVoices(languageCode, no)
+	languageName := util.GetVoice(languageCode, no, voiceList)
 	log.Println("Language name: %s", languageName)
 	// voices, err := g.ListVoices(languageCode)
 	// if err != nil {
@@ -88,20 +88,19 @@ func (g *GoogleTTS) GenerateAudioAdapter(text string, language string, theme str
 	// g.Logger.Printf("Voices: %v", voices)
 	g.Logger.Printf("Mapped language code: %s, Voice name: %s", languageCode, languageName)
 
-	if language == "Telugu" && languageName == "-Standard-C" {
-		g.Logger.Printf("Processing Telugu text with SSML...")
-		teluguSSMLBuilder := util.NewTeluguSSMLBuilder()
-		ssml = teluguSSMLBuilder.BuildTeluguSSML(text)
-		g.Logger.Printf("Generated Telugu SSML length: %d bytes", len(ssml))
-		languageName = configs.BuildTeluguVoiceName(languageCode)
-		g.Logger.Printf("Updated voice name for Telugu: %s", languageName)
-		// Check if SSML exceeds 5000 byte limit
-		if len(ssml) > 5000 {
-			g.Logger.Printf("SSML exceeds 5000 byte limit (%d bytes), splitting into chunks...", len(ssml))
-			audio, err := g.generateAudioInChunks(text, language, languageCode, languageName)
-			return audio, totalTokens, err
-		}
-	}
+	// if language == "Telugu" && voice == tts.Standard.String() {
+	// 	g.Logger.Printf("Processing Telugu text with SSML...")
+	// 	teluguSSMLBuilder := util.NewTeluguSSMLBuilder()
+	// 	ssml = teluguSSMLBuilder.BuildTeluguSSML(text)
+	// 	g.Logger.Printf("Generated Telugu SSML length: %d bytes", len(ssml))
+	// 	g.Logger.Printf("Updated voice name for Telugu: %s", languageName)
+	// 	// Check if SSML exceeds 5000 byte limit
+	// 	if len(ssml) > 5000 {
+	// 		g.Logger.Printf("SSML exceeds 5000 byte limit (%d bytes), splitting into chunks...", len(ssml))
+	// 		audio, err := g.generateAudioInChunks(text, language, languageCode, languageName)
+	// 		return audio, totalTokens, err
+	// 	}
+	// }
 
 	// Check if normal text exceeds 5000 byte limit (for non-SSML languages)
 	if len(ssml) == 0 && len(text) > 5000 {
