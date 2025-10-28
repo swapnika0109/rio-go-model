@@ -30,7 +30,7 @@ import (
 	"rio-go-model/configs"
 	"rio-go-model/docs"
 	"rio-go-model/internal/handlers"
-	"rio-go-model/internal/services/database"
+	"rio-go-model/internal/services"
 	"rio-go-model/internal/util"
 
 	"github.com/gorilla/mux"
@@ -39,9 +39,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 )
 
-// Global variables for services and handler, initialized in background
-var storyDB *database.StoryDatabase
-var storageService *database.StorageService
+// Handler variables
 var storyTopicsHandler *handlers.Story
 var authHandler *handlers.AuthHandler
 var emailHandler *handlers.Email
@@ -49,8 +47,7 @@ var tcHandler *handlers.TcHandler
 var storyFeedbackHandler *handlers.StoryFeedbackHandler
 var pubSubHandler *handlers.PubSubHandler
 
-// var servicesReady bool // No longer needed
-
+// init initializes services and handlers
 func init() {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -60,28 +57,31 @@ func init() {
 	// Initialize global settings first
 	configs.InitializeSettings()
 
-	// Database
-	storyDB = database.NewStoryDatabase()
-	if err := storyDB.Init(ctx); err != nil {
-		log.Fatalf("❌ Failed to initialize database: %v", err)
-	}
-	log.Println("✅ Database service initialized successfully")
+	// Create and initialize AppService
+	config := configs.LoadConfig()
+	appService := services.NewAppService(config)
 
-	// Storage
-	storageService = database.NewStorageService("kutty_bucket")
-	if err := storageService.Init(ctx); err != nil {
-		log.Fatalf("❌ Failed to initialize storage service: %v", err)
+	// Initialize all services (Firestore, Storage, etc.)
+	if err := appService.Initialize(ctx); err != nil {
+		log.Fatalf("❌ Failed to initialize AppService: %v", err)
 	}
-	log.Println("✅ Storage service initialized successfully")
 
-	// Handlers
-	storyTopicsHandler = handlers.NewStory(storyDB, storageService)
-	authHandler = handlers.NewAuthHandler(storyDB)
+	// Set the singleton instance
+	services.SetInstance(appService)
+	log.Println("✅ AppService singleton initialized successfully")
+
+	// Create handlers with services from AppService
+	storyTopicsHandler = handlers.NewStory(
+		appService.GetFirestore(),
+		appService.GetStorage(),
+	)
+	authHandler = handlers.NewAuthHandler(appService.GetFirestore())
 	emailHandler = &handlers.Email{}
-	tcHandler = handlers.NewTcHandler(storyDB)
-	storyFeedbackHandler = handlers.NewStoryFeedbackHandler(storyDB)
-	pubSubHandler = handlers.NewPubSubHandler(storyDB)
-	log.Println("✅ All services initialized successfully!")
+	tcHandler = handlers.NewTcHandler(appService.GetFirestore())
+	storyFeedbackHandler = handlers.NewStoryFeedbackHandler(appService.GetFirestore())
+	pubSubHandler = handlers.NewPubSubHandler(appService.GetFirestore())
+
+	log.Println("✅ All handlers initialized successfully!")
 }
 
 func main() {
@@ -253,15 +253,21 @@ func main() {
 		Handler: c.Handler(r),
 	}
 
-	// Start server immediately in main thread
-	log.Printf("🌐 Starting server on :%s", port)
-	log.Printf("📚 Documentation available at: http://localhost:%s/docs", port)
-	log.Println("🔒 All APIs require authentication")
-	log.Println("✅ Server is ready to accept connections")
+	// Start server in a goroutine
+	go func() {
+		log.Printf("🌐 Starting server on :%s", port)
+		log.Printf("📚 Documentation available at: http://localhost:%s/docs", port)
+		log.Println("🔒 All APIs require authentication")
+		log.Println("✅ Server is ready to accept connections")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("❌ Server error: %v", err)
+		}
+	}()
 
-	// Start server in main thread - this will block until shutdown
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("❌ Server error: %v", err)
-	}
-	// Forcing redeployment to fix clock skew issue.
+	// Wait for interrupt signal to gracefully shutdown the server
+	// This would require adding signal handling, but for now we'll leave it simple
+	// In production, you'd use os.Signal and context for graceful shutdown
+
+	// For now, just block
+	select {}
 }

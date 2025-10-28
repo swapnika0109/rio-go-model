@@ -6,9 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"regexp"
 	"rio-go-model/internal/services/database"
-	"strconv"
 )
 
 type PubSubHandler struct {
@@ -63,8 +61,8 @@ func (h *PubSubHandler) PubSubPushGeminiHandler(w http.ResponseWriter, r *http.R
 		decoded = []byte(push.Message.Data)
 	}
 
-	log.Printf("PubSub messageId=%s attrs=%v data=%s", push.Message.MessageID, push.Message.Attributes, string(decoded))
-	cost, budget, ok := extractBudgetNumbers(string(decoded))
+	log.Printf("PubSub messageId=%s attrs=%v data=%s", push.Message.MessageID, push.Message.Attributes, decoded)
+	cost, budget, ok := extractBudgetNumbers(decoded)
 	if !ok {
 		log.Printf("warning: failed to extract budget numbers")
 		w.WriteHeader(http.StatusOK)
@@ -116,8 +114,8 @@ func (h *PubSubHandler) PubSubPushAudioHandler(w http.ResponseWriter, r *http.Re
 		decoded = []byte(push.Message.Data)
 	}
 
-	log.Printf("PubSub messageId=%s attrs=%v data=%s", push.Message.MessageID, push.Message.Attributes, string(decoded))
-	cost, budget, ok := extractBudgetNumbers(string(decoded))
+	log.Printf("PubSub messageId=%s attrs=%v data=%s", push.Message.MessageID, push.Message.Attributes, decoded)
+	cost, budget, ok := extractBudgetNumbers(decoded)
 	if !ok {
 		log.Printf("warning: failed to extract budget numbers")
 		w.WriteHeader(http.StatusOK)
@@ -147,28 +145,22 @@ func shouldIgnoreByBudget(cost float64, budget float64) bool {
 	return cost < 0.9*budget
 }
 
-// extractBudgetNumbers pulls costAmount and budgetAmount as floats from arbitrary text.
-func extractBudgetNumbers(s string) (cost float64, budget float64, ok bool) {
-	// Matches: "costAmount": 12.34 or 'costAmount': 12.34
-	costRe := regexp.MustCompile(`(?i)\bcostAmount\b\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)`)
-	budgetRe := regexp.MustCompile(`(?i)\bbudgetAmount\b\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)`)
-
-	costStr := firstGroup(costRe.FindStringSubmatch(s))
-	budgetStr := firstGroup(budgetRe.FindStringSubmatch(s))
-	if costStr == "" || budgetStr == "" {
-		return 0, 0, false
-	}
-	c, err1 := strconv.ParseFloat(costStr, 64)
-	b, err2 := strconv.ParseFloat(budgetStr, 64)
-	if err1 != nil || err2 != nil {
-		return 0, 0, false
-	}
-	return c, b, true
+type PubSubData struct {
+	DisplayName  string  `json:"budgetDisplayName"`
+	Threshold    float64 `json:"alertThresholdExceeded"`
+	CostAmount   float64 `json:"costAmount"`
+	BudgetAmount float64 `json:"budgetAmount"`
+	Currency     string  `json:"currencyCode"`
 }
 
-func firstGroup(matches []string) string {
-	if len(matches) >= 2 {
-		return matches[1]
+// extractBudgetNumbers parses JSON data to extract costAmount and budgetAmount
+func extractBudgetNumbers(s []byte) (cost float64, budget float64, ok bool) {
+	var data PubSubData
+	if err := json.Unmarshal(s, &data); err != nil {
+		log.Printf("DEBUG: JSON unmarshal failed: %v", err)
+		return 0, 0, false
 	}
-	return ""
+
+	log.Printf("DEBUG: Parsed data - costAmount: %f, budgetAmount: %f", data.CostAmount, data.BudgetAmount)
+	return data.CostAmount, data.BudgetAmount, true
 }
