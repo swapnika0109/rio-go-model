@@ -974,8 +974,8 @@ func (a *AppHelper) GetDocID(title, theme string) string {
 	return fmt.Sprintf("%s_%s", title, theme)
 }
 
-func (s *StoryDatabase) UpdateAPITokens(ctx context.Context, api_model string, tokensUsed int32) (string, error) {
-	log.Printf("Updating API Trigger for %s is %d", api_model, tokensUsed)
+func (s *StoryDatabase) UpdateAPITokens(ctx context.Context, api_model string, tokensToAdd int64) (string, error) {
+	log.Printf("Updating API Trigger for %s is %d", api_model, tokensToAdd)
 	ud, err := s.client.Collection(s.apiTrigger).Doc(api_model).Get(ctx)
 	var userData map[string]interface{}
 	if err != nil {
@@ -987,20 +987,24 @@ func (s *StoryDatabase) UpdateAPITokens(ctx context.Context, api_model string, t
 			"api_model":    api_model,
 			"budgetAmount": 0,
 			"costAmount":   0,
+			"threshold":    0,
+			"displayName":  "",
+			"currency":     "",
 			"tag":          "",
 		}
 	} else {
 		log.Printf("Else: Updating API Trigger for %s is %d", api_model, ud.Data()["tokensUsed"])
 		userData = ud.Data()
 	}
-	var allTokensUsed int32
-	var ok bool
 	log.Printf(" token used: %v", userData["tokensUsed"])
-	if allTokensUsed, ok = userData["tokensUsed"].(int32); ok {
+	tokensUsed := userData["tokensUsed"].(int64)
+	var allTokensUsed int64
+
+	if tokensUsed > 0 {
 		log.Printf("All tokens used for %d is %d", tokensUsed, allTokensUsed)
-		allTokensUsed += tokensUsed
+		allTokensUsed = tokensUsed + tokensToAdd
 	} else {
-		allTokensUsed = tokensUsed
+		allTokensUsed = tokensToAdd
 		log.Printf("Else: All tokens used for %d is %d", tokensUsed, allTokensUsed)
 	}
 	log.Printf("Updating API Trigger for %s is %d", api_model, allTokensUsed)

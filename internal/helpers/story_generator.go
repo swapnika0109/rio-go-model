@@ -149,7 +149,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		response, err = sgh.storyCreator.CreateStory(theme, topic, kwargs)
 	} else {
 		response, err = sgh.geminiStoryGenerator.CreateStory(theme, topic, kwargs)
-		sgh.storyDatabase.UpdateAPITokens(ctx, "gemini", (int32)(response.TotalTokens))
+		sgh.storyDatabase.UpdateAPITokens(ctx, "gemini", (int64)(response.TotalTokens))
 	}
 
 	if err != nil {
@@ -212,7 +212,7 @@ func (sgh *StoryGenerationHelper) StoryHelper(ctx context.Context, theme, theme_
 		} else {
 			sgh.logger.Infof("Using Google Audio API to generate story audio...")
 			audioData, totalTokens, err = sgh.audioStoryGenerator.GenerateAudioAdapter(storyResponse.StoryText, language, theme, voice)
-			sgh.storyDatabase.UpdateAPITokens(ctx, "audio", (int32)(totalTokens))
+			sgh.storyDatabase.UpdateAPITokens(ctx, "audio", (int64)(totalTokens))
 		}
 		audioResultChan <- struct {
 			data []byte
