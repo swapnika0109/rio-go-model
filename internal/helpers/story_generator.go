@@ -502,6 +502,9 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme1(ctx context.Context,
 		return nil
 	}
 	storiesPerPreference := sgh.settings.DefaultStoryToGenerate
+	if storiesPerPreference == 0 {
+		return nil
+	}
 	// var concatTopics = make(map[string][]string)
 	var wg sync.WaitGroup
 	topicSuccessResultChannel := make(chan topicWithKey)
@@ -622,6 +625,9 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme2(ctx context.Context,
 	}
 
 	storiesPerPreference := sgh.settings.DefaultStoryToGenerate
+	if storiesPerPreference == 0 {
+		return nil
+	}
 	topicSuccessResultChannel := make(chan topicWithKey)
 	var wg sync.WaitGroup
 	go sgh.listenTheme2(topicSuccessResultChannel, ctx, country, preferences, language)
@@ -692,6 +698,9 @@ func (sgh *StoryGenerationHelper) getDynamicPromptingTheme3(ctx context.Context,
 	var wg sync.WaitGroup
 	go sgh.listenTheme3(topicSuccessResultChannel, ctx, language)
 	var storiesPerPreference = sgh.settings.DefaultStoryToGenerate
+	if storiesPerPreference == 0 {
+		return nil
+	}
 	// log.Println("storiesPerPreference", storiesPerPreference)
 	for _, preference := range preferences {
 		theme3_id := uuid.New().String()
