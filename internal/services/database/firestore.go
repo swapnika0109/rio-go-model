@@ -996,7 +996,10 @@ func (s *StoryDatabase) UpdateAPITokens(ctx context.Context, api_model string, t
 		userData = ud.Data()
 	}
 	log.Printf(" token used: %v", userData["tokensUsed"])
-	tokensUsed := userData["tokensUsed"].(int64)
+	tokensUsed, ok := userData["tokensUsed"].(int64)
+	if !ok {
+		tokensUsed = 0
+	}
 	var allTokensUsed int64
 
 	if tokensUsed > 0 {

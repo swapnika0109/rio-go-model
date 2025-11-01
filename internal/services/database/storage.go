@@ -50,6 +50,10 @@ func (s *StorageService) Init(ctx context.Context) error {
 		return fmt.Errorf("failed to create storage client: %v", err)
 	}
 
+	if client == nil {
+		return fmt.Errorf("storage client is nil after creation")
+	}
+
 	s.client = client
 	s.bucket = client.Bucket(s.bucketName)
 

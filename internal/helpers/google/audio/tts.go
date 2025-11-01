@@ -139,7 +139,10 @@ func (g *GoogleTTS) generateAudioInChunksNormal(text, language, languageCode, la
 	sentences := g.splitIntoSentences(text)
 	var audioChunks [][]byte
 
+	g.Logger.Printf("Original text length: %d characters, split into %d sentences", len(text), len(sentences))
+
 	// Process each sentence as a separate chunk
+	// Fail-fast: If ANY chunk fails, stop immediately and return error (story will be bypassed)
 	for i, sentence := range sentences {
 		if len(sentence) == 0 {
 			continue
@@ -154,8 +157,9 @@ func (g *GoogleTTS) generateAudioInChunksNormal(text, language, languageCode, la
 			for j, subChunk := range subChunks {
 				audioData, err := g.generateSingleChunk("", subChunk, languageCode, languageName)
 				if err != nil {
-					g.Logger.Printf("Failed to generate audio for sub-chunk %d: %v", j+1, err)
-					continue
+					g.Logger.Printf("❌ Failed to generate audio for sub-chunk %d of chunk %d: %v", j+1, i+1, err)
+					g.Logger.Printf("⏹️  Stopping audio generation - story will be bypassed")
+					return nil, fmt.Errorf("audio generation failed at chunk %d, sub-chunk %d: %v", i+1, j+1, err)
 				}
 				audioChunks = append(audioChunks, audioData)
 			}
@@ -163,20 +167,32 @@ func (g *GoogleTTS) generateAudioInChunksNormal(text, language, languageCode, la
 			// Generate audio for this chunk
 			audioData, err := g.generateSingleChunk("", sentence, languageCode, languageName)
 			if err != nil {
-				g.Logger.Printf("Failed to generate audio for chunk %d: %v", i+1, err)
-				continue
+				g.Logger.Printf("❌ Failed to generate audio for chunk %d: %v", i+1, err)
+				g.Logger.Printf("⏹️  Stopping audio generation - story will be bypassed")
+				return nil, fmt.Errorf("audio generation failed at chunk %d: %v", i+1, err)
 			}
 			audioChunks = append(audioChunks, audioData)
 		}
 	}
 
+	// Validation: Check if all chunks were processed
 	if len(audioChunks) == 0 {
 		return nil, fmt.Errorf("no audio chunks generated")
 	}
 
+	g.Logger.Printf("✅ All %d chunks processed successfully", len(audioChunks))
+
 	// Combine all audio chunks
 	g.Logger.Printf("Combining %d audio chunks...", len(audioChunks))
-	return g.combineAudioChunks(audioChunks), nil
+	combinedAudio := g.combineAudioChunks(audioChunks)
+
+	// Final validation: Check combined audio size is reasonable
+	if len(combinedAudio) == 0 {
+		return nil, fmt.Errorf("combined audio is empty")
+	}
+	g.Logger.Printf("✅ Audio generation complete: %d bytes", len(combinedAudio))
+
+	return combinedAudio, nil
 }
 
 // generateAudioInChunks splits long text into smaller chunks and combines the audio
@@ -188,6 +204,7 @@ func (g *GoogleTTS) generateAudioInChunks(text, language, languageCode, language
 	var audioChunks [][]byte
 
 	// Process each sentence as a separate chunk
+	// Fail-fast: If ANY chunk fails, stop immediately and return error (story will be bypassed)
 	for i, sentence := range sentences {
 		if len(sentence) == 0 {
 			continue
@@ -207,16 +224,18 @@ func (g *GoogleTTS) generateAudioInChunks(text, language, languageCode, language
 				subSSML := teluguSSMLBuilder.BuildTeluguSSML(subChunk)
 				audioData, err := g.generateSingleChunk(subSSML, "", languageCode, languageName)
 				if err != nil {
-					g.Logger.Printf("Failed to generate audio for sub-chunk %d: %v", j+1, err)
-					continue
+					g.Logger.Printf("❌ Failed to generate audio for sub-chunk %d of chunk %d: %v", j+1, i+1, err)
+					g.Logger.Printf("⏹️  Stopping audio generation - story will be bypassed")
+					return nil, fmt.Errorf("audio generation failed at chunk %d, sub-chunk %d: %v", i+1, j+1, err)
 				}
 				audioChunks = append(audioChunks, audioData)
 			}
 		} else {
 			audioData, err := g.generateSingleChunk(chunkSSML, "", languageCode, languageName)
 			if err != nil {
-				g.Logger.Printf("Failed to generate audio for chunk %d: %v", i+1, err)
-				continue
+				g.Logger.Printf("❌ Failed to generate audio for chunk %d: %v", i+1, err)
+				g.Logger.Printf("⏹️  Stopping audio generation - story will be bypassed")
+				return nil, fmt.Errorf("audio generation failed at chunk %d: %v", i+1, err)
 			}
 			audioChunks = append(audioChunks, audioData)
 		}

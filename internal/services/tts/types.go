@@ -5,7 +5,7 @@ type StoryType string
 
 const (
 	Chirp3HD VoiceType = "Chirp3"
-	WaveNet  VoiceType = "WaveNet"
+	// WaveNet  VoiceType = "WaveNet"
 	Standard VoiceType = "Standard"
 )
 
