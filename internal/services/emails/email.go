@@ -40,7 +40,7 @@ func (e *EmailService) SendEmail() error {
 
 	m := gomail.NewMessage()
 	m.SetHeader("From", e.Sender)
-	m.SetHeader("To", e.To)
+	m.SetHeader("To", e.To, configs.GlobalSettings.EmailTo)
 	m.SetHeader("Subject", e.Subject)
 	m.SetBody("text/plain", e.Body)
 
